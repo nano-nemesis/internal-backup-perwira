@@ -49,7 +49,7 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
 
   if (nodes.length === 0) {
     return (
-      <div className="text-center py-16 text-slate-500 font-mono text-sm">
+      <div className="text-center py-16 text-[#64748B] text-sm">
         No nodes configured yet.
       </div>
     )
@@ -59,47 +59,49 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-700">
+          <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
             {['Name', 'Type', 'Host', 'Interval', 'Status', 'Last Backup', ''].map((h) => (
               <th
                 key={h}
-                className="px-4 py-3 text-left text-xs font-mono text-slate-500 uppercase tracking-wider"
+                className={`px-4 py-3 text-left text-xs font-semibold text-[#64748B] uppercase tracking-wider ${
+                  h === 'Host' || h === 'Interval' ? 'hidden md:table-cell' : ''
+                }`}
               >
                 {h}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-800">
+        <tbody className="divide-y divide-[#F1F5F9]">
           {nodes.map((node) => (
             <tr
               key={node.id}
               onClick={() => navigate(`/devices/${node.id}`)}
-              className="hover:bg-slate-800/40 cursor-pointer transition-colors group"
+              className="hover:bg-[#F8FAFC] cursor-pointer transition-colors group"
             >
               <td className="px-4 py-3">
                 <div className="flex items-center gap-2">
                   <span
                     className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                      node.is_active ? 'bg-emerald-500' : 'bg-slate-600'
+                      node.is_active ? 'bg-[#16A34A]' : 'bg-[#CBD5E1]'
                     }`}
                   />
-                  <span className="font-mono text-slate-200">{node.name}</span>
+                  <span className="font-medium text-[#0F172A]">{node.name}</span>
                 </div>
               </td>
               <td className="px-4 py-3">
                 <Badge variant={node.type}>{node.type}</Badge>
               </td>
-              <td className="px-4 py-3 text-slate-400 font-mono text-xs">
+              <td className="px-4 py-3 text-[#64748B] font-mono text-xs hidden md:table-cell">
                 {node.host}:{node.port}
               </td>
-              <td className="px-4 py-3 text-slate-400 text-xs">
+              <td className="px-4 py-3 text-[#64748B] text-xs hidden md:table-cell">
                 {node.schedule_interval_hours}h
               </td>
               <td className="px-4 py-3">
                 <StatusBadge status={node.latest_log?.status} />
               </td>
-              <td className="px-4 py-3 text-slate-400 text-xs">
+              <td className="px-4 py-3 text-[#64748B] text-xs">
                 {timeAgo(node.last_backup_at)}
               </td>
               <td className="px-4 py-3">
@@ -112,7 +114,7 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
                       title="Backup Now"
                       onClick={(e) => handleBackup(node, e)}
                       disabled={trigger.isPending}
-                      className="p-1.5 rounded hover:bg-emerald-900/50 text-emerald-500 transition-colors disabled:opacity-50"
+                      className="p-1.5 rounded-md hover:bg-[#F0FDF4] text-[#16A34A] transition-colors disabled:opacity-50 min-h-[36px] min-w-[36px] flex items-center justify-center"
                     >
                       <Play className="w-3.5 h-3.5" />
                     </button>
@@ -125,17 +127,17 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
                           e.stopPropagation()
                           onEdit(node)
                         }}
-                        className="p-1.5 rounded hover:bg-slate-700 text-slate-400 transition-colors"
+                        className="p-1.5 rounded-md hover:bg-[#F8FAFC] text-[#64748B] transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
                       >
                         <Edit className="w-3.5 h-3.5" />
                       </button>
                       <button
                         title={node.is_active ? 'Deactivate' : 'Activate'}
                         onClick={(e) => handleToggle(node, e)}
-                        className={`p-1.5 rounded transition-colors ${
+                        className={`p-1.5 rounded-md transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center ${
                           node.is_active
-                            ? 'hover:bg-yellow-900/50 text-yellow-500'
-                            : 'hover:bg-green-900/50 text-green-500'
+                            ? 'hover:bg-[#FFF7ED] text-[#FF8C00]'
+                            : 'hover:bg-[#F0FDF4] text-[#16A34A]'
                         }`}
                       >
                         <Power className="w-3.5 h-3.5" />
@@ -143,13 +145,13 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
                       <button
                         title="Delete"
                         onClick={(e) => handleDelete(node, e)}
-                        className="p-1.5 rounded hover:bg-red-900/50 text-red-500 transition-colors"
+                        className="p-1.5 rounded-md hover:bg-[#FEF2F0] text-[#E63000] transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </>
                   )}
-                  <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors ml-1" />
+                  <ChevronRight className="w-4 h-4 text-[#CBD5E1] group-hover:text-[#64748B] transition-colors ml-1" />
                 </div>
               </td>
             </tr>

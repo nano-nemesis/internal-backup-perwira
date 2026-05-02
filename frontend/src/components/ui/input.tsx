@@ -11,21 +11,21 @@ export function Input({ label, error, className, id, ...props }: InputProps) {
   return (
     <div className="flex flex-col gap-1">
       {label && (
-        <label htmlFor={inputId} className="text-xs font-mono text-slate-400">
+        <label htmlFor={inputId} className="text-sm font-medium text-[#0F172A]">
           {label}
         </label>
       )}
       <input
         id={inputId}
         className={cn(
-          'w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-sm text-slate-200 placeholder-slate-500',
-          'focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors',
-          error && 'border-red-500',
-          className
+          'w-full px-3 py-2 bg-white border border-[#E2E8F0] rounded-md text-sm text-[#0F172A] placeholder-[#94A3B8]',
+          'focus:outline-none focus:ring-2 focus:ring-[#0077FF] focus:border-[#0077FF] transition-colors',
+          error && 'border-[#E63000]',
+          className,
         )}
         {...props}
       />
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-[#E63000]">{error}</p>}
     </div>
   )
 }

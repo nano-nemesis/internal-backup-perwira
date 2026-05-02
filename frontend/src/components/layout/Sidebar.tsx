@@ -1,61 +1,82 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Server, Users, Shield } from 'lucide-react'
+import { LayoutDashboard, Server, HardDrive, Users, X } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
+import logo from '../../assets/logo.png'
 
 interface SidebarProps {
   open: boolean
+  onClose: () => void
 }
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/devices', icon: Server, label: 'Devices' },
+  { to: '/backup-files', icon: HardDrive, label: 'Backup Files' },
 ]
 
 const adminItems = [
   { to: '/admin', icon: Users, label: 'User Management' },
 ]
 
-export default function Sidebar({ open }: SidebarProps) {
+export default function Sidebar({ open, onClose }: SidebarProps) {
   const { isAdmin } = useAuth()
 
   return (
     <aside
       className={cn(
-        'flex flex-col bg-[#1e293b] border-r border-slate-700 flex-shrink-0 transition-all duration-200 overflow-hidden',
-        open ? 'w-56' : 'w-0'
+        'fixed inset-y-0 left-0 z-40 w-60 flex flex-col bg-[#0F172A]',
+        'transition-transform duration-200',
+        open ? 'translate-x-0' : '-translate-x-full',
+        'md:relative md:translate-x-0 md:z-auto',
       )}
     >
-      <div className="flex items-center gap-2.5 px-4 py-5 border-b border-slate-700 flex-shrink-0">
-        <Shield className="text-blue-400 w-5 h-5 flex-shrink-0" />
-        <span className="font-mono font-semibold text-sm text-white truncate">
-          PerwiraBackup
-        </span>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-4 border-b border-[#1E293B] flex-shrink-0">
+        <div className="flex items-center gap-2.5">
+          <img src={logo} alt="PerwiraMedia" className="h-8 w-auto" />
+          <span className="font-display font-bold text-sm text-white truncate">
+            PerwiraBackup
+          </span>
+        </div>
+        <button
+          onClick={onClose}
+          className="md:hidden p-1 rounded text-[#64748B] hover:text-white transition-colors"
+          aria-label="Close sidebar"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
+      {/* Nav */}
       <nav className="flex-1 px-2 py-4 space-y-0.5 overflow-y-auto">
         {navItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
+            onClick={onClose}
             className={({ isActive }) =>
               cn(
-                'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors whitespace-nowrap',
+                'flex items-center gap-3 px-3 py-3 rounded-md text-sm transition-colors whitespace-nowrap',
                 isActive
-                  ? 'bg-blue-900/50 text-blue-300 border border-blue-800'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                  ? 'bg-[#1E293B] text-white border-l-[3px] border-[#0077FF] pl-[9px]'
+                  : 'text-[#CBD5E1] hover:bg-[#1E293B] hover:text-white',
               )
             }
           >
-            <Icon className="w-4 h-4 flex-shrink-0" />
-            <span>{label}</span>
+            {({ isActive }) => (
+              <>
+                <Icon className={cn('w-4 h-4 flex-shrink-0', isActive ? 'text-[#0077FF]' : 'text-[#64748B]')} />
+                <span>{label}</span>
+              </>
+            )}
           </NavLink>
         ))}
 
         {isAdmin && (
           <>
             <div className="pt-4 pb-1 px-3">
-              <p className="text-xs font-mono text-slate-500 uppercase tracking-wider">
+              <p className="text-xs text-[#475569] uppercase tracking-wider font-medium">
                 Admin
               </p>
             </div>
@@ -63,24 +84,29 @@ export default function Sidebar({ open }: SidebarProps) {
               <NavLink
                 key={to}
                 to={to}
+                onClick={onClose}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors whitespace-nowrap',
+                    'flex items-center gap-3 px-3 py-3 rounded-md text-sm transition-colors whitespace-nowrap',
                     isActive
-                      ? 'bg-blue-900/50 text-blue-300 border border-blue-800'
-                      : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                      ? 'bg-[#1E293B] text-white border-l-[3px] border-[#0077FF] pl-[9px]'
+                      : 'text-[#CBD5E1] hover:bg-[#1E293B] hover:text-white',
                   )
                 }
               >
-                <Icon className="w-4 h-4 flex-shrink-0" />
-                <span>{label}</span>
+                {({ isActive }) => (
+                  <>
+                    <Icon className={cn('w-4 h-4 flex-shrink-0', isActive ? 'text-[#0077FF]' : 'text-[#64748B]')} />
+                    <span>{label}</span>
+                  </>
+                )}
               </NavLink>
             ))}
           </>
         )}
       </nav>
 
-      <div className="px-4 py-3 border-t border-slate-700 text-xs text-slate-600 font-mono flex-shrink-0">
+      <div className="px-4 py-3 border-t border-[#1E293B] text-xs text-[#475569] flex-shrink-0">
         v1.0.0
       </div>
     </aside>

@@ -45,7 +45,7 @@ function formFromNode(node: Node): NodeFormData {
 
 export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
   const [form, setForm] = useState<NodeFormData>(
-    editingNode ? formFromNode(editingNode) : emptyForm
+    editingNode ? formFromNode(editingNode) : emptyForm,
   )
 
   useEffect(() => {
@@ -90,7 +90,7 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
       className="max-w-2xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
             label="Node Name *"
             value={form.name}
@@ -140,12 +140,12 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
             value={form.ssh_key_path}
             onChange={(e) => set('ssh_key_path', e.target.value)}
             placeholder="/home/user/.ssh/id_rsa"
-            className="col-span-2"
+            className="sm:col-span-2"
           />
         </div>
 
         {form.type === 'database' && (
-          <div className="grid grid-cols-3 gap-4 pt-3 border-t border-slate-700">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-[#E2E8F0]">
             <Input
               label="Database Name"
               value={form.db_name}
@@ -176,7 +176,7 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
           onChange={(e) => set('schedule_interval_hours', Number(e.target.value))}
         />
 
-        <div className="flex justify-end gap-3 pt-2">
+        <div className="flex flex-col sm:flex-row justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>

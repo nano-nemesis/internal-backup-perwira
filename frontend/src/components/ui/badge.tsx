@@ -16,12 +16,12 @@ export function StatusBadge({ status }: { status: BackupStatus | undefined | nul
 }
 
 const variantStyles: Record<string, string> = {
-  default: 'bg-slate-800 text-slate-300 border-slate-700',
-  admin: 'bg-purple-900/50 text-purple-300 border-purple-800',
-  operator: 'bg-blue-900/50 text-blue-300 border-blue-800',
-  viewer: 'bg-slate-800 text-slate-400 border-slate-700',
-  mikrotik: 'bg-orange-900/50 text-orange-300 border-orange-800',
-  database: 'bg-teal-900/50 text-teal-300 border-teal-800',
+  default: 'bg-[#F8FAFC] text-[#64748B] border-[#E2E8F0]',
+  admin: 'bg-purple-50 text-purple-700 border-purple-200',
+  operator: 'bg-[#EFF6FF] text-[#0077FF] border-[#BFDBFE]',
+  viewer: 'bg-[#F8FAFC] text-[#64748B] border-[#E2E8F0]',
+  mikrotik: 'bg-[#FFF7ED] text-[#FF8C00] border-orange-200',
+  database: 'bg-teal-50 text-teal-700 border-teal-200',
 }
 
 export function Badge({
@@ -38,7 +38,7 @@ export function Badge({
       className={cn(
         'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border',
         variantStyles[variant] ?? variantStyles.default,
-        className
+        className,
       )}
     >
       {children}

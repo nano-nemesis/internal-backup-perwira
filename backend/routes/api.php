@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BackupFilesController;
 use App\Http\Controllers\NodeController;
 use App\Http\Controllers\VpsMetricsController;
 use App\Http\Controllers\Admin\NodeController as AdminNodeController;
@@ -35,6 +36,10 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
 
     // VPS Metrics
     Route::get('/vps-metrics', [VpsMetricsController::class, 'index']);
+
+    // Backup Files
+    Route::get('/backup-files', [BackupFilesController::class, 'index']);
+    Route::get('/backup-files/download', [BackupFilesController::class, 'download']);
 
     // Admin: Node Management
     Route::middleware('role:admin,operator')->group(function () {

@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useNavigate, Navigate } from 'react-router-dom'
-import { Shield, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Shield, Clock, Activity } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
-import { Input } from '../components/ui/input'
 import { Button } from '../components/ui/button'
+import logo from '../assets/logo.png'
 
 export default function LoginPage() {
   const { login, user, loading } = useAuth()
@@ -31,33 +31,63 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#0f172a] p-4">
-      <div className="w-full max-w-sm">
-        <div className="card p-8">
-          <div className="flex flex-col items-center mb-8">
-            <div className="p-3 bg-blue-900/40 border border-blue-800 rounded-full mb-4">
-              <Shield className="w-8 h-8 text-blue-400" />
+    <div className="flex min-h-screen bg-white">
+      {/* Left panel - hidden on mobile */}
+      <div className="hidden md:flex md:w-1/2 bg-[#0F172A] flex-col items-center justify-center p-12">
+        <img src={logo} alt="PerwiraMedia" className="h-20 w-auto mb-6" />
+        <h2 className="text-2xl font-display font-bold text-white mb-2 text-center">
+          PerwiraBackup
+        </h2>
+        <p className="text-[#94A3B8] text-sm text-center mb-10">
+          Internal Backup Management System
+        </p>
+        <div className="space-y-4 w-full max-w-xs">
+          {[
+            { icon: Clock, text: 'Backup otomatis terjadwal' },
+            { icon: Activity, text: 'Monitor real-time VPS & nodes' },
+            { icon: Shield, text: 'Multi-node support dengan role RBAC' },
+          ].map(({ icon: Icon, text }) => (
+            <div key={text} className="flex items-center gap-3 text-[#CBD5E1] text-sm">
+              <div className="w-8 h-8 rounded-lg bg-[#1E293B] flex items-center justify-center flex-shrink-0">
+                <Icon className="w-4 h-4 text-[#0077FF]" />
+              </div>
+              <span>{text}</span>
             </div>
-            <h1 className="text-xl font-mono font-bold text-white">
+          ))}
+        </div>
+      </div>
+
+      {/* Right panel - form */}
+      <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-12">
+        <div className="w-full max-w-sm">
+          {/* Logo (shown on mobile) */}
+          <div className="flex flex-col items-center mb-8">
+            <img src={logo} alt="PerwiraMedia" className="h-10 w-auto mb-3" />
+            <h1 className="text-2xl font-display font-bold text-[#0F172A]">
               PerwiraBackup
             </h1>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-sm text-[#64748B] mt-1">
               Internal Backup Management System
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              label="Username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              autoFocus
-              autoComplete="username"
-              placeholder="admin"
-            />
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-mono text-slate-400">Password</label>
+              <label className="text-sm font-medium text-[#0F172A]">Username</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                autoFocus
+                autoComplete="username"
+                placeholder="admin"
+                className="w-full px-3 py-2 bg-white border border-[#E2E8F0] rounded-md text-sm text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#0077FF] focus:border-[#0077FF] transition-colors"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-[#0F172A]">Password</label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -66,24 +96,20 @@ export default function LoginPage() {
                   required
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  className="w-full px-3 py-2 pr-10 bg-slate-800 border border-slate-600 rounded-md text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                  className="w-full px-3 py-2 pr-10 bg-white border border-[#E2E8F0] rounded-md text-sm text-[#0F172A] placeholder-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#0077FF] focus:border-[#0077FF] transition-colors"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#64748B] transition-colors"
                 >
-                  {showPassword ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
 
             {error && (
-              <div className="px-3 py-2 bg-red-950/50 border border-red-800 rounded text-sm text-red-400 font-mono">
+              <div className="px-3 py-2 bg-[#FEF2F0] border border-[#FECACA] rounded-md text-sm text-[#E63000]">
                 {error}
               </div>
             )}
@@ -96,10 +122,11 @@ export default function LoginPage() {
               Sign In
             </Button>
           </form>
+
+          <p className="text-center text-xs text-[#94A3B8] mt-8">
+            © PerwiraMedia — Internal Tools
+          </p>
         </div>
-        <p className="text-center text-xs text-slate-700 mt-4 font-mono">
-          © PerwiraMedia · Internal Tools
-        </p>
       </div>
     </div>
   )

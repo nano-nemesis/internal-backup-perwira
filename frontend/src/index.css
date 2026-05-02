@@ -1,36 +1,59 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --primary: #0077FF;
+  --primary-hover: #0060CC;
+  --primary-light: #EFF6FF;
+  --secondary: #FF8C00;
+  --secondary-light: #FFF7ED;
+  --danger: #E63000;
+  --danger-light: #FEF2F0;
+  --success: #16A34A;
+  --success-light: #F0FDF4;
+  --background: #FFFFFF;
+  --surface: #F8FAFC;
+  --border: #E2E8F0;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --sidebar-bg: #0F172A;
+  --sidebar-text: #CBD5E1;
+  --sidebar-active: #0077FF;
+  --sidebar-active-bg: #1E293B;
+}
+
 @layer base {
   * {
-    border-color: theme('colors.slate.700');
+    border-color: var(--border);
   }
   body {
-    @apply bg-[#0f172a] text-slate-100 font-sans;
+    @apply bg-white text-[#0F172A] font-sans;
   }
   h1, h2, h3, h4, h5 {
-    @apply font-mono;
+    font-family: 'DM Sans', system-ui, sans-serif;
   }
 }
 
 @layer components {
   .card {
-    @apply bg-[#1e293b] rounded-lg border border-slate-700;
+    @apply bg-white rounded-lg border border-[#E2E8F0] shadow-sm;
   }
   .badge-success {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-900/50 text-emerald-400 border border-emerald-800;
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#F0FDF4] text-[#16A34A] border border-[#BBF7D0];
   }
   .badge-failed {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900/50 text-red-400 border border-red-800;
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#FEF2F0] text-[#E63000] border border-[#FECACA];
   }
   .badge-pending {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-900/50 text-yellow-400 border border-yellow-800;
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0];
   }
   .badge-running {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-900/50 text-blue-400 border border-blue-800;
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#EFF6FF] text-[#0077FF] border border-[#BFDBFE] animate-pulse;
   }
   .badge-unknown {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700;
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0];
   }
 }

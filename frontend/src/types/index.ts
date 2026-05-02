@@ -49,6 +49,27 @@ export interface BackupFile {
   modified_at: string
 }
 
+export interface BackupFileItem {
+  node_id: string | null
+  node_name: string
+  type: 'mikrotik' | 'database'
+  filename: string
+  size: number
+  size_human: string
+  created_at: string
+  download_url: string
+}
+
+export interface BackupFilesResponse {
+  data: BackupFileItem[]
+  meta: {
+    total: number
+    per_page: number
+    current_page: number
+    last_page: number
+  }
+}
+
 export interface NodeSchedule {
   id: number
   node_id: string
