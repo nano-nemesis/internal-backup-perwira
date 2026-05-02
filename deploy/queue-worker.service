@@ -1,0 +1,18 @@
+[Unit]
+Description=Laravel Queue Worker - internal-backup-perwira
+Documentation=https://laravel.com/docs/queues
+After=network.target mysql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/internal-backup-perwira/backend
+ExecStart=/usr/bin/php8.1 artisan queue:work --queue=backup --sleep=3 --tries=1 --timeout=300 --max-jobs=500
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=backup-queue
+
+[Install]
+WantedBy=multi-user.target

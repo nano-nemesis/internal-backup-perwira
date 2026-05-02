@@ -1,0 +1,17 @@
+[Unit]
+Description=Laravel Scheduler - internal-backup-perwira
+After=network.target mysql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/internal-backup-perwira/backend
+ExecStart=/bin/bash -c "while true; do /usr/bin/php8.1 artisan schedule:run --no-interaction >> /var/log/backup-scheduler.log 2>&1; sleep 60; done"
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=backup-scheduler
+
+[Install]
+WantedBy=multi-user.target
