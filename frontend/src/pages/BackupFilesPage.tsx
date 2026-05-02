@@ -3,24 +3,10 @@ import { Download, HardDrive, ChevronLeft, ChevronRight, FileArchive } from 'luc
 import { useBackupFiles } from '../hooks/useBackupFiles'
 import { useNodes } from '../hooks/useNodes'
 import { Badge } from '../components/ui/badge'
+import { formatDatetimeWIB } from '../lib/utils'
 import type { BackupFileItem } from '../types'
 
 const PER_PAGE = 20
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Asia/Jakarta',
-    }) + ' WIB'
-  } catch {
-    return iso
-  }
-}
 
 function FileCard({ file }: { file: BackupFileItem }) {
   return (
@@ -35,7 +21,7 @@ function FileCard({ file }: { file: BackupFileItem }) {
           <span className="text-xs text-[#64748B]">{file.node_name}</span>
           <span className="text-xs text-[#64748B]">{file.size_human}</span>
         </div>
-        <p className="text-xs text-[#94A3B8] mt-1">{formatDate(file.created_at)}</p>
+        <p className="text-xs text-[#94A3B8] mt-1">{formatDatetimeWIB(file.created_at)}</p>
       </div>
       <a
         href={file.download_url}
@@ -173,7 +159,7 @@ export default function BackupFilesPage() {
                         {file.size_human}
                       </td>
                       <td className="px-4 py-3 text-[#64748B] text-xs whitespace-nowrap">
-                        {formatDate(file.created_at)}
+                        {formatDatetimeWIB(file.created_at)}
                       </td>
                       <td className="px-4 py-3">
                         <a

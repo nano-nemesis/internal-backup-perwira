@@ -47,3 +47,33 @@ export function formatDateTime(dateString: string | null | undefined): string {
     second: '2-digit',
   })
 }
+
+export function formatDatetimeWIB(dateString: string | null | undefined): string {
+  if (!dateString) return 'Never'
+  try {
+    const date = new Date(dateString)
+    const wib = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }))
+    const year = wib.getFullYear()
+    const month = String(wib.getMonth() + 1).padStart(2, '0')
+    const day = String(wib.getDate()).padStart(2, '0')
+    const hour = String(wib.getHours()).padStart(2, '0')
+    const minute = String(wib.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day} ${hour}:${minute} WIB`
+  } catch {
+    return dateString
+  }
+}
+
+export function formatLogTime(dateString: string | null | undefined): string {
+  if (!dateString) return ''
+  try {
+    const date = new Date(dateString)
+    const wib = new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }))
+    const hour = String(wib.getHours()).padStart(2, '0')
+    const minute = String(wib.getMinutes()).padStart(2, '0')
+    const second = String(wib.getSeconds()).padStart(2, '0')
+    return `${hour}:${minute}:${second} WIB`
+  } catch {
+    return dateString
+  }
+}

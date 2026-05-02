@@ -3,7 +3,7 @@ import { Play, Power, Edit, Trash2, ChevronRight } from 'lucide-react'
 import type { Node } from '../../types'
 import { StatusBadge } from '../ui/badge'
 import { Badge } from '../ui/badge'
-import { timeAgo } from '../../lib/utils'
+import { formatDatetimeWIB } from '../../lib/utils'
 import { useTriggerBackup, useToggleNode, useDeleteNode } from '../../hooks/useNodes'
 import { useAuth } from '../../context/AuthContext'
 import { toast } from '../ui/toaster'
@@ -102,7 +102,7 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
                 <StatusBadge status={node.latest_log?.status} />
               </td>
               <td className="px-4 py-3 text-[#64748B] text-xs">
-                {timeAgo(node.last_backup_at)}
+                {formatDatetimeWIB(node.last_backup_at)}
               </td>
               <td className="px-4 py-3">
                 <div

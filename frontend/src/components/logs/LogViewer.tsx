@@ -1,6 +1,6 @@
 import type { BackupLog } from '../../types'
 import { StatusBadge } from '../ui/badge'
-import { formatBytes, formatDuration, timeAgo } from '../../lib/utils'
+import { formatBytes, formatDuration, formatLogTime } from '../../lib/utils'
 
 interface LogViewerProps {
   logs: BackupLog[]
@@ -30,7 +30,7 @@ export function LogViewer({ logs }: LogViewerProps) {
           <div className="flex items-center gap-3 flex-wrap">
             <StatusBadge status={log.status} />
             <span className="text-xs text-[#64748B] font-mono">
-              {timeAgo(log.created_at)}
+              {formatLogTime(log.created_at)}
             </span>
             {log.file_size != null && (
               <span className="text-xs text-[#64748B]">

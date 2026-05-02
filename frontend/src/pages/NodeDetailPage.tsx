@@ -9,7 +9,7 @@ import { LogViewer } from '../components/logs/LogViewer'
 import { BackupFileList } from '../components/nodes/BackupFileList'
 import { RemoteTerminal } from '../components/nodes/RemoteTerminal'
 import { toast } from '../components/ui/toaster'
-import { timeAgo, formatBytes, formatDuration } from '../lib/utils'
+import { formatDatetimeWIB, formatBytes, formatDuration } from '../lib/utils'
 
 type Tab = 'logs' | 'files'
 
@@ -115,7 +115,7 @@ export default function NodeDetailPage() {
         <div className="card p-4">
           <p className="text-xs text-slate-500 font-mono">Last Backup</p>
           <p className="text-sm font-mono text-slate-300 mt-1">
-            {timeAgo(node.last_backup_at)}
+            {formatDatetimeWIB(node.last_backup_at)}
           </p>
         </div>
         <div className="card p-4">
@@ -137,7 +137,7 @@ export default function NodeDetailPage() {
         <div className="text-xs text-slate-500 font-mono px-1">
           Next scheduled run:{' '}
           <span className="text-slate-400">
-            {new Date(node.schedule.next_run_at).toLocaleString('id-ID')}
+            {formatDatetimeWIB(node.schedule.next_run_at)}
           </span>
         </div>
       )}
