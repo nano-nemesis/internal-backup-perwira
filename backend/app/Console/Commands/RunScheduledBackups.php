@@ -14,7 +14,7 @@ class RunScheduledBackups extends Command
     use HasAlignedSchedule;
 
     protected $signature = 'backup:run-scheduled';
-    protected $description = 'Dispatch backup jobs for nodes that are due';
+    protected $description = 'Dispatch backup jobs for nodes that are due (aligned to midnight WIB)';
 
     public function handle(): int
     {
@@ -25,24 +25,28 @@ class RunScheduledBackups extends Command
             $schedule = NodeSchedule::where('node_id', $node->id)->first();
 
             if (!$schedule) {
+                $nextRun = $this->getNextAlignedSlot($node->schedule_interval_hours);
                 NodeSchedule::create([
                     'node_id'        => $node->id,
-                    'next_run_at'    => $this->getNextAlignedSlot($node->schedule_interval_hours),
+                    'next_run_at'    => $nextRun,
                     'last_run_at'    => null,
                     'interval_hours' => $node->schedule_interval_hours,
                 ]);
-                Log::info("RunScheduledBackups: first-run scheduled for node [{$node->name}]");
+                Log::info("RunScheduledBackups: node [{$node->name}] dijadwalkan pertama kali → next run {$nextRun->setTimezone('Asia/Jakarta')->format('Y-m-d H:i')} WIB");
                 continue;
             }
 
             if ($schedule->next_run_at && $schedule->next_run_at->isPast()) {
                 BackupJob::dispatch($node->id)->onQueue('backup');
+                $dispatched++;
+
+                $nextRun = $this->getNextAlignedSlot($schedule->interval_hours);
                 $schedule->update([
                     'last_run_at' => now(),
-                    'next_run_at' => $this->getNextAlignedSlot($schedule->interval_hours),
+                    'next_run_at' => $nextRun,
                 ]);
-                $dispatched++;
-                Log::info("RunScheduledBackups: dispatched backup for node [{$node->name}]");
+
+                Log::info("RunScheduledBackups: dispatched backup untuk node [{$node->name}], next run → {$nextRun->setTimezone('Asia/Jakarta')->format('Y-m-d H:i')} WIB");
             }
         }
 

@@ -9,8 +9,10 @@ class DatabaseBackupService
 {
     public function backup(Node $node): string
     {
-        $timestamp = now()->format('Ymd_His');
-        $filename = "{$node->name}_{$node->db_name}_{$timestamp}.sql.gz";
+        $now = \Carbon\Carbon::now('Asia/Jakarta');
+        $timestamp = $now->format('Y-m-d-H.i') . 'WIB';
+        $nodeName = strtolower(preg_replace('/[^a-zA-Z0-9\-_]/', '-', $node->name));
+        $filename = "backup-{$nodeName}-{$timestamp}.sql.gz";
         $localDir = config('backup.storage_path') . "/database/{$node->name}";
 
         if (!is_dir($localDir)) {

@@ -14,10 +14,10 @@ trait HasAlignedSchedule
         for ($h = 0; $h < 24; $h += $intervalHours) {
             $slot = $midnight->copy()->addHours($h);
             if ($slot->isAfter($now)) {
-                return $slot;
+                return $slot->utc();
             }
         }
 
-        return $midnight->copy()->addDay();
+        return $midnight->copy()->addDay()->utc();
     }
 }

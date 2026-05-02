@@ -5,13 +5,27 @@ namespace App\Services;
 use App\Models\Node;
 use Spatie\Ssh\Ssh;
 
+/**
+ * MikrotikService — Backup via SSH stdout capture
+ *
+ * Permission yang dibutuhkan untuk user SSH di MikroTik:
+ * - Group policy: ssh + read (TIDAK perlu write, ftp, atau policy lainnya)
+ *
+ * Setup di MikroTik:
+ * /user group add name=backup-group policy=ssh,read
+ * /user add name=backup password=<password> group=backup-group
+ *
+ * Cara kerja: sistem menjalankan '/export' via SSH dan menangkap
+ * output langsung dari stdout tanpa menyimpan file di MikroTik.
+ */
 class MikrotikService
 {
     public function backup(Node $node): string
     {
-        $timestamp = now()->format('Ymd_His');
-        $filename = "{$node->name}_{$timestamp}.rsc";
-        $remotePath = "/tmp/{$filename}";
+        $now = \Carbon\Carbon::now('Asia/Jakarta');
+        $timestamp = $now->format('Y-m-d-H.i') . 'WIB';
+        $nodeName = strtolower(preg_replace('/[^a-zA-Z0-9\-_]/', '-', $node->name));
+        $filename = "backup-{$nodeName}-{$timestamp}.rsc";
         $localDir = config('backup.storage_path') . "/mikrotik/{$node->name}";
 
         if (!is_dir($localDir)) {
@@ -22,22 +36,25 @@ class MikrotikService
 
         $ssh = $this->buildSsh($node);
 
-        // Export MikroTik config to file
-        $ssh->execute("/export file={$remotePath}");
-        sleep(2);
+        // Capture /export output directly from stdout — tidak perlu write ke filesystem MikroTik
+        // User hanya butuh permission: ssh + read
+        $output = $ssh->execute('/export');
 
-        // Download backup file
-        $ssh->download($remotePath, $localPath);
+        $content = is_array($output) ? implode("\n", $output) : (string) $output;
 
-        // Remove remote temp file (best effort)
-        try {
-            $ssh->execute("file remove {$remotePath}");
-        } catch (\Exception $e) {
-            // ignore cleanup errors
+        if (empty(trim($content))) {
+            throw new \RuntimeException(
+                "Output /export kosong dari {$node->host}. " .
+                "Pastikan user SSH memiliki permission 'read' di MikroTik."
+            );
         }
 
+        file_put_contents($localPath, $content);
+
         if (!file_exists($localPath) || filesize($localPath) === 0) {
-            throw new \RuntimeException("Backup file empty or not found after download from {$node->host}");
+            throw new \RuntimeException(
+                "Gagal menyimpan file backup dari {$node->host}"
+            );
         }
 
         return $localPath;
@@ -46,8 +63,15 @@ class MikrotikService
     public function execute(Node $node, string $command): string
     {
         $ssh = $this->buildSsh($node);
-        $result = $ssh->execute($command);
-        return is_array($result) ? implode("\n", $result) : (string) $result;
+
+        try {
+            $result = $ssh->execute($command);
+            return is_array($result) ? implode("\n", $result) : (string) $result;
+        } catch (\Exception $e) {
+            throw new \RuntimeException(
+                "Gagal eksekusi command di {$node->host}: " . $e->getMessage()
+            );
+        }
     }
 
     private function buildSsh(Node $node): Ssh
