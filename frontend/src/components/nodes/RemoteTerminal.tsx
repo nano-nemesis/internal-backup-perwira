@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Terminal, Send, Trash2 } from 'lucide-react'
+import { Terminal, Send, Trash2, ChevronDown } from 'lucide-react'
 import { useRemoteExecute } from '../../hooks/useNodes'
 
 interface RemoteTerminalProps {
@@ -23,12 +23,31 @@ export function RemoteTerminal({ nodeId }: RemoteTerminalProps) {
   ])
   const [history, setHistory] = useState<string[]>([])
   const [historyIdx, setHistoryIdx] = useState(-1)
+  const [showScrollBtn, setShowScrollBtn] = useState(false)
   const execute = useRemoteExecute()
+  const scrollRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const isAtBottomRef = useRef(true)
+
+  const handleScroll = () => {
+    const el = scrollRef.current
+    if (!el) return
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40
+    isAtBottomRef.current = atBottom
+    setShowScrollBtn(!atBottom)
+  }
+
+  const scrollToBottom = () => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    isAtBottomRef.current = true
+    setShowScrollBtn(false)
+  }
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (isAtBottomRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
   }, [lines])
 
   const addLine = (type: Line['type'], text: string) => {
@@ -74,6 +93,7 @@ export function RemoteTerminal({ nodeId }: RemoteTerminalProps) {
 
   return (
     <div className="bg-slate-950 rounded-lg border border-slate-700 overflow-hidden">
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-700">
         <div className="flex items-center gap-2">
           <div className="flex gap-1.5">
@@ -84,45 +104,64 @@ export function RemoteTerminal({ nodeId }: RemoteTerminalProps) {
           <Terminal className="w-3.5 h-3.5 text-green-400 ml-1" />
           <span className="text-xs font-mono text-slate-400">Remote Terminal</span>
         </div>
-        <button
-          onClick={() => setLines([])}
-          title="Clear"
-          className="p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-400 transition-colors"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      <div
-        className="h-64 overflow-y-auto p-4 font-mono text-xs space-y-0.5 cursor-text"
-        onClick={() => inputRef.current?.focus()}
-      >
-        {lines.map((line, i) => (
-          <div
-            key={i}
-            className={
-              line.type === 'input'
-                ? 'text-green-400'
-                : line.type === 'error'
-                ? 'text-red-400'
-                : 'text-slate-300'
-            }
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-600 font-mono">{lines.length} lines</span>
+          <button
+            onClick={() => setLines([])}
+            title="Clear"
+            className="p-1 rounded hover:bg-slate-800 text-slate-600 hover:text-slate-400 transition-colors"
           >
-            <span className="text-slate-600 mr-2">[{line.ts}]</span>
-            <span className="whitespace-pre-wrap">{line.text}</span>
-          </div>
-        ))}
-        {execute.isPending && (
-          <div className="text-slate-500 animate-pulse">Running...</div>
-        )}
-        <div ref={bottomRef} />
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
+      {/* Output area */}
+      <div className="relative">
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="h-64 md:h-96 overflow-y-auto p-4 font-mono text-xs md:text-sm space-y-0.5 cursor-text"
+          onClick={() => inputRef.current?.focus()}
+        >
+          {lines.map((line, i) => (
+            <div
+              key={i}
+              className={
+                line.type === 'input'
+                  ? 'text-green-400'
+                  : line.type === 'error'
+                  ? 'text-red-400'
+                  : 'text-slate-300'
+              }
+            >
+              <span className="text-slate-600 mr-2 text-xs">[{line.ts}]</span>
+              <span className="whitespace-pre-wrap break-all">{line.text}</span>
+            </div>
+          ))}
+          {execute.isPending && (
+            <div className="text-slate-500 animate-pulse">Running...</div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        {showScrollBtn && (
+          <button
+            onClick={scrollToBottom}
+            className="absolute bottom-14 right-4 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-full p-1.5 shadow-lg transition-all z-10"
+            title="Scroll to bottom"
+          >
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {/* Input row */}
       <div className="flex items-center border-t border-slate-700 px-3 py-2 bg-slate-900">
         <span className="text-green-400 font-mono text-xs mr-2">$</span>
         <input
           ref={inputRef}
-          className="flex-1 bg-transparent text-xs font-mono text-slate-200 outline-none placeholder-slate-600"
+          className="flex-1 bg-transparent text-xs md:text-sm font-mono text-slate-200 outline-none placeholder-slate-600"
           placeholder="Enter MikroTik command..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
