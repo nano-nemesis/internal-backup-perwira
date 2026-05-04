@@ -72,3 +72,19 @@ export function useToggleNode() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['nodes'] }),
   })
 }
+
+export function useBulkDeleteNodes() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (ids: string[]) => api.delete('/admin/nodes/bulk', { data: { ids } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['nodes'] }),
+  })
+}
+
+export function useDeleteAllNodes() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.delete('/admin/nodes/all'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['nodes'] }),
+  })
+}

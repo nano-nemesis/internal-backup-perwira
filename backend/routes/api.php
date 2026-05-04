@@ -34,6 +34,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::post('/nodes/{id}/execute', [NodeController::class, 'remoteExecute'])
             ->middleware('throttle:remote-execute');
+        Route::delete('/admin/nodes/bulk', [AdminNodeController::class, 'bulkDestroy']);
+        Route::delete('/admin/nodes/all', [AdminNodeController::class, 'destroyAll']);
     });
 
     // VPS Metrics

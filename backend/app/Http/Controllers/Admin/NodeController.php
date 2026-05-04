@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BackupLog;
 use App\Models\Node;
 use App\Models\NodeSchedule;
 use Illuminate\Http\JsonResponse;
@@ -138,5 +139,38 @@ class NodeController extends Controller
         $node->update(['is_active' => !$node->is_active]);
         $status = $node->is_active ? 'activated' : 'deactivated';
         return response()->json(['data' => $node, 'message' => "Node {$status}"]);
+    }
+
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids'   => 'required|array|min:1',
+            'ids.*' => 'required|uuid|exists:nodes,id',
+        ]);
+
+        $count = Node::whereIn('id', $request->ids)->count();
+
+        NodeSchedule::whereIn('node_id', $request->ids)->delete();
+        BackupLog::whereIn('node_id', $request->ids)->delete();
+        Node::whereIn('id', $request->ids)->delete();
+
+        return response()->json([
+            'message'       => "{$count} node berhasil dihapus.",
+            'deleted_count' => $count,
+        ]);
+    }
+
+    public function destroyAll(): JsonResponse
+    {
+        $count = Node::count();
+
+        NodeSchedule::truncate();
+        BackupLog::truncate();
+        Node::truncate();
+
+        return response()->json([
+            'message'       => "Semua {$count} node berhasil dihapus.",
+            'deleted_count' => $count,
+        ]);
     }
 }
