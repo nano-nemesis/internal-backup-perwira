@@ -3,7 +3,7 @@
 return [
     'retention_days' => (int) env('BACKUP_RETENTION_DAYS', 7),
     'max_parallel' => (int) env('BACKUP_MAX_PARALLEL', 5),
-    'ssh_timeout' => (int) env('SSH_TIMEOUT', 30),
+    'ssh_timeout' => (int) env('SSH_TIMEOUT', 120),
     'timezone' => env('BACKUP_TIMEZONE', 'Asia/Jakarta'),
     'telegram' => [
         'bot_token' => env('TELEGRAM_BOT_TOKEN'),
