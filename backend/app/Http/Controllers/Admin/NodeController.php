@@ -10,6 +10,27 @@ use Illuminate\Http\Request;
 
 class NodeController extends Controller
 {
+    // Valid backup intervals aligned to midnight-anchored slots
+    private const VALID_INTERVALS = [1, 2, 3, 4, 6, 8, 12, 24];
+
+    private function hostRules(): array
+    {
+        // Allow IPv4, IPv6, and valid hostnames; block shell metacharacters
+        return ['required', 'string', 'max:255', 'regex:/^[a-zA-Z0-9][a-zA-Z0-9\.\-\:]*$/'];
+    }
+
+    private function sshKeyPathRules(): array
+    {
+        return [
+            'nullable', 'string', 'max:500',
+            function (string $attribute, mixed $value, \Closure $fail): void {
+                if ($value && (str_contains($value, '..') || str_contains($value, "\0"))) {
+                    $fail('The SSH key path contains invalid characters.');
+                }
+            },
+        ];
+    }
+
     public function index(): JsonResponse
     {
         return response()->json([
@@ -35,23 +56,23 @@ class NodeController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:100',
-            'type' => 'required|in:mikrotik,database',
-            'host' => 'required|string|max:255',
-            'port' => 'nullable|integer|min:1|max:65535',
-            'ssh_user' => 'nullable|string|max:100',
-            'ssh_password' => 'nullable|string',
-            'ssh_key_path' => 'nullable|string|max:500',
-            'db_name' => 'nullable|string|max:100',
-            'db_user' => 'nullable|string|max:100',
-            'db_password' => 'nullable|string',
-            'schedule_interval_hours' => 'nullable|integer|min:1|max:8760',
+            'name'                    => 'required|string|max:100',
+            'type'                    => 'required|in:mikrotik,database',
+            'host'                    => $this->hostRules(),
+            'port'                    => 'nullable|integer|min:1|max:65535',
+            'ssh_user'                => 'nullable|string|max:100',
+            'ssh_password'            => 'nullable|string',
+            'ssh_key_path'            => $this->sshKeyPathRules(),
+            'db_name'                 => 'nullable|string|max:100',
+            'db_user'                 => 'nullable|string|max:100',
+            'db_password'             => 'nullable|string',
+            'schedule_interval_hours' => 'nullable|integer|in:' . implode(',', self::VALID_INTERVALS),
         ]);
 
         $node = Node::create($validated);
 
         NodeSchedule::create([
-            'node_id' => $node->id,
+            'node_id'     => $node->id,
             'next_run_at' => now()->addHours($node->schedule_interval_hours),
             'interval_hours' => $node->schedule_interval_hours,
         ]);
@@ -68,21 +89,23 @@ class NodeController extends Controller
     {
         $node = Node::findOrFail($id);
 
+        $hostRules = $this->hostRules();
+        $hostRules[0] = 'sometimes'; // required → sometimes for update
+
         $validated = $request->validate([
-            'name' => 'sometimes|string|max:100',
-            'type' => 'sometimes|in:mikrotik,database',
-            'host' => 'sometimes|string|max:255',
-            'port' => 'nullable|integer|min:1|max:65535',
-            'ssh_user' => 'nullable|string|max:100',
-            'ssh_password' => 'nullable|string',
-            'ssh_key_path' => 'nullable|string|max:500',
-            'db_name' => 'nullable|string|max:100',
-            'db_user' => 'nullable|string|max:100',
-            'db_password' => 'nullable|string',
-            'schedule_interval_hours' => 'nullable|integer|min:1|max:8760',
+            'name'                    => 'sometimes|string|max:100',
+            'type'                    => 'sometimes|in:mikrotik,database',
+            'host'                    => $hostRules,
+            'port'                    => 'nullable|integer|min:1|max:65535',
+            'ssh_user'                => 'nullable|string|max:100',
+            'ssh_password'            => 'nullable|string',
+            'ssh_key_path'            => $this->sshKeyPathRules(),
+            'db_name'                 => 'nullable|string|max:100',
+            'db_user'                 => 'nullable|string|max:100',
+            'db_password'             => 'nullable|string',
+            'schedule_interval_hours' => 'nullable|integer|in:' . implode(',', self::VALID_INTERVALS),
         ]);
 
-        // Only update password if provided
         if (isset($validated['ssh_password']) && $validated['ssh_password'] === '') {
             unset($validated['ssh_password']);
         }

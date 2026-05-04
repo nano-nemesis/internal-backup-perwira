@@ -10,6 +10,13 @@ class BackupFilesController extends Controller
 {
     public function index(Request $request)
     {
+        $request->validate([
+            'node_id'  => 'nullable|uuid',
+            'type'     => 'nullable|in:mikrotik,database',
+            'page'     => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+
         $nodeId  = $request->query('node_id');
         $type    = $request->query('type');
         $perPage = max(1, (int) $request->query('per_page', 20));
@@ -75,17 +82,26 @@ class BackupFilesController extends Controller
     {
         $path = $request->query('path', '');
 
-        if (str_contains($path, '..') || str_contains($path, "\0")) {
+        // Block null bytes immediately
+        if (str_contains($path, "\0")) {
             abort(400, 'Invalid path');
         }
 
-        $storagePath = "backups/{$path}";
+        // Resolve absolute paths and verify the result stays inside the backup root.
+        // This catches encoded traversal (e.g. ..%2F) that str_contains would miss.
+        $baseDir  = realpath(storage_path('app/backups'));
+        $fullPath = storage_path('app/backups/' . $path);
+        $resolved = realpath($fullPath);
 
-        if (!Storage::exists($storagePath)) {
+        if (!$resolved || !str_starts_with($resolved, $baseDir . DIRECTORY_SEPARATOR)) {
+            abort(403, 'Access denied');
+        }
+
+        if (!is_file($resolved)) {
             abort(404, 'File not found');
         }
 
-        return Storage::download($storagePath);
+        return response()->download($resolved);
     }
 
     private function formatBytes(int $bytes): string

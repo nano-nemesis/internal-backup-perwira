@@ -116,7 +116,14 @@ class NodeController extends Controller
             return response()->json(['message' => 'Remote execute is only available for MikroTik nodes'], 422);
         }
 
-        $request->validate(['command' => 'required|string|max:500']);
+        // Whitelist characters safe for RouterOS CLI; blocks shell metacharacters
+        // that could be interpreted before the command reaches the MikroTik device.
+        $request->validate([
+            'command' => [
+                'required', 'string', 'max:500',
+                'regex:/^[a-zA-Z0-9\s\/\-\=\.\,\_\:\@\[\]\+\*\?\!\"\#\&\(\)]+$/',
+            ],
+        ]);
 
         try {
             /** @var MikrotikService $mikrotik */
@@ -131,17 +138,28 @@ class NodeController extends Controller
     public function downloadBackup(string $id, string $filename): BinaryFileResponse|JsonResponse
     {
         $node = Node::findOrFail($id);
-        $basePath = config('backup.storage_path');
+
+        // basename() removes any directory component; realpath() then confirms the
+        // resolved path stays inside the allowed backup directory.
         $safeName = basename($filename);
+        if (str_contains($safeName, "\0")) {
+            return response()->json(['message' => 'Invalid filename'], 400);
+        }
 
-        $paths = [
-            "{$basePath}/mikrotik/{$node->name}/{$safeName}",
-            "{$basePath}/database/{$node->name}/{$safeName}",
-        ];
+        $baseDir = realpath(storage_path('app/backups'));
 
-        foreach ($paths as $path) {
-            if (file_exists($path)) {
-                return response()->download($path);
+        foreach (['mikrotik', 'database'] as $type) {
+            $candidate = $baseDir . DIRECTORY_SEPARATOR . $type
+                       . DIRECTORY_SEPARATOR . $node->name
+                       . DIRECTORY_SEPARATOR . $safeName;
+
+            $resolved = realpath($candidate);
+
+            if ($resolved
+                && str_starts_with($resolved, $baseDir . DIRECTORY_SEPARATOR)
+                && is_file($resolved)
+            ) {
+                return response()->download($resolved);
             }
         }
 

@@ -27,11 +27,13 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::get('/nodes/{id}/download/{filename}', [NodeController::class, 'downloadBackup']);
 
     Route::middleware('role:admin,operator')->group(function () {
-        Route::post('/nodes/{id}/backup', [NodeController::class, 'triggerBackup']);
+        Route::post('/nodes/{id}/backup', [NodeController::class, 'triggerBackup'])
+            ->middleware('throttle:backup-trigger');
     });
 
     Route::middleware('role:admin')->group(function () {
-        Route::post('/nodes/{id}/execute', [NodeController::class, 'remoteExecute']);
+        Route::post('/nodes/{id}/execute', [NodeController::class, 'remoteExecute'])
+            ->middleware('throttle:remote-execute');
     });
 
     // VPS Metrics
