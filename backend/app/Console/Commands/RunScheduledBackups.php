@@ -24,30 +24,37 @@ class RunScheduledBackups extends Command
         foreach ($nodes as $node) {
             $schedule = NodeSchedule::where('node_id', $node->id)->first();
 
+            // Node baru — buat jadwal pertama kali, jangan dispatch langsung
             if (!$schedule) {
-                $nextRun = $this->getNextAlignedSlot($node->schedule_interval_hours);
+                $nextRun = $this->getFirstSlot($node->schedule_interval_hours);
                 NodeSchedule::create([
                     'node_id'        => $node->id,
                     'next_run_at'    => $nextRun,
                     'last_run_at'    => null,
                     'interval_hours' => $node->schedule_interval_hours,
                 ]);
-                Log::info("RunScheduledBackups: node [{$node->name}] dijadwalkan pertama kali → next run {$nextRun->setTimezone('Asia/Jakarta')->format('Y-m-d H:i')} WIB");
+                Log::info("RunScheduledBackups: node [{$node->name}] dijadwalkan pertama kali → {$nextRun->setTimezone('Asia/Jakarta')->format('Y-m-d H:i')} WIB");
                 continue;
             }
 
-            if ($schedule->next_run_at && $schedule->next_run_at->isPast()) {
-                BackupJob::dispatch($node->id)->onQueue('backup');
-                $dispatched++;
-
-                $nextRun = $this->getNextAlignedSlot($schedule->interval_hours);
-                $schedule->update([
-                    'last_run_at' => now(),
-                    'next_run_at' => $nextRun,
-                ]);
-
-                Log::info("RunScheduledBackups: dispatched backup untuk node [{$node->name}], next run → {$nextRun->setTimezone('Asia/Jakarta')->format('Y-m-d H:i')} WIB");
+            // Belum waktunya backup
+            if (!$schedule->next_run_at || !$schedule->next_run_at->isPast()) {
+                continue;
             }
+
+            // PENTING: Update next_run_at SEBELUM dispatch
+            // Ini mencegah scheduler dispatch ulang di menit berikutnya
+            // walaupun BackupJob belum selesai
+            $nextRun = $this->getNextAlignedSlot($schedule->interval_hours);
+            $schedule->update([
+                'last_run_at' => now(),
+                'next_run_at' => $nextRun,
+            ]);
+
+            BackupJob::dispatch($node->id)->onQueue('backup');
+            $dispatched++;
+
+            Log::info("RunScheduledBackups: dispatched [{$node->name}], next run → {$nextRun->setTimezone('Asia/Jakarta')->format('Y-m-d H:i')} WIB");
         }
 
         $this->info("Dispatched {$dispatched} backup job(s)");

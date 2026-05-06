@@ -46,11 +46,20 @@ class BackupJob implements ShouldQueue
     private function updateSchedule(): void
     {
         $schedule = NodeSchedule::where('node_id', $this->nodeId)->first();
-        if ($schedule) {
+        if (!$schedule) return;
+
+        $nextRun = $this->getNextAlignedSlot($schedule->interval_hours);
+
+        // Hanya update kalau next_run_at yang ada lebih dekat dari yang baru dihitung
+        // Ini mencegah BackupJob menimpa jadwal yang sudah di-set scheduler
+        if (!$schedule->next_run_at || $schedule->next_run_at->isBefore($nextRun)) {
             $schedule->update([
                 'last_run_at' => now(),
-                'next_run_at' => $this->getNextAlignedSlot($schedule->interval_hours),
+                'next_run_at' => $nextRun,
             ]);
+        } else {
+            // Hanya update last_run_at saja
+            $schedule->update(['last_run_at' => now()]);
         }
     }
 }
