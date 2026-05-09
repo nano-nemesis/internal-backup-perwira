@@ -26,6 +26,14 @@ class AppServiceProvider extends ServiceProvider
             }
         }
 
+        // sshpass diperlukan untuk backup MikroTik via password
+        if (!shell_exec('which sshpass')) {
+            \Illuminate\Support\Facades\Log::warning(
+                'sshpass tidak ditemukan. Backup MikroTik via password tidak akan berfungsi. ' .
+                'Install dengan: apt install sshpass'
+            );
+        }
+
         // 30 remote-execute calls per minute per authenticated user
         RateLimiter::for('remote-execute', function (Request $request) {
             return Limit::perMinute(30)

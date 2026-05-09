@@ -1,23 +1,8 @@
 <?php
-
 namespace App\Services;
 
 use App\Models\Node;
-use Spatie\Ssh\Ssh;
 
-/**
- * MikrotikService — Backup via SSH stdout capture
- *
- * Permission yang dibutuhkan untuk user SSH di MikroTik:
- * - Group policy: ssh + read (TIDAK perlu write, ftp, atau policy lainnya)
- *
- * Setup di MikroTik:
- * /user group add name=backup-group policy=ssh,read
- * /user add name=backup password=<password> group=backup-group
- *
- * Cara kerja: sistem menjalankan '/export' via SSH dan menangkap
- * output langsung dari stdout tanpa menyimpan file di MikroTik.
- */
 class MikrotikService
 {
     public function backup(Node $node): string
@@ -26,35 +11,26 @@ class MikrotikService
         $timestamp = $now->format('Y-m-d-H.i') . 'WIB';
         $nodeName = strtolower(preg_replace('/[^a-zA-Z0-9\-_]/', '-', $node->name));
         $filename = "backup-{$nodeName}-{$timestamp}.rsc";
-        $localDir = config('backup.storage_path') . "/mikrotik/{$node->name}";
 
+        $localDir = storage_path("app/backups/mikrotik/{$node->name}");
         if (!is_dir($localDir)) {
             mkdir($localDir, 0755, true);
         }
-
         $localPath = "{$localDir}/{$filename}";
 
-        $ssh = $this->buildSsh($node);
-
-        // Capture /export output directly from stdout — tidak perlu write ke filesystem MikroTik
-        // User hanya butuh permission: ssh + read
-        $output = $ssh->execute('/export');
-
-        $content = is_array($output) ? implode("\n", $output) : (string) $output;
+        $content = $this->runSshCommand($node, '/export');
 
         if (empty(trim($content))) {
             throw new \RuntimeException(
                 "Output /export kosong dari {$node->host}. " .
-                "Pastikan user SSH memiliki permission 'read' di MikroTik."
+                "Pastikan user SSH memiliki policy 'read' di MikroTik."
             );
         }
 
         file_put_contents($localPath, $content);
 
         if (!file_exists($localPath) || filesize($localPath) === 0) {
-            throw new \RuntimeException(
-                "Gagal menyimpan file backup dari {$node->host}"
-            );
+            throw new \RuntimeException("Gagal menyimpan file backup dari {$node->host}");
         }
 
         return $localPath;
@@ -62,32 +38,76 @@ class MikrotikService
 
     public function execute(Node $node, string $command): string
     {
-        $ssh = $this->buildSsh($node);
-
-        try {
-            $result = $ssh->execute($command);
-            return is_array($result) ? implode("\n", $result) : (string) $result;
-        } catch (\Exception $e) {
-            throw new \RuntimeException(
-                "Gagal eksekusi command di {$node->host}: " . $e->getMessage()
-            );
-        }
+        return $this->runSshCommand($node, $command);
     }
 
-    private function buildSsh(Node $node): Ssh
+    /**
+     * Kirim command SSH ke MikroTik via proc_open sebagai argument (bukan heredoc).
+     * spatie/ssh selalu wrap command dalam heredoc (<< \EOF-SPATIE-SSH) yang tidak
+     * didukung MikroTik RouterOS 6.x, sehingga output selalu kosong.
+     */
+    private function runSshCommand(Node $node, string $command): string
     {
         $timeout = config('backup.ssh_timeout', 30);
+        $host = $node->host;
+        $port = $node->port ?? 22;
+        $user = $node->ssh_user;
+
+        $baseOptions = sprintf(
+            '-p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=%d -o BatchMode=no',
+            $port,
+            $timeout
+        );
 
         if ($node->ssh_key_path && file_exists($node->ssh_key_path)) {
-            return Ssh::create($node->ssh_user, $node->host, $node->port ?? 22)
-                ->usePrivateKey($node->ssh_key_path)
-                ->disableStrictHostKeyChecking()
-                ->setTimeout($timeout);
+            $sshCmd = sprintf(
+                'ssh -i %s %s %s@%s %s',
+                escapeshellarg($node->ssh_key_path),
+                $baseOptions,
+                escapeshellarg($user),
+                escapeshellarg($host),
+                escapeshellarg($command)
+            );
+        } else {
+            $password = $node->ssh_password ?? '';
+            $sshCmd = sprintf(
+                'sshpass -p %s ssh %s -o PasswordAuthentication=yes %s@%s %s',
+                escapeshellarg($password),
+                $baseOptions,
+                escapeshellarg($user),
+                escapeshellarg($host),
+                escapeshellarg($command)
+            );
         }
 
-        return Ssh::create($node->ssh_user, $node->host, $node->port ?? 22)
-            ->usePassword($node->ssh_password ?? '')
-            ->disableStrictHostKeyChecking()
-            ->setTimeout($timeout);
+        $descriptors = [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ];
+
+        $process = proc_open($sshCmd, $descriptors, $pipes);
+
+        if (!is_resource($process)) {
+            throw new \RuntimeException("Gagal membuka proses SSH ke {$host}");
+        }
+
+        fclose($pipes[0]);
+
+        $output = stream_get_contents($pipes[1]);
+        $error  = stream_get_contents($pipes[2]);
+
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+
+        $exitCode = proc_close($process);
+
+        if ($exitCode !== 0 && empty(trim($output))) {
+            throw new \RuntimeException(
+                "SSH command gagal ke {$host} (exit code {$exitCode}): " . trim($error)
+            );
+        }
+
+        return $output;
     }
 }
