@@ -12,7 +12,7 @@ class BackupFilesController extends Controller
     {
         $request->validate([
             'node_id'  => 'nullable|uuid',
-            'type'     => 'nullable|in:mikrotik,database',
+            'type'     => 'nullable|in:mikrotik,database,virtualizor_db',
             'page'     => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
         ]);
@@ -25,9 +25,21 @@ class BackupFilesController extends Controller
         $nodes = Node::all()->keyBy('name');
         $files = [];
 
-        $dirs = $type ? [$type] : ['mikrotik', 'database'];
+        // Map type string (API) ke folder name di storage
+        // 'virtualizor_db' → folder 'virtualizor' (VirtualizorBackupService menyimpan di backups/virtualizor/)
+        $typeFolderMap = [
+            'mikrotik'       => 'mikrotik',
+            'database'       => 'database',
+            'virtualizor_db' => 'virtualizor',
+        ];
 
-        foreach ($dirs as $dir) {
+        if ($type) {
+            $folders = [[$type, $typeFolderMap[$type] ?? $type]];
+        } else {
+            $folders = array_map(fn($t, $f) => [$t, $f], array_keys($typeFolderMap), array_values($typeFolderMap));
+        }
+
+        foreach ($folders as [$typeLabel, $dir]) {
             $basePath = "backups/{$dir}";
             if (!Storage::exists($basePath)) {
                 continue;
@@ -49,7 +61,7 @@ class BackupFilesController extends Controller
                     $files[] = [
                         'node_id'      => $node?->id,
                         'node_name'    => $nodeName,
-                        'type'         => $dir,
+                        'type'         => $typeLabel,
                         'filename'     => $filename,
                         'size'         => $size,
                         'size_human'   => $this->formatBytes($size),

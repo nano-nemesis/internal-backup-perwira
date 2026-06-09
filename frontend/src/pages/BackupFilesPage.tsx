@@ -17,7 +17,7 @@ function FileCard({ file }: { file: BackupFileItem }) {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-[#0F172A] truncate">{file.filename}</p>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
-          <Badge variant={file.type as 'mikrotik' | 'database'}>{file.type}</Badge>
+          <Badge variant={file.type as 'mikrotik' | 'database' | 'virtualizor_db'}>{file.type === 'virtualizor_db' ? 'Virtualizor' : file.type}</Badge>
           <span className="text-xs text-[#64748B]">{file.node_name}</span>
           <span className="text-xs text-[#64748B]">{file.size_human}</span>
         </div>
@@ -37,7 +37,7 @@ function FileCard({ file }: { file: BackupFileItem }) {
 
 export default function BackupFilesPage() {
   const [nodeId, setNodeId] = useState('')
-  const [type, setType] = useState<'mikrotik' | 'database' | ''>('')
+  const [type, setType] = useState<'mikrotik' | 'database' | 'virtualizor_db' | ''>('')
   const [page, setPage] = useState(1)
 
   const { data: filesData, isLoading } = useBackupFiles({
@@ -80,7 +80,7 @@ export default function BackupFilesPage() {
           ))}
         </select>
         <div className="flex gap-1">
-          {(['', 'mikrotik', 'database'] as const).map((t) => (
+          {(['', 'mikrotik', 'database', 'virtualizor_db'] as const).map((t) => (
             <button
               key={t}
               onClick={() => handleFilterChange(setType, t)}
@@ -90,7 +90,7 @@ export default function BackupFilesPage() {
                   : 'bg-[#F8FAFC] text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#0077FF]'
               }`}
             >
-              {t === '' ? 'All' : t === 'mikrotik' ? 'MikroTik' : 'Database'}
+              {t === '' ? 'All' : t === 'mikrotik' ? 'MikroTik' : t === 'database' ? 'Database' : 'Virtualizor'}
             </button>
           ))}
         </div>
@@ -149,7 +149,7 @@ export default function BackupFilesPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-[#0F172A]">{file.node_name}</span>
-                          <Badge variant={file.type as 'mikrotik' | 'database'}>{file.type}</Badge>
+                          <Badge variant={file.type as 'mikrotik' | 'database' | 'virtualizor_db'}>{file.type === 'virtualizor_db' ? 'Virtualizor' : file.type}</Badge>
                         </div>
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-[#0F172A]">

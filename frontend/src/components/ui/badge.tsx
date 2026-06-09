@@ -22,6 +22,7 @@ const variantStyles: Record<string, string> = {
   viewer: 'bg-[#F8FAFC] text-[#64748B] border-[#E2E8F0]',
   mikrotik: 'bg-[#FFF7ED] text-[#FF8C00] border-orange-200',
   database: 'bg-teal-50 text-teal-700 border-teal-200',
+  virtualizor_db: 'bg-indigo-50 text-indigo-700 border-indigo-200',
 }
 
 export function Badge({

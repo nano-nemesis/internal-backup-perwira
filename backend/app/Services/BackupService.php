@@ -1,5 +1,15 @@
 <?php
 
+/**
+ * PATCH: BackupService.php
+ *
+ * Tambahkan VirtualizorBackupService ke constructor injection
+ * dan tambahkan case 'virtualizor_db' di match statement.
+ *
+ * File: backend/app/Services/BackupService.php
+ * Perubahan: MINIMAL — hanya 2 baris tambahan.
+ */
+
 namespace App\Services;
 
 use App\Models\BackupLog;
@@ -13,6 +23,7 @@ class BackupService
         private MikrotikService $mikrotik,
         private DatabaseBackupService $database,
         private TelegramNotifier $telegram,
+        private VirtualizorBackupService $virtualizor,  // <-- TAMBAH INI
     ) {}
 
     public function run(Node $node): BackupLog
@@ -28,9 +39,10 @@ class BackupService
 
         try {
             $filePath = match ($node->type) {
-                'mikrotik' => $this->mikrotik->backup($node),
-                'database' => $this->database->backup($node),
-                default => throw new \RuntimeException("Unknown node type: {$node->type}"),
+                'mikrotik'       => $this->mikrotik->backup($node),
+                'database'       => $this->database->backup($node),
+                'virtualizor_db' => $this->virtualizor->backup($node),  // <-- TAMBAH INI
+                default          => throw new \RuntimeException("Unknown node type: {$node->type}"),
             };
 
             $duration = (int) (microtime(true) - $startTime);
@@ -89,6 +101,7 @@ class BackupService
         $dirs = [
             "{$basePath}/mikrotik/{$node->name}",
             "{$basePath}/database/{$node->name}",
+            "{$basePath}/virtualizor/{$node->name}",  // <-- TAMBAH INI
         ];
 
         foreach ($dirs as $dir) {

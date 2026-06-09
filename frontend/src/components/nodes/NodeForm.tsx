@@ -105,6 +105,7 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
             options={[
               { value: 'mikrotik', label: 'MikroTik' },
               { value: 'database', label: 'Database' },
+              { value: 'virtualizor_db', label: 'Virtualizor DB Backup' },
             ]}
           />
           <Input
@@ -163,6 +164,23 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
               type="password"
               value={form.db_password}
               onChange={(e) => set('db_password', e.target.value)}
+            />
+          </div>
+        )}
+
+        {form.type === 'virtualizor_db' && (
+          <div className="grid grid-cols-1 gap-4 pt-3 border-t border-[#E2E8F0]">
+            <div className="p-3 rounded-md bg-blue-50 border border-blue-200 text-sm text-blue-800">
+              <strong>Virtualizor DB Backup</strong> — Sistem akan pull file{' '}
+              <code className="text-xs bg-blue-100 px-1 rounded">.sql.gz</code> terbaru
+              dari node Virtualizor via SCP. Pastikan SSH user memiliki akses baca ke
+              direktori backup.
+            </div>
+            <Input
+              label="Backup Dir (opsional)"
+              value={form.db_name}
+              onChange={(e) => set('db_name', e.target.value)}
+              placeholder="/var/virtualizor/backup/db"
             />
           </div>
         )}

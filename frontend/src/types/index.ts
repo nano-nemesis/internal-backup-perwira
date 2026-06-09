@@ -1,5 +1,15 @@
+/**
+ * PATCH: frontend/src/types/index.ts
+ *
+ * Perubahan:
+ * 1. NodeType: tambah 'virtualizor_db'
+ * 2. BackupFileItem.type: tambah 'virtualizor_db'
+ *
+ * Semua perubahan ditandai dengan komentar // <-- PATCH
+ */
+
 export type UserRole = 'admin' | 'operator' | 'viewer'
-export type NodeType = 'mikrotik' | 'database'
+export type NodeType = 'mikrotik' | 'database' | 'virtualizor_db'  // <-- PATCH
 export type BackupStatus = 'pending' | 'running' | 'success' | 'failed'
 
 export interface User {
@@ -19,7 +29,7 @@ export interface Node {
   port: number
   ssh_user?: string
   ssh_key_path?: string
-  db_name?: string
+  db_name?: string     // untuk virtualizor_db: opsional override path backup dir
   db_user?: string
   schedule_interval_hours: number
   is_active: boolean
@@ -52,7 +62,7 @@ export interface BackupFile {
 export interface BackupFileItem {
   node_id: string | null
   node_name: string
-  type: 'mikrotik' | 'database'
+  type: 'mikrotik' | 'database' | 'virtualizor_db'  // <-- PATCH
   filename: string
   size: number
   size_human: string
@@ -104,7 +114,7 @@ export interface NodeFormData {
   ssh_user: string
   ssh_password: string
   ssh_key_path: string
-  db_name: string
+  db_name: string      // untuk virtualizor_db: isi path backup dir (kosong = default)
   db_user: string
   db_password: string
   schedule_interval_hours: number
