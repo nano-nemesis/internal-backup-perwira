@@ -10,13 +10,34 @@ import { useNodes } from '../hooks/useNodes'
 import type { Node } from '../types'
 
 export default function DashboardPage() {
-  const { data, isLoading } = useNodes()
+  const { data, isLoading, isError, fetchStatus, refetch } = useNodes()
+  // fetchStatus 'paused' = React Query menganggap browser offline dan MENUNDA request.
+  // Dalam keadaan itu isError tetap false selamanya, jadi cek isError saja masih
+  // menampilkan "0 node" ke teknisi yang sinyalnya putus — persis kebohongan yang
+  // mau ditutup di sini.
+  const loadFailed = isError || fetchStatus === 'paused'
   const [editingNode, setEditingNode] = useState<Node | null>(null)
 
   const stats = data?.stats ?? { total: 0, success: 0, failed: 0, unknown: 0 }
+  const statValue = (n: number) => (data ? n : '—')
 
   return (
     <div className="space-y-6 max-w-screen-xl">
+      {loadFailed && (
+        <div className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 flex items-center justify-between gap-4">
+          <span>
+            Gagal memuat daftar node — angka di bawah mungkin tidak mencerminkan keadaan
+            sebenarnya. Jangan simpulkan node hilang dari daftar kosong.
+          </span>
+          <button
+            onClick={() => refetch()}
+            className="px-3 py-1.5 rounded-md border border-red-300 hover:bg-red-100 whitespace-nowrap min-h-[44px]"
+          >
+            Coba lagi
+          </button>
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl font-display font-bold text-[#0F172A]">Dashboard</h1>
         <p className="text-sm text-[#64748B] mt-1">
@@ -28,28 +49,28 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
           title="Total Nodes"
-          value={stats.total}
+          value={statValue(stats.total)}
           icon={Server}
           iconColor="#0077FF"
           iconBg="#EFF6FF"
         />
         <StatCard
           title="Success"
-          value={stats.success}
+          value={statValue(stats.success)}
           icon={CheckCircle}
           iconColor="#16A34A"
           iconBg="#F0FDF4"
         />
         <StatCard
           title="Failed"
-          value={stats.failed}
+          value={statValue(stats.failed)}
           icon={XCircle}
           iconColor="#E63000"
           iconBg="#FEF2F0"
         />
         <StatCard
           title="Unknown"
-          value={stats.unknown}
+          value={statValue(stats.unknown)}
           icon={HelpCircle}
           iconColor="#64748B"
           iconBg="#F8FAFC"
@@ -82,15 +103,19 @@ export default function DashboardPage() {
             Nodes Overview
           </h3>
           <span className="text-xs text-[#64748B]">
-            {data?.data?.length ?? 0} nodes
+            {data ? `${data.data.length} nodes` : 'jumlah node tidak diketahui'}
           </span>
         </div>
         {isLoading ? (
           <div className="p-8 text-center text-[#64748B] text-sm animate-pulse">
             Loading...
           </div>
+        ) : data ? (
+          <NodeTable nodes={data.data} onEdit={setEditingNode} />
         ) : (
-          <NodeTable nodes={data?.data ?? []} onEdit={setEditingNode} />
+          <div className="p-8 text-center text-[#64748B] text-sm">
+            Daftar node tidak bisa dimuat. Ini bukan berarti tidak ada node.
+          </div>
         )}
       </div>
 

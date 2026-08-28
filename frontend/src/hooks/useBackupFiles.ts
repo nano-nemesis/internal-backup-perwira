@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import api from '../lib/axios'
-import type { BackupFilesResponse } from '../types'
+import type { BackupFilesResponse, NodeType } from '../types'
 
 interface BackupFilesParams {
   node_id?: string
-  type?: 'mikrotik' | 'database' | ''
+  type?: NodeType | ''
   page?: number
   per_page?: number
 }

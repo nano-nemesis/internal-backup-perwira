@@ -16,7 +16,7 @@ type Tab = 'logs' | 'files'
 export default function NodeDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { data, isLoading, error } = useNode(id!)
+  const { data, isLoading, error, refetch } = useNode(id!)
   const { isAdmin, isOperator } = useAuth()
   const trigger = useTriggerBackup()
   const [showTerminal, setShowTerminal] = useState(false)
@@ -40,9 +40,22 @@ export default function NodeDetailPage() {
   }
 
   if (error || !data) {
+    const status = (error as { response?: { status?: number } } | null)?.response?.status
+    const message =
+      status === 404
+        ? 'Node tidak ditemukan.'
+        : status
+          ? `Gagal memuat node (HTTP ${status}).`
+          : 'Gagal terhubung ke server. Periksa koneksi lalu coba lagi.'
     return (
-      <div className="text-center py-16 text-red-400 font-mono text-sm">
-        Node not found
+      <div className="text-center py-16 space-y-3">
+        <p className="text-red-400 font-mono text-sm">{message}</p>
+        <button
+          onClick={() => refetch()}
+          className="px-4 py-2 text-sm rounded-md border border-gray-300 hover:bg-gray-50 min-h-[44px]"
+        >
+          Coba lagi
+        </button>
       </div>
     )
   }
@@ -112,11 +125,23 @@ export default function NodeDetailPage() {
             <StatusBadge status={latestLog?.status} />
           </div>
         </div>
+        {/* Kartu ini dulu membaca node.last_backup_at (sukses TERAKHIR) sementara tiga
+            kartu tetangganya membaca latestLog (percobaan TERAKHIR) — dua sumber berbeda
+            berdampingan seolah menjelaskan kejadian yang sama. Sekarang seragam ke
+            percobaan terakhir, dan umur backup baik terakhir dimunculkan terpisah justru
+            saat itu penting: ketika percobaan terakhir tidak sukses. */}
         <div className="card p-4">
-          <p className="text-xs text-slate-500 font-mono">Last Backup</p>
+          <p className="text-xs text-slate-500 font-mono">Last Run</p>
           <p className="text-sm font-mono text-slate-300 mt-1">
-            {formatDatetimeWIB(node.last_backup_at)}
+            {formatDatetimeWIB(latestLog?.created_at ?? node.last_backup_at)}
           </p>
+          {latestLog && latestLog.status !== 'success' && (
+            <p className="text-xs font-mono text-amber-400/90 mt-1">
+              {node.last_backup_at
+                ? `sukses terakhir: ${formatDatetimeWIB(node.last_backup_at)}`
+                : 'belum pernah sukses'}
+            </p>
+          )}
         </div>
         <div className="card p-4">
           <p className="text-xs text-slate-500 font-mono">File Size</p>
@@ -144,7 +169,7 @@ export default function NodeDetailPage() {
 
       {/* Terminal */}
       {showTerminal && isAdmin && node.type === 'mikrotik' && (
-        <RemoteTerminal nodeId={node.id} />
+        <RemoteTerminal nodeId={node.id} nodeName={node.name} />
       )}
 
       {/* Tabs */}

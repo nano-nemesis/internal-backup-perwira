@@ -46,8 +46,28 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
         $request->validate(['role' => 'required|in:admin,operator,viewer']);
+
+        // Menurunkan admin aktif terakhir mengunci SEMUA orang keluar: /admin/users dan
+        // remote execute butuh role admin, jadi tidak ada lagi yang bisa mengembalikannya
+        // tanpa mengedit database langsung. destroy() sudah aman karena melarang hapus
+        // akun sendiri, tapi jalur ini belum dijaga.
+        if ($user->role === 'admin' && $request->role !== 'admin' && $this->isLastActiveAdmin($user)) {
+            return response()->json([
+                'message' => 'Tidak bisa menurunkan admin aktif terakhir — '
+                    . 'angkat admin lain terlebih dahulu.',
+            ], 422);
+        }
+
         $user->update(['role' => $request->role]);
         return response()->json(['data' => $user, 'message' => 'Role updated']);
+    }
+
+    private function isLastActiveAdmin(User $user): bool
+    {
+        return User::where('role', 'admin')
+            ->where('is_active', true)
+            ->where('id', '!=', $user->id)
+            ->doesntExist();
     }
 
     public function resetPassword(Request $request, string $id): JsonResponse

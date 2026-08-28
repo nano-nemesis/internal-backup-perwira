@@ -66,7 +66,12 @@ class BackupFilesController extends Controller
                         'size'         => $size,
                         'size_human'   => $this->formatBytes($size),
                         'created_at'   => date('c', $mtime),
-                        'download_url' => "/api/backup-files/download?path={$dir}/{$nodeName}/{$filename}",
+                        // urlencode(): frontend memakai nilai ini langsung sebagai href.
+                        // Nama node boleh berisi spasi, dan '#' akan memotong URL sehingga
+                        // unduhannya gagal diam-diam. %2F didekode balik jadi '/' oleh
+                        // parser query string, jadi resolusi path di download() tidak berubah.
+                        'download_url' => '/api/backup-files/download?path='
+                            . urlencode("{$dir}/{$nodeName}/{$filename}"),
                     ];
                 }
             }

@@ -83,8 +83,12 @@ php8.1 artisan migrate
 # Seed admin user (development only)
 php8.1 artisan db:seed
 
-# Create storage symlink (optional)
-php8.1 artisan storage:link
+# Storage symlink — TIDAK diperlukan oleh aplikasi ini.
+# Berkas backup diunduh lewat /api/backup-files/download dan
+# /api/nodes/{id}/download/{file}, bukan lewat /storage, dan deploy/nginx.conf
+# memang tidak lagi melayani /storage. Jalankan hanya kalau Anda menambahkan
+# sendiri berkas publik di disk 'public'.
+# php8.1 artisan storage:link
 
 # Fix permissions
 sudo chown -R www-data:www-data storage bootstrap/cache
@@ -124,45 +128,67 @@ sudo systemctl reload nginx
 
 ---
 
-## 7. Start Laravel (PHP-FPM or artisan serve)
+## 7. PHP-FPM
 
-For production with Nginx, run Laravel with PHP-FPM atau dengan artisan serve:
+Laravel dijalankan oleh **php-fpm**, bukan `artisan serve`.
 
-**Development / simple deployment:**
+> `artisan serve` adalah server pengembangan bawaan PHP: ia melayani **satu request pada
+> satu waktu**. Satu unduhan backup besar akan membekukan seluruh API selama unduhan
+> berlangsung — dashboard mati dan backup manual tidak bisa dipicu. Jangan dipakai di VPS.
+
+```bash
+# Pool default Ubuntu sudah berjalan sebagai www-data — sama dengan pemilik storage/
+# dan dengan queue worker, jadi tidak ada yang perlu diubah soal izin berkas.
+sudo systemctl enable --now php8.1-fpm
+
+# Pastikan soketnya ada dan namanya cocok dengan deploy/nginx.conf
+ls -l /run/php/php8.1-fpm.sock
+```
+
+Kalau path soketnya berbeda (mis. versi PHP lain), sesuaikan baris `fastcgi_pass` di
+[nginx.conf](nginx.conf).
+
+### Ukuran pool
+
+`deploy/nginx.conf` mematikan `fastcgi_buffering` supaya unduhan backup besar tidak ditulis
+dulu ke berkas sementara. Konsekuensinya **satu worker php-fpm tertahan selama unduhan
+berlangsung**, jadi pool tidak boleh terlalu kecil:
+
+```bash
+sudo nano /etc/php/8.1/fpm/pool.d/www.conf
+```
+
+```ini
+pm = dynamic
+pm.max_children = 10        ; naikkan kalau beberapa orang mengunduh backup bersamaan
+pm.start_servers = 2
+pm.min_spare_servers = 2
+pm.max_spare_servers = 4
+```
+
+Perkiraan kasar: `pm.max_children` ≈ RAM yang boleh dipakai PHP dibagi ~40 MB per worker.
+
+```bash
+sudo systemctl restart php8.1-fpm
+```
+
+### Opsional: cache konfigurasi
+
 ```bash
 cd /var/www/internal-backup-perwira/backend
-php8.1 artisan serve --host=127.0.0.1 --port=8000 &
+php8.1 artisan config:cache
+php8.1 artisan route:cache
 ```
 
-**Production (systemd):**
-```bash
-# Create service
-sudo tee /etc/systemd/system/backup-api.service <<EOF
-[Unit]
-Description=Laravel API - internal-backup-perwira
-After=network.target
-
-[Service]
-User=www-data
-WorkingDirectory=/var/www/internal-backup-perwira/backend
-ExecStart=/usr/bin/php8.1 artisan serve --host=127.0.0.1 --port=8000
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable --now backup-api
-```
+> Ulangi kedua perintah itu **setiap kali `.env` diubah** — kalau tidak, perubahan `.env`
+> tidak terbaca. Batalkan dengan `artisan config:clear && artisan route:clear`.
 
 ---
 
 ## 8. Queue Worker (Systemd)
 
 ```bash
-sudo cp /var/www/internal-backup-perwira/deploy/queue-worker.service /etc/systemd/system/
+sudo cp /var/www/internal-backup-perwira/deploy/backup-queue.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now backup-queue
 sudo systemctl status backup-queue
@@ -173,7 +199,7 @@ sudo systemctl status backup-queue
 ## 9. Scheduler (Systemd)
 
 ```bash
-sudo cp /var/www/internal-backup-perwira/deploy/scheduler.service /etc/systemd/system/
+sudo cp /var/www/internal-backup-perwira/deploy/backup-scheduler.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now backup-scheduler
 sudo systemctl status backup-scheduler
@@ -185,7 +211,7 @@ sudo systemctl status backup-scheduler
 
 ```bash
 # Check all services
-sudo systemctl status nginx backup-api backup-queue backup-scheduler
+sudo systemctl status nginx php8.1-fpm backup-queue backup-scheduler
 
 # Test API
 curl http://localhost/api/setup/status
@@ -193,6 +219,8 @@ curl http://localhost/api/setup/status
 # View logs
 sudo journalctl -u backup-queue -f
 sudo journalctl -u backup-scheduler -f
+sudo tail -f /var/log/nginx/error.log
+sudo tail -f /var/www/internal-backup-perwira/backend/storage/logs/laravel.log
 ```
 
 ---

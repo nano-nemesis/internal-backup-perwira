@@ -25,7 +25,13 @@ export function AlertDialog({ open, onOpenChange, children }: AlertDialogProps) 
         className="fixed inset-0 bg-black/40 backdrop-blur-sm"
         onClick={() => onOpenChange(false)}
       />
-      <div className="relative z-50 w-full max-w-md">{children}</div>
+      {/* alertdialog + aria-modal: dialog ini memagari aksi destruktif (hapus node,
+          hapus semua). Tanpa peran ini pembaca layar tidak mengumumkannya sama sekali.
+          Catatan: fokus belum dikurung di dalam dialog — Tab masih bisa menjangkau
+          elemen di belakang overlay. */}
+      <div role="alertdialog" aria-modal="true" className="relative z-50 w-full max-w-md">
+        {children}
+      </div>
     </div>
   )
 }

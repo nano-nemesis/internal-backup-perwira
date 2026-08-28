@@ -43,6 +43,7 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false)
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false)
+  const [deleteAllConfirm, setDeleteAllConfirm] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
 
   const handleBackup = async (node: Node, e: React.MouseEvent) => {
@@ -162,7 +163,7 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
                     />
                   </th>
                 )}
-                {['Name', 'Type', 'Host', 'Interval', 'Status', 'Last Backup', ''].map((h) => (
+                {['Name', 'Type', 'Host', 'Interval', 'Status', 'Last Run', ''].map((h) => (
                   <th
                     key={h}
                     className={`px-4 py-3 text-left text-xs font-semibold text-[#64748B] uppercase tracking-wider ${
@@ -219,8 +220,12 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
                   <td className="px-4 py-3">
                     <StatusBadge status={node.latest_log?.status} />
                   </td>
+                  {/* Percobaan terakhir, bukan sukses terakhir — supaya tanggal ini
+                      konsisten dengan StatusBadge di sebelahnya. Kalau pakai
+                      last_backup_at, node yang gagal 3 malam tetap menampilkan tanggal
+                      sukses lama yang terlihat menenangkan. */}
                   <td className="px-4 py-3 text-[#64748B] text-xs">
-                    {formatDatetimeWIB(node.last_backup_at)}
+                    {formatDatetimeWIB(node.latest_log?.created_at ?? node.last_backup_at)}
                   </td>
                   <td className="px-4 py-3">
                     <div
@@ -300,20 +305,38 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+      <AlertDialog
+        open={showDeleteAllDialog}
+        onOpenChange={(open) => {
+          setShowDeleteAllDialog(open)
+          if (!open) setDeleteAllConfirm('')
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Hapus Semua Node?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tindakan ini akan menghapus SEMUA node beserta seluruh backup log secara permanen. Tindakan ini tidak dapat dibatalkan.
+              Tindakan ini akan menghapus SEMUA node beserta seluruh backup log secara permanen, termasuk kredensial SSH/DB tiap node. Tindakan ini tidak dapat dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="px-1 pb-1">
+            <label htmlFor="delete-all-confirm" className="block text-sm text-[#64748B] mb-2">
+              Ketik <span className="font-mono font-semibold text-red-600">HAPUS SEMUA</span> untuk mengaktifkan tombol.
+            </label>
+            <input
+              id="delete-all-confirm"
+              autoComplete="off"
+              value={deleteAllConfirm}
+              onChange={(e) => setDeleteAllConfirm(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md font-mono text-sm min-h-[44px]"
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setShowDeleteAllDialog(false)}>Batal</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 hover:bg-red-700 text-white"
               onClick={handleDeleteAll}
-              disabled={isDeleting}
+              disabled={isDeleting || deleteAllConfirm !== 'HAPUS SEMUA'}
             >
               {isDeleting ? 'Menghapus...' : 'Hapus Semua Node'}
             </AlertDialogAction>

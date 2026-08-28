@@ -12,13 +12,25 @@ class MikrotikService
         $nodeName = strtolower(preg_replace('/[^a-zA-Z0-9\-_]/', '-', $node->name));
         $filename = "backup-{$nodeName}-{$timestamp}.rsc";
 
-        $localDir = storage_path("app/backups/mikrotik/{$node->name}");
+        // basename(): pertahanan berlapis kalau ada nama node lama yang tersimpan
+        // sebelum validasi karakter dipasang — '../../etc' jadi 'etc', bukan
+        // menulis di luar direktori backup. Nama normal tidak berubah.
+        $safeName = basename($node->name);
+        $localDir = storage_path("app/backups/mikrotik/{$safeName}");
         if (!is_dir($localDir)) {
             mkdir($localDir, 0755, true);
         }
         $localPath = "{$localDir}/{$filename}";
 
-        $content = $this->runSshCommand($node, '/export');
+        // '/export' polos MENYAMARKAN secret (PPPoE/RADIUS/PSK) di RouterOS 6.44+ dan v7,
+        // sehingga backup-nya tidak cukup untuk memulihkan layanan pelanggan. Flag ini
+        // membuat file .rsc berisi KREDENSIAL PELANGGAN PLAINTEXT — file ditulis 0600.
+        // RouterOS lawas (<6.44) tidak mengenal flag-nya, jadi ada fallback ke /export polos.
+        try {
+            $content = $this->runSshCommand($node, '/export show-sensitive');
+        } catch (\RuntimeException $e) {
+            $content = $this->runSshCommand($node, '/export');
+        }
 
         if (empty(trim($content))) {
             throw new \RuntimeException(
@@ -28,6 +40,8 @@ class MikrotikService
         }
 
         file_put_contents($localPath, $content);
+        // Isinya kredensial pelanggan — jangan biarkan bisa dibaca user lain di host backup.
+        chmod($localPath, 0600);
 
         if (!file_exists($localPath) || filesize($localPath) === 0) {
             throw new \RuntimeException("Gagal menyimpan file backup dari {$node->host}");
@@ -54,7 +68,8 @@ class MikrotikService
         $user = $node->ssh_user;
 
         $baseOptions = sprintf(
-            '-p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=%d -o BatchMode=no',
+            '-p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=%d'
+            . ' -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o BatchMode=no',
             $port,
             $timeout
         );
@@ -102,7 +117,11 @@ class MikrotikService
 
         $exitCode = proc_close($process);
 
-        if ($exitCode !== 0 && empty(trim($output))) {
+        // Exit code diperiksa sendiri, TIDAK digabung dengan cek output kosong.
+        // Kalau digabung, koneksi yang putus di tengah /export (router reboot, blip
+        // jaringan) menyisakan output parsial + exit code gagal, lalu lolos sebagai
+        // backup "sukses" — file .rsc terpotong yang baru ketahuan saat restore.
+        if ($exitCode !== 0) {
             throw new \RuntimeException(
                 "SSH command gagal ke {$host} (exit code {$exitCode}): " . trim($error)
             );

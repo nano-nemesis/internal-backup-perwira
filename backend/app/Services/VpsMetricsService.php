@@ -80,16 +80,34 @@ class VpsMetricsService
         ];
     }
 
+    /**
+     * Ukur partisi tempat backup benar-benar disimpan, bukan '/'.
+     *
+     * Di VPS, direktori backup lazim berada di volume terpisah yang di-mount. Mengukur
+     * '/' membuat dashboard melaporkan disk lega sementara partisi backup penuh — dan
+     * backup mulai gagal tanpa ada tanda apa pun di grafik.
+     *
+     * disk_total_space()/disk_free_space() bawaan PHP menggantikan shell_exec + parsing
+     * keluaran `df`: tidak butuh proses eksternal dan tidak bergantung format `df`.
+     */
     private function getDiskUsage(): array
     {
-        $output = shell_exec("df -BG / 2>/dev/null | tail -1");
-        if (!$output) {
+        $path = config('backup.storage_path');
+        if (!is_dir($path)) {
+            $path = storage_path();   // direktori backup dibuat saat backup pertama
+        }
+
+        $total = @disk_total_space($path);
+        $free = @disk_free_space($path);
+
+        if ($total === false || $free === false || $total <= 0) {
             return ['used' => 0, 'total' => 0];
         }
-        $parts = preg_split('/\s+/', trim($output));
+
+        $gb = 1024 ** 3;
         return [
-            'total' => (float) rtrim($parts[1] ?? '0', 'G'),
-            'used' => (float) rtrim($parts[2] ?? '0', 'G'),
+            'total' => round($total / $gb, 2),
+            'used' => round(($total - $free) / $gb, 2),
         ];
     }
 

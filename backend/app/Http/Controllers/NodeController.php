@@ -6,6 +6,7 @@ use App\Jobs\BackupJob;
 use App\Models\BackupLog;
 use App\Models\Node;
 use App\Services\MikrotikService;
+use App\Support\RouterOsCommandPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -116,14 +117,22 @@ class NodeController extends Controller
             return response()->json(['message' => 'Remote execute is only available for MikroTik nodes'], 422);
         }
 
-        // Whitelist characters safe for RouterOS CLI; blocks shell metacharacters
-        // that could be interpreted before the command reaches the MikroTik device.
+        // Pembatas karakter di bawah TIDAK menahan injeksi shell — itu sudah ditutup
+        // escapeshellarg() di MikrotikService. Ia cuma mempersempit permukaan input.
         $request->validate([
             'command' => [
                 'required', 'string', 'max:500',
                 'regex:/^[a-zA-Z0-9\s\/\-\=\.\,\_\:\@\[\]\+\*\?\!\"\#\&\(\)]+$/',
             ],
         ]);
+
+        // Kebijakan + tesnya ada di App\Support\RouterOsCommandPolicy.
+        if (RouterOsCommandPolicy::isDestructive($request->command)) {
+            return response()->json([
+                'message' => 'Perintah yang mengubah konfigurasi router ditolak dari terminal ini. '
+                    . 'Gunakan akses langsung ke router untuk perubahan.',
+            ], 422);
+        }
 
         try {
             /** @var MikrotikService $mikrotik */

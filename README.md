@@ -68,13 +68,14 @@ Proyek ini berupa monorepo dengan dua aplikasi:
                          ┌──────────────────────────────┐
    Browser (SPA)  ─────► │  Nginx                        │
                          │   /        → frontend/dist     │
-                         │   /api     → Laravel :8000     │
-                         │   /storage → Laravel :8000     │
+                         │              (statis, langsung)│
+                         │   /api     → php-fpm (soket)   │
+                         │   /sanctum → php-fpm (soket)   │
                          └───────────────┬───────────────┘
                                          │
                          ┌───────────────▼───────────────┐
-                         │  Laravel API (Sanctum cookie  │
-                         │  session auth)                │
+                         │  Laravel API via php-fpm      │
+                         │  (Sanctum cookie session auth)│
                          └───┬─────────────┬─────────────┘
                              │             │
           ┌──────────────────▼──┐   ┌──────▼───────────────────┐
@@ -93,8 +94,13 @@ Proyek ini berupa monorepo dengan dua aplikasi:
 ```
 
 Frontend berkomunikasi dengan backend hanya melalui `/api`, memakai **autentikasi session
-berbasis cookie Sanctum** (`withCredentials`). Di mode development, Vite mem-proxy `/api`,
-`/sanctum`, dan `/storage` ke server dev Laravel di port 8000.
+berbasis cookie Sanctum** (`withCredentials`).
+
+- **Produksi:** nginx menyajikan SPA langsung dari `frontend/dist` dan meneruskan `/api`
+  serta `/sanctum` ke **php-fpm** lewat soket Unix. Tidak ada port 8000.
+- **Development:** Vite mem-proxy `/api`, `/sanctum`, dan `/storage` ke `artisan serve`
+  di port 8000. `artisan serve` hanya untuk development — lihat catatan di bagian
+  [Deployment Produksi](#deployment-produksi).
 
 ---
 
@@ -106,7 +112,12 @@ Backup dikoordinasi oleh [`BackupService`](backend/app/Services/BackupService.ph
 2. Berdasarkan `node.type`, dialihkan ke service yang sesuai:
    - **MikroTik** ([`MikrotikService`](backend/app/Services/MikrotikService.php)) — membuka
      koneksi SSH via `proc_open` (memakai `ssh` + `sshpass`, atau private key) dan menjalankan
-     `/export`. Outputnya ditulis ke file `.rsc`.
+     `/export show-sensitive` (fallback ke `/export` polos untuk RouterOS lawas).
+     Outputnya ditulis ke file `.rsc` dengan izin `0600`.
+
+     > ⚠️ `show-sensitive` membuat file `.rsc` berisi **kredensial pelanggan plaintext**
+     > (PPPoE secret, RADIUS secret, WiFi PSK). Tanpa flag ini backup tidak cukup untuk
+     > memulihkan layanan pelanggan; dengan flag ini direktori backup jadi aset sensitif.
 
      > Catatan: ini sengaja **tidak** memakai `spatie/ssh`. Library tersebut membungkus setiap
      > perintah dalam heredoc (`<< \EOF-SPATIE-SSH`), yang tidak didukung RouterOS 6.x dan
@@ -493,12 +504,16 @@ langkah demi langkah. Ringkasnya:
 3. `composer install --no-dev --optimize-autoloader`, konfigurasi `.env`, `key:generate`,
    `migrate`.
 4. `npm install && npm run build` di `frontend/`.
-5. Pasang [deploy/nginx.conf](deploy/nginx.conf) (menyajikan SPA, mem-proxy `/api`,
-   `/sanctum`, `/storage` ke Laravel di `127.0.0.1:8000`).
-6. Jalankan API, queue worker, dan scheduler sebagai service systemd:
-   - [deploy/queue-worker.service](deploy/queue-worker.service) — `queue:work --queue=backup`
-   - [deploy/scheduler.service](deploy/scheduler.service) — `schedule:run` tiap 60 detik
-   - Unit `backup-api` yang menjalankan `artisan serve` (template ada di panduan deployment)
+5. Pasang [deploy/nginx.conf](deploy/nginx.conf) — menyajikan SPA langsung dari
+   `frontend/dist` dan meneruskan `/api` + `/sanctum` ke **php-fpm** lewat soket Unix.
+6. Nyalakan `php8.1-fpm` dan atur `pm.max_children` (lihat panduan bagian 7).
+7. Jalankan queue worker dan scheduler sebagai service systemd:
+   - [deploy/backup-queue.service](deploy/backup-queue.service) — `queue:work --queue=backup`
+   - [deploy/backup-scheduler.service](deploy/backup-scheduler.service) — `schedule:run` tiap 60 detik
+
+> **Jangan pakai `artisan serve` di produksi.** Itu server dev bawaan PHP yang melayani satu
+> request pada satu waktu: satu unduhan backup besar membekukan seluruh API selama unduhan
+> berlangsung.
 
 > Untuk backup SSH berbasis password, pastikan `sshpass` terpasang di host backup. Untuk
 > backup database, server target butuh `mysqldump` (mysql-client) dan user MySQL dengan minimal
@@ -513,8 +528,13 @@ langkah demi langkah. Ringkasnya:
 - **Auth** — session cookie SPA Sanctum; login dibatasi rate per IP; akun nonaktif diblokir.
 - **Path traversal** — unduhan backup memakai pengecekan `basename()` + `realpath()` agar
   akses tetap di dalam direktori backups.
-- **Remote execute MikroTik** — input divalidasi terhadap whitelist karakter aman RouterOS
-  untuk memblokir metakarakter shell sebelum perintah sampai ke perangkat.
+- **Remote execute MikroTik** — injeksi shell ditutup `escapeshellarg()` di
+  [`MikrotikService`](backend/app/Services/MikrotikService.php); filter karakter di
+  controller hanya mempersempit input, **bukan** pengaman. Perintah yang mengubah keadaan
+  router (`remove`, `reset-configuration`, `disable`, `shutdown`, `set`, `upgrade`) ditolak
+  oleh [`RouterOsCommandPolicy`](backend/app/Support/RouterOsCommandPolicy.php).
+  Ini **daftar-tolak, bukan allowlist** — sintaks tak terduga bisa lolos.
+  Cek mandiri: `php backend/tests/router-os-command-policy.php`.
 - Audit tersendiri tercatat di [SECURITY_AUDIT.md](SECURITY_AUDIT.md).
 
 > Seeder development membuat `admin` / `password123`. **Jangan pakai seeder dev di produksi** —

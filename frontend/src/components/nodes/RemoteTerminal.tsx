@@ -4,6 +4,7 @@ import { useRemoteExecute } from '../../hooks/useNodes'
 
 interface RemoteTerminalProps {
   nodeId: string
+  nodeName: string
 }
 
 interface Line {
@@ -12,7 +13,7 @@ interface Line {
   ts: string
 }
 
-export function RemoteTerminal({ nodeId }: RemoteTerminalProps) {
+export function RemoteTerminal({ nodeId, nodeName }: RemoteTerminalProps) {
   const [input, setInput] = useState('')
   const [lines, setLines] = useState<Line[]>([
     {
@@ -103,6 +104,11 @@ export function RemoteTerminal({ nodeId }: RemoteTerminalProps) {
           </div>
           <Terminal className="w-3.5 h-3.5 text-green-400 ml-1" />
           <span className="text-xs font-mono text-slate-400">Remote Terminal</span>
+          {/* Nama node target dibuat mencolok: allowlist backend menilai perintahnya,
+              bukan apakah perintah itu ditujukan ke node yang benar. */}
+          <span className="text-xs font-mono font-semibold text-amber-400 px-1.5 py-0.5 rounded bg-amber-950/60 border border-amber-800/60">
+            {nodeName}
+          </span>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs text-slate-600 font-mono">{lines.length} lines</span>

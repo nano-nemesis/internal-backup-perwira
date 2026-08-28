@@ -25,29 +25,6 @@ export function formatDuration(seconds: number | null | undefined): string {
   return `${mins}m ${secs}s`
 }
 
-export function timeAgo(dateString: string | null | undefined): string {
-  if (!dateString) return 'Never'
-  const date = new Date(dateString)
-  const now = new Date()
-  const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
-  if (diff < 60) return `${diff}s ago`
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  return `${Math.floor(diff / 86400)}d ago`
-}
-
-export function formatDateTime(dateString: string | null | undefined): string {
-  if (!dateString) return '—'
-  return new Date(dateString).toLocaleString('id-ID', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
-}
-
 export function formatDatetimeWIB(dateString: string | null | undefined): string {
   if (!dateString) return 'Never'
   try {

@@ -20,19 +20,18 @@ class AppServiceProvider extends ServiceProvider
         foreach ([
             storage_path('app/backups/mikrotik'),
             storage_path('app/backups/database'),
+            storage_path('app/backups/virtualizor'),
         ] as $dir) {
             if (!is_dir($dir)) {
                 mkdir($dir, 0755, true);
             }
         }
 
-        // sshpass diperlukan untuk backup MikroTik via password
-        if (!shell_exec('which sshpass')) {
-            \Illuminate\Support\Facades\Log::warning(
-                'sshpass tidak ditemukan. Backup MikroTik via password tidak akan berfungsi. ' .
-                'Install dengan: apt install sshpass'
-            );
-        }
+        // Pemeriksaan `which sshpass` dihapus dari sini: boot() jalan di SETIAP request
+        // dan SETIAP perintah artisan, jadi itu memunculkan subproses per request plus
+        // banjir warning di log. Kalau sshpass memang tidak ada, SSH keluar dengan exit
+        // code 127 dan MikrotikService melempar error berisi stderr-nya — jelas dan
+        // tepat di titik pemakaian.
 
         // 30 remote-execute calls per minute per authenticated user
         RateLimiter::for('remote-execute', function (Request $request) {

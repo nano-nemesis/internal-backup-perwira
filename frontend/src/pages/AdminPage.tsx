@@ -23,6 +23,14 @@ const roleOptions = [
   { value: 'viewer', label: 'Viewer' },
 ]
 
+/** Ambil pesan/validasi dari respons API; jatuh ke pesan cadangan kalau tidak ada. */
+function apiMessage(err: unknown, fallback: string): string {
+  const res = (err as { response?: { data?: { message?: string; errors?: Record<string, string[]> } } })
+    .response?.data
+  if (res?.errors) return Object.values(res.errors).flat().join(', ')
+  return res?.message ?? fallback
+}
+
 export default function AdminPage() {
   const { isAdmin, user: me } = useAuth()
   const { data, isLoading } = useUsers()
@@ -51,12 +59,8 @@ export default function AdminPage() {
       toast(`User "${newUser.username}" created`, 'success')
       setShowCreate(false)
       setNewUser({ username: '', email: '', password: '', role: 'viewer' })
-    } catch (err: any) {
-      const msg =
-        err.response?.data?.errors
-          ? Object.values(err.response.data.errors).flat().join(', ')
-          : err.response?.data?.message ?? 'Failed to create user'
-      toast(msg, 'error')
+    } catch (err) {
+      toast(apiMessage(err, 'Failed to create user'), 'error')
     }
   }
 
@@ -64,8 +68,11 @@ export default function AdminPage() {
     try {
       await updateRole.mutateAsync({ id: user.id, role })
       toast('Role updated', 'success')
-    } catch {
-      toast('Failed to update role', 'error')
+    } catch (err) {
+      // Server mengirim alasan konkret di sini — mis. penolakan menurunkan admin
+      // aktif terakhir. `catch` kosong menggantinya jadi pesan generik yang bikin
+      // admin menyangka fiturnya rusak.
+      toast(apiMessage(err, 'Failed to update role'), 'error')
     }
   }
 
@@ -77,8 +84,8 @@ export default function AdminPage() {
       toast(`Password reset for "${resetTarget.username}"`, 'success')
       setResetTarget(null)
       setNewPassword('')
-    } catch {
-      toast('Failed to reset password', 'error')
+    } catch (err) {
+      toast(apiMessage(err, 'Failed to reset password'), 'error')
     }
   }
 
@@ -91,8 +98,8 @@ export default function AdminPage() {
     try {
       await deleteUser.mutateAsync(user.id)
       toast(`User "${user.username}" deleted`, 'success')
-    } catch {
-      toast('Failed to delete user', 'error')
+    } catch (err) {
+      toast(apiMessage(err, 'Failed to delete user'), 'error')
     }
   }
 

@@ -40,7 +40,11 @@ class DatabaseBackupService
         $nodeName = strtolower(preg_replace('/[^a-zA-Z0-9\-_]/', '-', $node->name));
         $filename = "backup-{$nodeName}-{$timestamp}.sql.gz";
 
-        $localDir = storage_path("app/backups/database/{$node->name}");
+        // basename(): pertahanan berlapis kalau ada nama node lama yang tersimpan
+        // sebelum validasi karakter dipasang — '../../etc' jadi 'etc', bukan
+        // menulis di luar direktori backup. Nama normal tidak berubah.
+        $safeName = basename($node->name);
+        $localDir = storage_path("app/backups/database/{$safeName}");
         if (!is_dir($localDir)) {
             mkdir($localDir, 0755, true);
         }
@@ -51,12 +55,17 @@ class DatabaseBackupService
 
         // Plain SQL output — no pipe to gzip so stdout stays as text, safe to capture
         // $node->db_password already decrypted by the model accessor
+        // escapeshellarg(), bukan addslashes(): di dalam kutip tunggal shell, \' TIDAK
+        // mengescape apa pun — ia menutup kutipnya. Password/nama DB berisi kutip tunggal
+        // bisa keluar dari kutip dan menyuntikkan perintah ke server target.
         $dbPass = $node->db_password
-            ? "-p'" . addslashes($node->db_password) . "'"
+            ? ' -p' . escapeshellarg($node->db_password)
             : '';
 
-        $cmd = "mysqldump --single-transaction --quick --lock-tables=false"
-             . " -u{$node->db_user} {$dbPass} {$node->db_name}";
+        $cmd = 'mysqldump --single-transaction --quick --lock-tables=false'
+             . ' -u' . escapeshellarg($node->db_user)
+             . $dbPass
+             . ' ' . escapeshellarg($node->db_name);
 
         // removeBash() prevents bash-wrapper overhead; command has no shell features
         $process = $ssh->removeBash()->execute($cmd);
@@ -70,12 +79,31 @@ class DatabaseBackupService
             );
         }
 
+        // Exit code diperiksa terpisah: mysqldump yang mati di tengah jalan (koneksi
+        // putus, OOM, lock timeout) tetap sempat menulis header, jadi cek header saja
+        // meloloskan dump terpotong sebagai "sukses".
+        if (!$process->isSuccessful()) {
+            throw new \RuntimeException(
+                "mysqldump gagal di {$node->host} (exit code {$process->getExitCode()}): "
+                . trim($process->getErrorOutput())
+            );
+        }
+
         // Sanity-check: output harus berisi header mysqldump yang dikenal
         if (!str_contains($content, '-- MySQL dump') && !str_contains($content, '-- MariaDB dump')) {
             $err = trim($process->getErrorOutput());
             throw new \RuntimeException(
                 "Output bukan SQL dump yang valid dari {$node->host}." .
                 ($err ? " Error: {$err}" : " Cek credential dan nama database.")
+            );
+        }
+
+        // Penanda penutup: mysqldump hanya menulis ini setelah SELURUH dump selesai.
+        // Tanpa cek ini, dump yang terpotong di tengah INSERT tetap lolos jadi backup.
+        if (!str_contains($content, '-- Dump completed')) {
+            throw new \RuntimeException(
+                "Dump dari {$node->host} tidak lengkap — penanda '-- Dump completed' tidak ditemukan. "
+                . "Kemungkinan koneksi terputus atau mysqldump dihentikan di tengah jalan."
             );
         }
 

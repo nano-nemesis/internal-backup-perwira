@@ -54,11 +54,17 @@ class VirtualizorBackupService
             );
         }
 
+        $this->assertNotStale($node, $latestFile);
+
         $remoteFilePath = rtrim($remoteDir, '/') . '/' . $latestFile;
 
         // 2. Cek apakah file ini sudah pernah didownload sebelumnya
         // (hindari re-download file yang sama berulang kali)
-        $localDir = storage_path("app/backups/virtualizor/{$node->name}");
+        // basename(): pertahanan berlapis kalau ada nama node lama yang tersimpan
+        // sebelum validasi karakter dipasang — '../../etc' jadi 'etc', bukan
+        // menulis di luar direktori backup. Nama normal tidak berubah.
+        $safeName = basename($node->name);
+        $localDir = storage_path("app/backups/virtualizor/{$safeName}");
         if (!is_dir($localDir)) {
             mkdir($localDir, 0755, true);
         }
@@ -87,6 +93,57 @@ class VirtualizorBackupService
         ));
 
         return $localPath;
+    }
+
+    /**
+     * ponytail: ambang 2 hari mengasumsikan Virtualizor membuat dump HARIAN.
+     * Kalau cadence-nya berubah, ubah angka ini — bukan menghapus pemeriksaannya.
+     */
+    private const MAX_AGE_DAYS = 2;
+
+    /**
+     * Tolak kalau file terbaru di remote sudah basi.
+     *
+     * Tanpa ini, Virtualizor yang berhenti membuat dump baru tidak pernah ketahuan:
+     * file terlama tetap jadi "yang terbaru", salinan lokalnya sudah ada sehingga
+     * langsung di-skip, dan BackupService menandainya `success` + kirim notifikasi
+     * sukses ke Telegram — setiap siklus, selamanya. Retensi bahkan menghapus salinan
+     * lokalnya tiap 7 hari lalu file basi yang sama diunduh ulang dengan mtime baru,
+     * jadi dari luar terlihat selalu segar.
+     *
+     * Tanggal dibaca dari nama berkas (YYYYMMDD) — asumsi yang sudah dipakai kode ini
+     * saat mengurutkan file secara leksikografis. Kalau namanya tidak berformat tanggal,
+     * kesegaran tidak bisa disimpulkan dan pemeriksaan dilewati dengan peringatan;
+     * ganti ke `stat -c %Y` lewat SSH kalau itu jadi masalah nyata.
+     */
+    private function assertNotStale(Node $node, string $filename): void
+    {
+        if (!preg_match('/^(\d{4})(\d{2})(\d{2})/', $filename, $m)
+            || !checkdate((int) $m[2], (int) $m[3], (int) $m[1])) {
+            Log::warning(
+                "VirtualizorBackupService: nama berkas [{$filename}] dari {$node->host} tidak "
+                . "berformat tanggal yang valid — kesegaran backup tidak bisa diperiksa."
+            );
+            return;
+        }
+
+        $tz = 'Asia/Jakarta';
+        $fileDate = \Carbon\Carbon::create((int) $m[1], (int) $m[2], (int) $m[3], 0, 0, 0, $tz);
+        $today = \Carbon\Carbon::now($tz)->startOfDay();
+
+        // Signed: jam node target yang maju bikin tanggal berada di masa depan —
+        // itu bukan "basi", jadi jangan dilaporkan sebagai kegagalan.
+        $ageDays = (int) $fileDate->diffInDays($today, false);
+
+        if ($ageDays > self::MAX_AGE_DAYS) {
+            throw new \RuntimeException(sprintf(
+                'Backup terbaru di %s sudah basi: [%s] berumur %d hari. '
+                . 'Virtualizor kemungkinan berhenti membuat dump baru — periksa cron backup di node tersebut.',
+                $node->host,
+                $filename,
+                $ageDays
+            ));
+        }
     }
 
     /**
@@ -173,6 +230,9 @@ class VirtualizorBackupService
         }
 
         fclose($pipes[0]);
+        // stdout HARUS ikut dikuras: kalau tidak, scp yang menulis cukup banyak ke
+        // stdout memblokir saat buffer pipe penuh sementara PHP menunggu stderr.
+        stream_get_contents($pipes[1]);
         $stderr = stream_get_contents($pipes[2]);
         fclose($pipes[1]);
         fclose($pipes[2]);
@@ -248,7 +308,11 @@ class VirtualizorBackupService
 
         $exitCode = proc_close($process);
 
-        if ($exitCode !== 0 && empty(trim($output))) {
+        // Exit code diperiksa sendiri, TIDAK digabung dengan cek output kosong.
+        // Kalau digabung, koneksi yang putus di tengah /export (router reboot, blip
+        // jaringan) menyisakan output parsial + exit code gagal, lalu lolos sebagai
+        // backup "sukses" — file .rsc terpotong yang baru ketahuan saat restore.
+        if ($exitCode !== 0) {
             throw new \RuntimeException(
                 "SSH command gagal ke {$host} (exit code {$exitCode}): " . trim($error)
             );

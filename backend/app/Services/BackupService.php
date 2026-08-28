@@ -1,20 +1,9 @@
 <?php
 
-/**
- * PATCH: BackupService.php
- *
- * Tambahkan VirtualizorBackupService ke constructor injection
- * dan tambahkan case 'virtualizor_db' di match statement.
- *
- * File: backend/app/Services/BackupService.php
- * Perubahan: MINIMAL — hanya 2 baris tambahan.
- */
-
 namespace App\Services;
 
 use App\Models\BackupLog;
 use App\Models\Node;
-use App\Models\NodeSchedule;
 use Illuminate\Support\Facades\Log;
 
 class BackupService
@@ -23,7 +12,7 @@ class BackupService
         private MikrotikService $mikrotik,
         private DatabaseBackupService $database,
         private TelegramNotifier $telegram,
-        private VirtualizorBackupService $virtualizor,  // <-- TAMBAH INI
+        private VirtualizorBackupService $virtualizor,
     ) {}
 
     public function run(Node $node): BackupLog
@@ -41,7 +30,7 @@ class BackupService
             $filePath = match ($node->type) {
                 'mikrotik'       => $this->mikrotik->backup($node),
                 'database'       => $this->database->backup($node),
-                'virtualizor_db' => $this->virtualizor->backup($node),  // <-- TAMBAH INI
+                'virtualizor_db' => $this->virtualizor->backup($node),
                 default          => throw new \RuntimeException("Unknown node type: {$node->type}"),
             };
 
@@ -75,21 +64,7 @@ class BackupService
             $this->telegram->notifyFailure($node, $e->getMessage());
         }
 
-        $this->updateSchedule($node);
-
         return $log->fresh();
-    }
-
-    private function updateSchedule(Node $node): void
-    {
-        NodeSchedule::updateOrCreate(
-            ['node_id' => $node->id],
-            [
-                'last_run_at' => now(),
-                'next_run_at' => now()->addHours($node->schedule_interval_hours),
-                'interval_hours' => $node->schedule_interval_hours,
-            ]
-        );
     }
 
     private function cleanOldBackups(Node $node): void
@@ -98,10 +73,14 @@ class BackupService
         $cutoff = now()->subDays($retentionDays)->timestamp;
         $basePath = config('backup.storage_path');
 
+        // basename(): fungsi ini unlink() isi direktori — nama node yang mengandung
+        // '..' akan menghapus berkas di luar direktori backup.
+        $safeName = basename($node->name);
+
         $dirs = [
-            "{$basePath}/mikrotik/{$node->name}",
-            "{$basePath}/database/{$node->name}",
-            "{$basePath}/virtualizor/{$node->name}",  // <-- TAMBAH INI
+            "{$basePath}/mikrotik/{$safeName}",
+            "{$basePath}/database/{$safeName}",
+            "{$basePath}/virtualizor/{$safeName}",
         ];
 
         foreach ($dirs as $dir) {

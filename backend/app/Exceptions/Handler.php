@@ -28,7 +28,11 @@ class Handler extends ExceptionHandler
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        return redirect()->guest(route('login'));
+        // Aplikasi ini TIDAK punya route bernama 'login' — route('login') melempar
+        // RouteNotFoundException dan menghasilkan 500, bukan pengalihan. Terjadi nyata
+        // saat sesi habis lalu tombol Download diklik: itu navigasi browser biasa
+        // (<a href="/api/...">) yang tidak meminta JSON. '/login' adalah rute SPA.
+        return redirect()->guest('/login');
     }
 
     protected function invalidJson($request, ValidationException $exception)

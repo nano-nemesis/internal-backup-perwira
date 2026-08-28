@@ -38,7 +38,7 @@ export function BackupFileList({ files, nodeId }: BackupFileListProps) {
             href={`/api/nodes/${nodeId}/download/${file.filename}`}
             download
             onClick={(e) => e.stopPropagation()}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded hover:bg-blue-900/50 text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-4"
+            className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded hover:bg-blue-900/50 text-blue-400 transition-colors flex-shrink-0 ml-4 min-h-[44px] min-w-[44px]"
           >
             <Download className="w-3.5 h-3.5" />
             Download

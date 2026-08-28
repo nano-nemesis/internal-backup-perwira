@@ -6,18 +6,43 @@ use App\Http\Controllers\Controller;
 use App\Models\BackupLog;
 use App\Models\Node;
 use App\Models\NodeSchedule;
+use App\Traits\HasAlignedSchedule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 class NodeController extends Controller
 {
+    use HasAlignedSchedule;
+
     // Valid backup intervals aligned to midnight-anchored slots
     private const VALID_INTERVALS = [1, 2, 3, 4, 6, 8, 12, 24];
 
     private function hostRules(): array
     {
         // Allow IPv4, IPv6, and valid hostnames; block shell metacharacters
-        return ['required', 'string', 'max:255', 'regex:/^[a-zA-Z0-9][a-zA-Z0-9\.\-\:]*$/'];
+        return ['required', 'string', 'max:255', 'regex:/^[a-zA-Z0-9][a-zA-Z0-9\.\-\:]*\\z/'];
+    }
+
+    /**
+     * Nama node dipakai sebagai nama direktori di storage/app/backups/<tipe>/<nama>.
+     *
+     * Dua alasan aturan ini ketat:
+     * 1. Tanpa pembatasan karakter, nama seperti '../../..' menulis (dan menghapus,
+     *    lewat cleanOldBackups) di luar direktori backup.
+     * 2. Tanpa keunikan, dua node berbagi satu direktori: berkasnya tercampur,
+     *    Node::all()->keyBy('name') di BackupFilesController membuat berkas terhubung
+     *    ke node yang salah, dan retensi node A ikut menghapus berkas node B —
+     *    berujung memulihkan konfigurasi router yang keliru.
+     */
+    private function nameRules(?string $ignoreId = null): array
+    {
+        return [
+            'required', 'string', 'max:100',
+            'regex:/^[A-Za-z0-9][A-Za-z0-9 ._-]*\\z/',
+            Rule::unique('nodes', 'name')->ignore($ignoreId),
+        ];
     }
 
     private function sshKeyPathRules(): array
@@ -57,8 +82,8 @@ class NodeController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name'                    => 'required|string|max:100',
-            'type'                    => 'required|in:mikrotik,database',
+            'name'                    => $this->nameRules(),
+            'type'                    => 'required|in:mikrotik,database,virtualizor_db',
             'host'                    => $this->hostRules(),
             'port'                    => 'nullable|integer|min:1|max:65535',
             'ssh_user'                => 'nullable|string|max:100',
@@ -74,7 +99,9 @@ class NodeController extends Controller
 
         NodeSchedule::create([
             'node_id'     => $node->id,
-            'next_run_at' => now()->addHours($node->schedule_interval_hours),
+            // Slot ter-align (besok 00:00 WIB), bukan now()+interval — kalau tidak,
+            // node baru langsung keluar dari grid jadwal yang dijanjikan README.
+            'next_run_at' => $this->getFirstSlot($node->schedule_interval_hours),
             'interval_hours' => $node->schedule_interval_hours,
         ]);
 
@@ -94,8 +121,8 @@ class NodeController extends Controller
         $hostRules[0] = 'sometimes'; // required → sometimes for update
 
         $validated = $request->validate([
-            'name'                    => 'sometimes|string|max:100',
-            'type'                    => 'sometimes|in:mikrotik,database',
+            'name'                    => array_replace($this->nameRules($node->id), [0 => 'sometimes']),
+            'type'                    => 'sometimes|in:mikrotik,database,virtualizor_db',
             'host'                    => $hostRules,
             'port'                    => 'nullable|integer|min:1|max:65535',
             'ssh_user'                => 'nullable|string|max:100',
@@ -114,7 +141,12 @@ class NodeController extends Controller
             unset($validated['db_password']);
         }
 
+        $oldName = $node->name;
         $node->update($validated);
+
+        if ($node->name !== $oldName) {
+            $this->renameBackupDirs($oldName, $node->name);
+        }
 
         if (isset($validated['schedule_interval_hours'])) {
             NodeSchedule::updateOrCreate(
@@ -124,6 +156,40 @@ class NodeController extends Controller
         }
 
         return response()->json(['data' => $node, 'message' => 'Node updated successfully']);
+    }
+
+    /**
+     * Ikut pindahkan direktori backup saat node diganti nama.
+     *
+     * Tanpa ini, berkas lama tertinggal di direktori nama lama: retensi tidak pernah
+     * memangkasnya (retensi hanya menyapu direktori nama SEKARANG), file browser
+     * menampilkannya dengan node_id null karena tidak ada node bernama itu lagi, dan
+     * halaman detail node kehilangan seluruh riwayatnya.
+     *
+     * Catatan: kolom file_path di backup_logs tetap menunjuk path lama. Itu hanya
+     * dipakai untuk mencocokkan baris saat retensi menghapus berkas, dan UI cuma
+     * menampilkan basename-nya — jadi dampaknya baris log lama tidak ikut terhapus,
+     * bukan berkas yang hilang.
+     */
+    private function renameBackupDirs(string $from, string $to): void
+    {
+        $base = config('backup.storage_path');
+
+        foreach (['mikrotik', 'database', 'virtualizor'] as $type) {
+            $src = $base . '/' . $type . '/' . basename($from);
+            $dst = $base . '/' . $type . '/' . basename($to);
+
+            if (!is_dir($src) || is_dir($dst)) {
+                continue;
+            }
+
+            if (!@rename($src, $dst)) {
+                Log::warning(
+                    "Gagal memindahkan direktori backup [{$src}] ke [{$dst}] saat node "
+                    . "diganti nama. Berkas lama masih ada, tapi tidak lagi terhubung ke node."
+                );
+            }
+        }
     }
 
     public function destroy(string $id): JsonResponse

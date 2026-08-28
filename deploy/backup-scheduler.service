@@ -1,0 +1,23 @@
+[Unit]
+Description=Laravel Scheduler - internal-backup-perwira
+After=network.target mysql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/internal-backup-perwira/backend
+# Tanpa redirect ke /var/log: berkasnya tidak pernah dibuat/di-chown oleh panduan
+# deploy, dan sebagai www-data bash GAGAL membuat file di /var/log yang milik root.
+# Kalau redirect gagal, bash tidak menjalankan perintahnya sama sekali — scheduler
+# tampak "active (running)" tapi tidak pernah men-dispatch satu backup pun.
+# StandardOutput/StandardError=journal di bawah sudah menangkap outputnya:
+#   journalctl -u backup-scheduler -f
+ExecStart=/bin/bash -c "while true; do /usr/bin/php8.1 artisan schedule:run --no-interaction; sleep 60; done"
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=backup-scheduler
+
+[Install]
+WantedBy=multi-user.target
