@@ -329,14 +329,19 @@ export default function PanduanPage() {
           Aplikasi ini bisa dipasang ke layar utama sebagai <strong>Perwira Backup</strong>,
           sehingga terbuka layar penuh tanpa bilah alamat.
         </p>
+        <p>
+          Saat aplikasi dibuka, muncul ajakan memasang di pojok kiri bawah. Kalau ditutup,
+          pilihan itu diingat dan tidak muncul lagi.
+        </p>
         <ul className="list-disc pl-5 space-y-1.5">
           <li>
-            <strong>iPhone / iPad</strong> — buka di Safari, tekan tombol Bagikan lalu{' '}
-            <em>Add to Home Screen</em>. Berjalan walau aksesnya lewat HTTP.
+            <strong>iPhone / iPad</strong> — ajakannya berisi petunjuk: tekan tombol Bagikan
+            di Safari lalu <em>Add to Home Screen</em>. Berjalan walau aksesnya lewat HTTP.
           </li>
           <li>
-            <strong>Android</strong> — menu <em>Install app</em> baru muncul kalau aplikasi
-            diakses lewat HTTPS. Lewat alamat IP biasa, Chrome tidak menawarkannya.
+            <strong>Android</strong> — ajakannya berisi tombol <em>Pasang</em> sekali tekan,
+            tetapi hanya muncul kalau aplikasi diakses lewat HTTPS. Lewat alamat IP biasa,
+            Chrome memang tidak mengizinkan pemasangan.
           </li>
         </ul>
         <Note>

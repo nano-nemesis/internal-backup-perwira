@@ -3,6 +3,7 @@ import { AuthProvider } from './context/AuthContext'
 import AppRoutes from './routes/index'
 import { Toaster } from './components/ui/toaster'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { InstallPrompt } from './components/InstallPrompt'
 
 export default function App() {
   return (
@@ -14,6 +15,9 @@ export default function App() {
           <AppRoutes />
         </ErrorBoundary>
         <Toaster />
+        {/* Di luar ErrorBoundary: ajakan pasang tidak boleh ikut hilang
+            kalau satu halaman gagal dirender. */}
+        <InstallPrompt />
       </AuthProvider>
     </BrowserRouter>
   )
