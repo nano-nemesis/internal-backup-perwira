@@ -4,6 +4,19 @@ export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      keyframes: {
+        // Bar indeterminate: meluncur bolak-balik selama proses berjalan.
+        // Dipakai saat backup berjalan, yang durasinya tidak bisa diperkirakan
+        // (tergantung ukuran konfigurasi/dump dan kecepatan SSH ke target).
+        indeterminate: {
+          '0%':   { transform: 'translateX(-100%) scaleX(0.4)' },
+          '50%':  { transform: 'translateX(30%) scaleX(0.7)' },
+          '100%': { transform: 'translateX(100%) scaleX(0.4)' },
+        },
+      },
+      animation: {
+        indeterminate: 'indeterminate 1.4s ease-in-out infinite',
+      },
       colors: {
         primary: '#0077FF',
         'primary-hover': '#0060CC',

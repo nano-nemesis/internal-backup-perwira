@@ -1,5 +1,33 @@
 import { Menu, LogOut, User } from 'lucide-react'
+import { useIsFetching } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
+
+/**
+ * Penanda bahwa halaman memperbarui dirinya sendiri. Titik menyala setiap kali
+ * data sedang diambil, supaya pengguna tahu angka di layar hidup — bukan
+ * tangkapan lama yang perlu di-refresh.
+ */
+function LiveDot() {
+  const fetching = useIsFetching() > 0
+  return (
+    <span
+      className="hidden sm:flex items-center gap-1.5 text-xs text-[#64748B]"
+      title="Halaman memperbarui datanya sendiri"
+    >
+      <span className="relative flex h-2 w-2">
+        {fetching && (
+          <span className="absolute inline-flex h-full w-full rounded-full bg-[#16A34A] opacity-75 animate-ping" />
+        )}
+        <span
+          className={`relative inline-flex h-2 w-2 rounded-full ${
+            fetching ? 'bg-[#16A34A]' : 'bg-[#CBD5E1]'
+          }`}
+        />
+      </span>
+      live
+    </span>
+  )
+}
 
 interface TopbarProps {
   onToggleSidebar: () => void
@@ -27,6 +55,7 @@ export default function Topbar({ onToggleSidebar }: TopbarProps) {
 
       {/* Right: user info + logout */}
       <div className="flex items-center gap-3">
+        <LiveDot />
         <div className="hidden md:flex items-center gap-2">
           <User className="w-4 h-4 text-[#64748B]" />
           <span className="text-sm text-[#0F172A] font-medium">{user?.username}</span>

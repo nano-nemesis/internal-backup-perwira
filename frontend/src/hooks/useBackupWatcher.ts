@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from '../components/ui/toaster'
 import type { BackupStatus } from '../types'
 
@@ -26,6 +27,7 @@ export const pollInterval = (nodes: Watchable[] | undefined) =>
  * pengambilan data berikutnya; backup berjalan di queue, bukan di dalam request.
  */
 export function useBackupWatcher(nodes: Watchable[] | undefined) {
+  const qc = useQueryClient()
   const prev = useRef<Map<string, BackupStatus | undefined>>(new Map())
   // Jangan bersuara pada pemuatan pertama: status yang sudah 'failed' sejak
   // sebelum halaman dibuka bukan kejadian baru.
@@ -44,13 +46,18 @@ export function useBackupWatcher(nodes: Watchable[] | undefined) {
         const name = nodes.find((n) => n.id === id)?.name ?? id
         if (status === 'success') {
           toast(`Backup "${name}" berhasil`, 'success')
+          // Backup sukses menghasilkan berkas baru — segarkan daftarnya supaya
+          // muncul tanpa perlu memuat ulang halaman.
+          qc.invalidateQueries({ queryKey: ['backup-files'] })
+          qc.invalidateQueries({ queryKey: ['node', id] })
         } else if (status === 'failed') {
           toast(`Backup "${name}" GAGAL — buka detail node untuk pesan errornya`, 'error')
+          qc.invalidateQueries({ queryKey: ['node', id] })
         }
       }
     }
 
     prev.current = now
     primed.current = true
-  }, [nodes])
+  }, [nodes, qc])
 }

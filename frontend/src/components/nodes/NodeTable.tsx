@@ -14,7 +14,8 @@ import {
   useDeleteAllNodes,
 } from '../../hooks/useNodes'
 import { useAuth } from '../../context/AuthContext'
-import { useBackupWatcher } from '../../hooks/useBackupWatcher'
+import { useBackupWatcher, isRunning } from '../../hooks/useBackupWatcher'
+import { BackupProgress } from './BackupProgress'
 import { toast } from '../ui/toaster'
 import {
   AlertDialog,
@@ -223,8 +224,14 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
                   <td className="px-4 py-3 text-[#64748B] text-xs hidden md:table-cell">
                     {node.schedule_interval_hours}h
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 min-w-[132px]">
                     <StatusBadge status={node.latest_log?.status} />
+                    {isRunning(node.latest_log?.status) && (
+                      <BackupProgress
+                        startedAt={node.latest_log?.created_at}
+                        className="mt-1.5"
+                      />
+                    )}
                   </td>
                   {/* Percobaan terakhir, bukan sukses terakhir — supaya tanggal ini
                       konsisten dengan StatusBadge di sebelahnya. Kalau pakai

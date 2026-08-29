@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Play, Terminal } from 'lucide-react'
 import { useNode, useTriggerBackup } from '../hooks/useNodes'
 import { useAuth } from '../context/AuthContext'
-import { useBackupWatcher } from '../hooks/useBackupWatcher'
+import { useBackupWatcher, isRunning } from '../hooks/useBackupWatcher'
+import { BackupProgress } from '../components/nodes/BackupProgress'
 import { Button } from '../components/ui/button'
 import { Badge, StatusBadge } from '../components/ui/badge'
 import { LogViewer } from '../components/logs/LogViewer'
@@ -131,6 +132,9 @@ export default function NodeDetailPage() {
           <div className="mt-2">
             <StatusBadge status={latestLog?.status} />
           </div>
+          {isRunning(latestLog?.status) && (
+            <BackupProgress startedAt={latestLog?.created_at} className="mt-2" />
+          )}
         </div>
         {/* Kartu ini dulu membaca node.last_backup_at (sukses TERAKHIR) sementara tiga
             kartu tetangganya membaca latestLog (percobaan TERAKHIR) — dua sumber berbeda
