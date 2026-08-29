@@ -70,6 +70,18 @@ Proyek ini berupa monorepo dengan dua aplikasi:
   terenkripsi — hanya bisa dipulihkan di instalasi dengan `APP_KEY` yang sama). Impor selalu
   bisa dipratinjau dulu, dan ditolak seluruhnya kalau ada satu entri tidak valid.
 - **Alur setup awal** — saat belum ada user, aplikasi memandu pembuatan akun admin pertama.
+- **PWA** — bisa dipasang sebagai aplikasi (nama **Perwira Backup**, ikon PerwiraMedia).
+  Service worker hanya men-cache **kerangka aplikasi**; respons `/api` dan `/sanctum`
+  tidak pernah disimpan, sehingga status backup yang tampil tidak akan pernah basi.
+  Saat jaringan putus, yang muncul adalah halaman aplikasi beserta peringatannya sendiri,
+  bukan halaman error peramban.
+
+  > ⚠️ **Pemasangan PWA menuntut HTTPS.** Service worker hanya aktif di konteks aman
+  > (HTTPS atau `localhost`). Lewat `http://IP` seperti deployment saat ini, Android/Chrome
+  > tidak akan menawarkan "Install app". iOS Safari tetap bisa **Add to Home Screen**
+  > (memakai meta `apple-mobile-web-app-*`, tanpa service worker). Untuk pemasangan penuh,
+  > sediakan TLS — atau untuk jaringan internal, daftarkan origin-nya di Chrome
+  > `chrome://flags/#unsafely-treat-insecure-origin-as-secure`.
 - **Kontrol akses berbasis role** — `admin`, `operator`, dan `viewer`.
 - **Kredensial terenkripsi** — password SSH dan database disimpan terenkripsi memakai app key
   Laravel.

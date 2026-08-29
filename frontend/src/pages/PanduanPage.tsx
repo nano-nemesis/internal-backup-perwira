@@ -14,6 +14,7 @@ const SECTIONS = [
   ['konfig', 'Cadangkan daftar node'],
   ['user', 'Pengguna dan hak akses'],
   ['telegram', 'Cek lewat Telegram'],
+  ['pasang', 'Pasang di HP'],
   ['masalah', 'Kalau backup gagal'],
 ] as const
 
@@ -320,6 +321,28 @@ export default function PanduanPage() {
           Bot hanya <strong>membaca</strong> — tidak ada perintah yang memicu backup atau
           mengubah konfigurasi. Ia juga hanya menjawab di chat yang ber-ID sama dengan{' '}
           <K>TELEGRAM_CHAT_ID</K>; pesan dari chat lain diabaikan tanpa balasan.
+        </Note>
+      </Section>
+
+      <Section id="pasang" title="Pasang di HP">
+        <p>
+          Aplikasi ini bisa dipasang ke layar utama sebagai <strong>Perwira Backup</strong>,
+          sehingga terbuka layar penuh tanpa bilah alamat.
+        </p>
+        <ul className="list-disc pl-5 space-y-1.5">
+          <li>
+            <strong>iPhone / iPad</strong> — buka di Safari, tekan tombol Bagikan lalu{' '}
+            <em>Add to Home Screen</em>. Berjalan walau aksesnya lewat HTTP.
+          </li>
+          <li>
+            <strong>Android</strong> — menu <em>Install app</em> baru muncul kalau aplikasi
+            diakses lewat HTTPS. Lewat alamat IP biasa, Chrome tidak menawarkannya.
+          </li>
+        </ul>
+        <Note>
+          Saat jaringan putus, aplikasi tetap terbuka tetapi <strong>tidak</strong>{' '}
+          menampilkan data lama: angka backup sengaja tidak disimpan offline supaya
+          tidak ada status basi yang terlihat seperti status sekarang.
         </Note>
       </Section>
 
