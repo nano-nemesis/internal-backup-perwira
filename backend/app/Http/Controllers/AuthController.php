@@ -18,6 +18,17 @@ class AuthController extends Controller
 
     public function setup(Request $request): JsonResponse
     {
+        // Endpoint ini TANPA autentikasi dan membuat akun admin. Di internet publik
+        // ia layak dibatasi seperti halaman login, supaya tidak bisa digedor.
+        $key = 'setup-attempts:' . $request->ip();
+        if (RateLimiter::tooManyAttempts($key, 5)) {
+            return response()->json([
+                'message' => 'Terlalu banyak percobaan. Coba lagi dalam '
+                    . RateLimiter::availableIn($key) . ' detik.',
+            ], 429);
+        }
+        RateLimiter::hit($key, 900);
+
         if (User::exists()) {
             return response()->json(['message' => 'Setup already completed'], 409);
         }

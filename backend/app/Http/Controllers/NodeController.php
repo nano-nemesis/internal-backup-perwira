@@ -9,6 +9,7 @@ use App\Services\MikrotikService;
 use App\Support\RouterOsCommandPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class NodeController extends Controller
@@ -133,6 +134,15 @@ class NodeController extends Controller
                     . 'Gunakan akses langsung ke router untuk perubahan.',
             ], 422);
         }
+
+        // Jejak audit: perintah ini menyentuh router produksi. Tanpa catatan siapa
+        // yang menjalankannya, insiden tidak bisa ditelusuri.
+        Log::warning('AUDIT remote-execute', [
+            'user' => $request->user()->username,
+            'ip' => $request->ip(),
+            'node' => $node->name,
+            'command' => $request->command,
+        ]);
 
         try {
             /** @var MikrotikService $mikrotik */

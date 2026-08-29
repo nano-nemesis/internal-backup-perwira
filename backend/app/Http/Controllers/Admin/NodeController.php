@@ -19,6 +19,9 @@ class NodeController extends Controller
     // Valid backup intervals aligned to midnight-anchored slots
     private const VALID_INTERVALS = [1, 2, 3, 4, 6, 8, 12, 24];
 
+    /** Dipakai kalau klien tidak menyebut interval; sama dengan default kolomnya. */
+    private const INTERVAL_DEFAULT = 24;
+
     private function hostRules(): array
     {
         // Allow IPv4, IPv6, and valid hostnames; block shell metacharacters
@@ -95,14 +98,21 @@ class NodeController extends Controller
             'schedule_interval_hours' => 'nullable|integer|in:' . implode(',', self::VALID_INTERVALS),
         ]);
 
+        // Interval bersifat nullable di validasi. Tanpa nilai eksplisit di sini,
+        // $node->schedule_interval_hours masih null sampai baris dibaca ulang dari
+        // database — dan getFirstSlot(null) melempar TypeError, sehingga node
+        // terbuat tapi jadwalnya tidak dan pengguna melihat 500.
+        $interval = $validated['schedule_interval_hours'] ?? self::INTERVAL_DEFAULT;
+        $validated['schedule_interval_hours'] = $interval;
+
         $node = Node::create($validated);
 
         NodeSchedule::create([
             'node_id'     => $node->id,
             // Slot ter-align (besok 00:00 WIB), bukan now()+interval — kalau tidak,
             // node baru langsung keluar dari grid jadwal yang dijanjikan README.
-            'next_run_at' => $this->getFirstSlot($node->schedule_interval_hours),
-            'interval_hours' => $node->schedule_interval_hours,
+            'next_run_at' => $this->getFirstSlot($interval),
+            'interval_hours' => $interval,
         ]);
 
         return response()->json(['data' => $node, 'message' => 'Node created successfully'], 201);
@@ -192,9 +202,14 @@ class NodeController extends Controller
         }
     }
 
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
         $node = Node::findOrFail($id);
+
+        Log::warning('AUDIT hapus-node', [
+            'user' => $request->user()->username, 'ip' => $request->ip(), 'node' => $node->name,
+        ]);
+
         $node->delete();
         return response()->json(['message' => 'Node deleted successfully']);
     }
@@ -216,6 +231,10 @@ class NodeController extends Controller
 
         $count = Node::whereIn('id', $request->ids)->count();
 
+        Log::warning('AUDIT hapus-node-massal', [
+            'user' => $request->user()->username, 'ip' => $request->ip(), 'jumlah' => $count,
+        ]);
+
         NodeSchedule::whereIn('node_id', $request->ids)->delete();
         BackupLog::whereIn('node_id', $request->ids)->delete();
         Node::whereIn('id', $request->ids)->delete();
@@ -226,9 +245,13 @@ class NodeController extends Controller
         ]);
     }
 
-    public function destroyAll(): JsonResponse
+    public function destroyAll(Request $request): JsonResponse
     {
         $count = Node::count();
+
+        Log::warning('AUDIT hapus-semua-node', [
+            'user' => $request->user()->username, 'ip' => $request->ip(), 'jumlah' => $count,
+        ]);
 
         // delete(), BUKAN truncate(): MySQL menolak TRUNCATE pada tabel yang
         // direferensikan foreign key (error 1701) — backup_logs dan node_schedules

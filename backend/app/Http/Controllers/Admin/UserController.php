@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
@@ -58,6 +59,11 @@ class UserController extends Controller
             ], 422);
         }
 
+        Log::warning('AUDIT ubah-peran', [
+            'user' => $request->user()->username, 'ip' => $request->ip(),
+            'target' => $user->username, 'dari' => $user->role, 'ke' => $request->role,
+        ]);
+
         $user->update(['role' => $request->role]);
         return response()->json(['data' => $user, 'message' => 'Role updated']);
     }
@@ -74,6 +80,10 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
         $request->validate(['password' => 'required|string|min:8']);
+        Log::warning('AUDIT reset-password', [
+            'user' => $request->user()->username, 'ip' => $request->ip(), 'target' => $user->username,
+        ]);
+
         $user->update(['password' => Hash::make($request->password)]);
         return response()->json(['message' => 'Password reset successfully']);
     }
@@ -85,6 +95,10 @@ class UserController extends Controller
         if ($user->id === $request->user()->id) {
             return response()->json(['message' => 'Cannot delete your own account'], 422);
         }
+
+        Log::warning('AUDIT hapus-user', [
+            'user' => $request->user()->username, 'ip' => $request->ip(), 'target' => $user->username,
+        ]);
 
         $user->delete();
         return response()->json(['message' => 'User deleted successfully']);
