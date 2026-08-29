@@ -3,7 +3,6 @@ import { useNavigate, Navigate } from 'react-router-dom'
 import { Eye, EyeOff, Shield, Clock, Activity } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { Button } from '../components/ui/button'
-import logo from '../assets/logo.png'
 
 export default function LoginPage() {
   const { login, user, loading } = useAuth()
@@ -34,7 +33,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen bg-white">
       {/* Left panel - hidden on mobile */}
       <div className="hidden md:flex md:w-1/2 bg-[#0F172A] flex-col items-center justify-center p-12">
-        <img src={logo} alt="PerwiraMedia" className="h-20 w-auto mb-6" />
+        <img src="/perwiramedia.png" alt="PerwiraMedia" className="h-20 w-auto mb-6" />
         <h2 className="text-2xl font-display font-bold text-white mb-2 text-center">
           PerwiraBackup
         </h2>
@@ -62,7 +61,7 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           {/* Logo (shown on mobile) */}
           <div className="flex flex-col items-center mb-8">
-            <img src={logo} alt="PerwiraMedia" className="h-10 w-auto mb-3" />
+            <img src="/perwiramedia.png" alt="PerwiraMedia" className="h-10 w-auto mb-3" />
             <h1 className="text-2xl font-display font-bold text-[#0F172A]">
               PerwiraBackup
             </h1>

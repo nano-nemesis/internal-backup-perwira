@@ -7,6 +7,7 @@ import DevicesPage from '../pages/DevicesPage'
 import NodeDetailPage from '../pages/NodeDetailPage'
 import AdminPage from '../pages/AdminPage'
 import NodeConfigPage from '../pages/NodeConfigPage'
+import PanduanPage from '../pages/PanduanPage'
 import BackupFilesPage from '../pages/BackupFilesPage'
 import AppShell from '../components/layout/AppShell'
 
@@ -27,6 +28,7 @@ export default function AppRoutes() {
         <Route path="/devices" element={<DevicesPage />} />
         <Route path="/devices/:id" element={<NodeDetailPage />} />
         <Route path="/backup-files" element={<BackupFilesPage />} />
+        <Route path="/panduan" element={<PanduanPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/node-config" element={<NodeConfigPage />} />
       </Route>

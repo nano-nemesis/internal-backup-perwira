@@ -5,7 +5,12 @@ import Topbar from './Topbar'
 import { ErrorBoundary } from '../ErrorBoundary'
 
 export default function AppShell() {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  // Awalnya terbuka di desktop, tertutup di HP. Kalau selalu false, tombol hamburger
+  // di desktop tidak terlihat berefek apa-apa karena sidebar dipaksa tampil lewat
+  // kelas md: — itu sebabnya tombolnya terasa 'tidak berfungsi'.
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth >= 768,
+  )
   const location = useLocation()
 
   return (
