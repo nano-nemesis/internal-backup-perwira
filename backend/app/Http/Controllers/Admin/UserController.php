@@ -25,7 +25,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'username' => 'required|string|min:3|max:50|unique:users',
             'email' => 'required|email|unique:users',
-            'password' => 'required|string|min:8',
+            'password' => ['required', 'string', self::aturanPassword()],
             'role' => 'required|in:admin,operator,viewer',
         ]);
 
@@ -79,7 +79,7 @@ class UserController extends Controller
     public function resetPassword(Request $request, string $id): JsonResponse
     {
         $user = User::findOrFail($id);
-        $request->validate(['password' => 'required|string|min:8']);
+        $request->validate(['password' => ['required', 'string', self::aturanPassword()]]);
         Log::warning('AUDIT reset-password', [
             'user' => $request->user()->username, 'ip' => $request->ip(), 'target' => $user->username,
         ]);

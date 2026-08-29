@@ -26,11 +26,17 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Nodes (read-only for viewer, backup for operator+)
     Route::get('/nodes', [NodeController::class, 'index']);
     Route::get('/nodes/{id}', [NodeController::class, 'show']);
-    Route::get('/nodes/{id}/download/{filename}', [NodeController::class, 'downloadBackup']);
 
     Route::middleware('role:admin,operator')->group(function () {
         Route::post('/nodes/{id}/backup', [NodeController::class, 'triggerBackup'])
             ->middleware('throttle:backup-trigger');
+
+        // Unduhan dibatasi operator ke atas: sejak /export show-sensitive aktif,
+        // berkas .rsc memuat kredensial pelanggan (PPPoE/RADIUS/PSK) dalam teks
+        // polos, dan dump .sql.gz memuat isi database. Peran 'viewer' tetap bisa
+        // melihat status, log, dan daftar berkasnya — tapi tidak isinya.
+        Route::get('/nodes/{id}/download/{filename}', [NodeController::class, 'downloadBackup']);
+        Route::get('/backup-files/download', [BackupFilesController::class, 'download']);
     });
 
     Route::middleware('role:admin')->group(function () {
@@ -52,7 +58,6 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
 
     // Backup Files
     Route::get('/backup-files', [BackupFilesController::class, 'index']);
-    Route::get('/backup-files/download', [BackupFilesController::class, 'download']);
 
     // Admin: Node Management
     Route::middleware('role:admin,operator')->group(function () {

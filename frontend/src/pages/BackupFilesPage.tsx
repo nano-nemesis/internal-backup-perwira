@@ -5,10 +5,13 @@ import { useNodes } from '../hooks/useNodes'
 import { Badge } from '../components/ui/badge'
 import { formatDatetimeWIB } from '../lib/utils'
 import type { BackupFileItem } from '../types'
+import { useAuth } from '../context/AuthContext'
 
 const PER_PAGE = 20
 
 function FileCard({ file }: { file: BackupFileItem }) {
+  const { isOperator } = useAuth()
+
   return (
     <div className="card p-4 flex items-start gap-3">
       <div className="p-2 rounded-lg bg-[#EFF6FF] flex-shrink-0">
@@ -23,19 +26,23 @@ function FileCard({ file }: { file: BackupFileItem }) {
         </div>
         <p className="text-xs text-[#94A3B8] mt-1">{formatDatetimeWIB(file.created_at)}</p>
       </div>
-      <a
-        href={file.download_url}
-        download={file.filename}
-        className="p-2 rounded-md bg-[#0077FF] hover:bg-[#0060CC] text-white transition-colors flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
-        title="Download"
-      >
-        <Download className="w-4 h-4" />
-      </a>
+      {isOperator && (
+        <a
+          href={file.download_url}
+          download={file.filename}
+          className="p-2 rounded-md bg-[#0077FF] hover:bg-[#0060CC] text-white transition-colors flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
+          title="Download"
+        >
+          <Download className="w-4 h-4" />
+        </a>
+      )}
     </div>
   )
 }
 
 export default function BackupFilesPage() {
+  // Sejalan dengan API: unduhan hanya untuk operator ke atas.
+  const { isOperator } = useAuth()
   const [nodeId, setNodeId] = useState('')
   const [type, setType] = useState<'mikrotik' | 'database' | 'virtualizor_db' | ''>('')
   const [page, setPage] = useState(1)
@@ -130,7 +137,7 @@ export default function BackupFilesPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
-                    {['Node', 'Filename', 'Ukuran', 'Tanggal', 'Download'].map((h) => (
+                    {['Node', 'Filename', 'Ukuran', 'Tanggal', ...(isOperator ? ['Download'] : [])].map((h) => (
                       <th
                         key={h}
                         className="px-4 py-3 text-left text-xs font-semibold text-[#475569] uppercase tracking-wider"
@@ -161,17 +168,19 @@ export default function BackupFilesPage() {
                       <td className="px-4 py-3 text-[#475569] text-xs whitespace-nowrap">
                         {formatDatetimeWIB(file.created_at)}
                       </td>
-                      <td className="px-4 py-3">
-                        <a
-                          href={file.download_url}
-                          download={file.filename}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#EFF6FF] hover:bg-[#0077FF] text-[#0077FF] hover:text-white rounded-md text-xs font-medium transition-colors"
-                          title={`Download ${file.filename}`}
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          Download
-                        </a>
-                      </td>
+                      {isOperator && (
+                        <td className="px-4 py-3">
+                          <a
+                            href={file.download_url}
+                            download={file.filename}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#EFF6FF] hover:bg-[#0077FF] text-[#0077FF] hover:text-white rounded-md text-xs font-medium transition-colors"
+                            title={`Download ${file.filename}`}
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Download
+                          </a>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

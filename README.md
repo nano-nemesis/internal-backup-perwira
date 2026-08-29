@@ -468,12 +468,12 @@ Semua endpoint berprefiks `/api`. Autentikasi memakai cookie session Sanctum.
 | `GET` | `/me` | semua | User saat ini |
 | `GET` | `/nodes` | viewer | Daftar node + statistik agregat |
 | `GET` | `/nodes/{id}` | viewer | Detail node, log (100 terakhir), file backup |
-| `GET` | `/nodes/{id}/download/{filename}` | viewer | Unduh file backup (aman dari path traversal) |
+| `GET` | `/nodes/{id}/download/{filename}` | operator | Unduh file backup (aman dari path traversal) |
 | `POST` | `/nodes/{id}/backup` | operator | Picu backup manual (throttled) |
 | `POST` | `/nodes/{id}/execute` | admin | Jalankan perintah MikroTik (whitelist, throttled) |
 | `GET` | `/vps-metrics` | semua | Metrik VPS (1 jam terakhir + terbaru) |
 | `GET` | `/backup-files` | semua | Daftar file backup (paginasi) |
-| `GET` | `/backup-files/download` | semua | Unduh file backup |
+| `GET` | `/backup-files/download` | operator | Unduh file backup |
 | `GET` | `/admin/telegram` | admin | Pengaturan bot (token hanya dikirim bertopeng) |
 | `PUT` | `/admin/telegram` | admin | Simpan token/chat id |
 | `POST` | `/admin/telegram/test` | admin | Kirim pesan uji |
@@ -507,8 +507,8 @@ Ditegakkan oleh middleware [`CheckRole`](backend/app/Http/Middleware/CheckRole.p
 
 | Role | Kemampuan |
 |---|---|
-| **viewer** | Melihat node, log, metrik; mengunduh backup |
-| **operator** | Semua kemampuan viewer + buat/update/hapus node, picu backup |
+| **viewer** | Melihat node, log, metrik, dan daftar file backup — tanpa mengunduh isinya |
+| **operator** | Semua kemampuan viewer + mengunduh file backup, buat/update/hapus node, picu backup |
 | **admin** | Semua + manajemen user, remote execute MikroTik, hapus node massal |
 
 ---
@@ -598,10 +598,19 @@ langkah. Ringkasnya:
   oleh [`RouterOsCommandPolicy`](backend/app/Support/RouterOsCommandPolicy.php).
   Ini **daftar-tolak, bukan allowlist** — sintaks tak terduga bisa lolos.
   Cek mandiri: `php backend/tests/router-os-command-policy.php`.
+- **Kebijakan password**: minimal 12 karakter, wajib memuat huruf dan angka, dan dicek
+  terhadap basis data password bocor (Have I Been Pwned). Pengecekan itu memakai
+  *k-anonymity* — hanya 5 karakter awal hash SHA-1 yang dikirim, passwordnya tidak
+  pernah meninggalkan server — dan **gagal terbuka** kalau server tidak punya internet,
+  sehingga pembuatan akun tidak ikut mati. Berlaku di `/setup`, pembuatan user, dan
+  reset password.
+- `/setup` dibatasi 5 percobaan per IP per 15 menit, sama seperti halaman login.
 - Audit tersendiri tercatat di [SECURITY_AUDIT.md](SECURITY_AUDIT.md).
 
-> Seeder development membuat `admin` / `password123`. **Jangan pakai seeder dev di produksi** —
-> gunakan alur `/setup` untuk membuat admin pertama, atau segera ganti passwordnya.
+> Seeder development membuat `admin` / `password123`. Seeder menulis langsung ke
+> database sehingga tidak melewati kebijakan password di atas — padahal password itu
+> ada di daftar bocor dan akan ditolak lewat API. **Jangan pakai seeder dev di
+> produksi**: gunakan alur `/setup` untuk membuat admin pertama.
 
 ---
 
