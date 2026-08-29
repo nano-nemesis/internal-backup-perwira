@@ -1,12 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/axios'
 import type { NodesResponse, NodeDetailResponse, NodeFormData } from '../types'
+import { pollInterval } from './useBackupWatcher'
 
 export function useNodes() {
   return useQuery<NodesResponse>({
     queryKey: ['nodes'],
     queryFn: () => api.get('/nodes').then((r) => r.data),
-    refetchInterval: 30_000,
+    // 3 detik selama ada backup berjalan, 30 detik saat tenang.
+    refetchInterval: (q) => pollInterval(q.state.data?.data),
+    // Tetap memantau walau tab tidak aktif: pengguna sering menekan Backup Now
+    // lalu berpindah tab, dan justru hasil akhirnya yang ingin mereka lihat.
+    refetchIntervalInBackground: true,
   })
 }
 
@@ -14,7 +19,9 @@ export function useNode(id: string) {
   return useQuery<NodeDetailResponse>({
     queryKey: ['node', id],
     queryFn: () => api.get(`/nodes/${id}`).then((r) => r.data),
-    refetchInterval: 30_000,
+    refetchInterval: (q) =>
+      pollInterval(q.state.data ? [q.state.data.data] : undefined),
+    refetchIntervalInBackground: true,
     enabled: !!id,
   })
 }

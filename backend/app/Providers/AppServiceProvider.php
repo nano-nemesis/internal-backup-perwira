@@ -16,16 +16,15 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Ensure backup storage directories exist
-        foreach ([
-            storage_path('app/backups/mikrotik'),
-            storage_path('app/backups/database'),
-            storage_path('app/backups/virtualizor'),
-        ] as $dir) {
-            if (!is_dir($dir)) {
-                mkdir($dir, 0755, true);
-            }
-        }
+        // Direktori backup TIDAK dibuat di sini.
+        //
+        // boot() ikut berjalan saat `composer install` dan `artisan migrate` dijalankan
+        // sebagai root di VPS, sehingga storage/app/backups/* jadi milik root. Queue
+        // worker berjalan sebagai www-data dan kemudian gagal membuat subfolder node
+        // di dalamnya: "mkdir(): Permission denied".
+        //
+        // Tiap service sudah membuat direktorinya sendiri saat backup pertama berjalan —
+        // sebagai www-data, jadi kepemilikannya otomatis benar.
 
         // Pemeriksaan `which sshpass` dihapus dari sini: boot() jalan di SETIAP request
         // dan SETIAP perintah artisan, jadi itu memunculkan subproses per request plus

@@ -1,9 +1,21 @@
 import React from 'react'
+import { Loader2 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import type { BackupStatus } from '../../types'
 
 export function StatusBadge({ status }: { status: BackupStatus | undefined | null }) {
   if (!status) return <span className="badge-unknown">Unknown</span>
+
+  // Backup berjalan di queue, jadi tanpa penanda bergerak layar terlihat diam
+  // dan pengguna tidak tahu apakah proses sudah mulai.
+  if (status === 'running' || status === 'pending') {
+    return (
+      <span className="badge-running animate-none gap-1" role="status" aria-live="polite">
+        <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
+        {status === 'running' ? 'berjalan' : 'antre'}
+      </span>
+    )
+  }
 
   const map: Record<BackupStatus, string> = {
     success: 'badge-success',

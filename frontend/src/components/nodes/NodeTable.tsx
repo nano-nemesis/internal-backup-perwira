@@ -14,6 +14,7 @@ import {
   useDeleteAllNodes,
 } from '../../hooks/useNodes'
 import { useAuth } from '../../context/AuthContext'
+import { useBackupWatcher } from '../../hooks/useBackupWatcher'
 import { toast } from '../ui/toaster'
 import {
   AlertDialog,
@@ -32,6 +33,11 @@ interface NodeTableProps {
 }
 
 export function NodeTable({ nodes, onEdit }: NodeTableProps) {
+  // Dipasang di sini karena NodeTable dipakai Dashboard maupun Devices — satu
+  // tempat, dan hanya satu di antaranya yang aktif pada satu waktu, jadi tidak
+  // ada notifikasi ganda.
+  useBackupWatcher(nodes)
+
   const navigate = useNavigate()
   const { isAdmin, isOperator } = useAuth()
   const trigger = useTriggerBackup()
@@ -50,7 +56,7 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
     e.stopPropagation()
     try {
       await trigger.mutateAsync(node.id)
-      toast(`Backup queued for ${node.name}`, 'success')
+      toast(`Backup "${node.name}" dimulai — statusnya diperbarui otomatis`, 'info')
     } catch (err: any) {
       toast(err.response?.data?.message ?? 'Failed to queue backup', 'error')
     }

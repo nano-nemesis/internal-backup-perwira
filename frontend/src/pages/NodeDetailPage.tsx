@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Play, Terminal } from 'lucide-react'
 import { useNode, useTriggerBackup } from '../hooks/useNodes'
 import { useAuth } from '../context/AuthContext'
+import { useBackupWatcher } from '../hooks/useBackupWatcher'
 import { Button } from '../components/ui/button'
 import { Badge, StatusBadge } from '../components/ui/badge'
 import { LogViewer } from '../components/logs/LogViewer'
@@ -17,6 +18,12 @@ export default function NodeDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { data, isLoading, error, refetch } = useNode(id!)
+
+  // Respons detail menaruh riwayat di `logs`, bukan `latest_log`, jadi bentuknya
+  // disesuaikan di sini. Dipanggil sebelum early return agar urutan hook tetap.
+  useBackupWatcher(
+    data ? [{ id: data.data.id, name: data.data.name, latest_log: data.logs?.[0] ?? null }] : undefined,
+  )
   const { isAdmin, isOperator } = useAuth()
   const trigger = useTriggerBackup()
   const [showTerminal, setShowTerminal] = useState(false)
@@ -25,7 +32,7 @@ export default function NodeDetailPage() {
   const handleBackup = async () => {
     try {
       await trigger.mutateAsync(id!)
-      toast('Backup job queued', 'success')
+      toast('Backup dimulai — statusnya diperbarui otomatis', 'info')
     } catch (err: any) {
       toast(err.response?.data?.message ?? 'Failed to queue backup', 'error')
     }

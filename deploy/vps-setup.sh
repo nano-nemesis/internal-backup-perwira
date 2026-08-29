@@ -225,8 +225,6 @@ cd "$APP_DIR/backend"
 # Dibuat SEBELUM composer install: composer menjalankan `artisan package:discover`,
 # dan itu gagal kalau bootstrap/cache belum ada atau tidak bisa ditulis.
 install -d -o www-data -g www-data -m 775 storage bootstrap/cache
-chown -R www-data:www-data storage bootstrap/cache
-chmod -R 775 storage bootstrap/cache
 ok "Direktori storage/ dan bootstrap/cache siap"
 
 say "composer install…"
@@ -248,6 +246,15 @@ if ask_yn "Jalankan migrasi database sekarang?"; then
 else
   warn "Migrasi dilewati — aplikasi tidak akan jalan sampai ini dijalankan"
 fi
+
+# chown SETELAH composer install dan migrate: keduanya berjalan sebagai ROOT dan
+# menulis ke bootstrap/cache (packages.php, services.php) serta storage/logs.
+# Kalau di-chown lebih dulu, berkas-berkas itu tertinggal milik root dan www-data
+# gagal menulisinya — termasuk gagal membuat folder node di storage/app/backups
+# dengan pesan "mkdir(): Permission denied".
+chown -R www-data:www-data storage bootstrap/cache
+chmod -R 775 storage bootstrap/cache
+ok "Kepemilikan storage/ dan bootstrap/cache dikembalikan ke www-data"
 
 # ── 5. Frontend ──────────────────────────────────────────────────────────────
 step "5/9  Build frontend"
