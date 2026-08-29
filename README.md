@@ -314,24 +314,30 @@ harus **bisa dibaca oleh user tersebut**. Yang dipasang di tiap target adalah **
 
 ### Langkah 1 — Generate keypair di host backup
 
-Jalankan ini di mesin yang menjalankan aplikasi ini (bukan di target). Simpan key di luar
-direktori yang disajikan web:
-
 ```bash
-# Sebagai user yang menjalankan queue worker (www-data di produksi)
-sudo -u www-data mkdir -p /var/www/internal-backup-perwira/backend/storage/app/ssh
-sudo -u www-data ssh-keygen -t ed25519 \
-  -f /var/www/internal-backup-perwira/backend/storage/app/ssh/id_node \
-  -N "" -C "perwira-backup"
-
-# Kunci private key
-sudo chmod 600 /var/www/internal-backup-perwira/backend/storage/app/ssh/id_node
-sudo chown www-data:www-data /var/www/internal-backup-perwira/backend/storage/app/ssh/id_node
+cd /var/www/internal-backup-perwira
+sudo bash deploy/ssh-keys.sh
 ```
 
-Ini menghasilkan:
-- `id_node`     → **private** key → diisi ke field **SSH Key Path** pada node
-- `id_node.pub` → **public** key  → dipasang di target (langkah di bawah)
+Skrip ini membuat **satu keypair per kategori node** di
+`backend/storage/app/ssh/`, mengatur kepemilikan `www-data` dan izin `0600`, lalu mencetak
+public key masing-masing beserta cara memasangnya. **Aman dijalankan berulang** — keypair
+yang sudah ada tidak pernah ditimpa (menimpanya akan memutus semua target yang sudah
+memasang public key lamanya).
+
+| Kategori | Berkas | Tipe |
+|---|---|---|
+| MikroTik | `id_mikrotik` | **RSA 4096** |
+| Server database | `id_database` | ed25519 |
+| Node Virtualizor | `id_virtualizor` | ed25519 |
+
+> ⚠️ **Kategori MikroTik sengaja memakai RSA, bukan ed25519.** Impor *user public key*
+> ed25519 baru didukung sejak RouterOS 7.12 — RouterOS 6.x dan 7.0–7.11 menolaknya dengan
+> `unable to load key file (wrong format?)`. RSA diterima di semua versi.
+
+Key dipisah per kategori bukan sekadar demi kerapian: kalau key MikroTik bocor, server
+database tidak ikut terbuka, dan rotasi bisa dilakukan per kategori tanpa menyentuh
+perangkat kategori lain.
 
 > Aplikasi menonaktifkan strict host-key checking, jadi Anda tidak perlu pre-accept host key
 > target. Field `ssh_key_path` menolak nilai yang mengandung `..`, jadi pakai path absolut
@@ -345,10 +351,10 @@ sama dengan `ssh_user` pada node (mis. user khusus `backup_user`).
 ```bash
 # Paling mudah: ssh-copy-id dari host backup
 sudo -u www-data ssh-copy-id -i \
-  /var/www/internal-backup-perwira/backend/storage/app/ssh/id_node.pub \
+  /var/www/internal-backup-perwira/backend/storage/app/ssh/id_database.pub \
   backup_user@HOST_TARGET
 
-# Atau manual (salin isi id_node.pub, lalu di server TARGET):
+# Atau manual (salin isi id_database.pub, lalu di server TARGET):
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
 echo 'ssh-ed25519 AAAA... perwira-backup' >> ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
@@ -366,8 +372,8 @@ Di MikroTik, public key di-import dan diikat ke user RouterOS tertentu.
 1. **Upload** public key ke router (dari host backup):
 
    ```bash
-   scp /var/www/internal-backup-perwira/backend/storage/app/ssh/id_node.pub \
-     admin@HOST_MIKROTIK:id_node.pub
+   scp /var/www/internal-backup-perwira/backend/storage/app/ssh/id_mikrotik.pub \
+     admin@HOST_MIKROTIK:id_mikrotik.pub
    ```
 
    (Bisa juga seret file `.pub` ke menu **Files** di WinBox/WebFig.)
@@ -386,11 +392,11 @@ Di MikroTik, public key di-import dan diikat ke user RouterOS tertentu.
 3. **Import** public key dan ikat ke user tersebut (di terminal RouterOS):
 
    ```
-   /user ssh-keys import public-key-file=id_node.pub user=backup
+   /user ssh-keys import public-key-file=id_mikrotik.pub user=backup
    ```
 
 4. Set node di aplikasi ini dengan `ssh_user=backup` dan **SSH Key Path** menunjuk ke private
-   `id_node`. Kosongkan field password.
+   `id_mikrotik`. Kosongkan field password.
 
 ### Langkah 3 — Verifikasi
 
@@ -398,10 +404,10 @@ Tes koneksi secara manual sebagai user worker sebelum mengandalkan scheduler:
 
 ```bash
 # VPS Database
-sudo -u www-data ssh -i .../storage/app/ssh/id_node backup_user@HOST_TARGET 'mysqldump --version'
+sudo -u www-data ssh -i .../storage/app/ssh/id_database backup_user@HOST_TARGET 'mysqldump --version'
 
 # MikroTik
-sudo -u www-data ssh -i .../storage/app/ssh/id_node backup@HOST_MIKROTIK '/export'
+sudo -u www-data ssh -i .../storage/app/ssh/id_mikrotik backup@HOST_MIKROTIK '/export'
 ```
 
 Jika keduanya berhasil, picu backup manual dari UI (atau `POST /api/nodes/{id}/backup`) untuk

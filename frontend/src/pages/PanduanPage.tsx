@@ -144,6 +144,12 @@ export default function PanduanPage() {
           <K>SELECT, LOCK TABLES, SHOW VIEW, EVENT, TRIGGER</K> pada database yang dituju.
         </p>
         <Note tone="warn">
+          <strong>Key MikroTik harus RSA, bukan ed25519.</strong> Impor <em>user public key</em>{' '}
+          ed25519 baru didukung sejak RouterOS 7.12 — versi 6.x dan 7.0–7.11 menolaknya dengan{' '}
+          <K>unable to load key file (wrong format?)</K>. Skrip{' '}
+          <K>deploy/ssh-keys.sh</K> sudah membuatkan key yang tepat per kategori.
+        </Note>
+        <Note tone="warn">
           Backup MikroTik memakai <K>/export show-sensitive</K> supaya bisa dipakai
           memulihkan layanan — artinya berkas <K>.rsc</K> memuat kredensial pelanggan
           (PPPoE, RADIUS, PSK). Berkasnya ditulis dengan izin <K>0600</K>; perlakukan folder
