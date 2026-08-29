@@ -40,7 +40,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <h2 className="text-lg font-display font-semibold text-[#0F172A]">
             Halaman ini gagal ditampilkan
           </h2>
-          <p className="text-sm text-[#64748B] mt-1">
+          <p className="text-sm text-[#475569] mt-1">
             Ini kesalahan tampilan, <strong>bukan</strong> tanda backup gagal atau node
             hilang. Status backup yang sebenarnya tidak bisa disimpulkan dari layar ini.
           </p>

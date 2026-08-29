@@ -41,7 +41,7 @@ export default function NodeDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="text-center py-16 text-slate-500 font-mono text-sm animate-pulse">
+      <div className="text-center py-16 text-[#475569] font-mono text-sm animate-pulse">
         Loading node...
       </div>
     )
@@ -77,13 +77,13 @@ export default function NodeDetailPage() {
       <div className="flex items-start gap-3">
         <button
           onClick={() => navigate('/devices')}
-          className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors mt-0.5"
+          className="p-1.5 rounded hover:bg-[#F8FAFC] text-[#475569] hover:text-[#0F172A] transition-colors mt-0.5"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-mono font-bold text-white">
+            <h1 className="text-2xl font-display font-bold text-[#0F172A]">
               {node.name}
             </h1>
             <Badge variant={node.type}>{node.type}</Badge>
@@ -92,11 +92,11 @@ export default function NodeDetailPage() {
                 node.is_active ? 'bg-emerald-500' : 'bg-slate-600'
               }`}
             />
-            <span className="text-xs text-slate-500 font-mono">
+            <span className="text-xs text-[#475569] font-mono">
               {node.is_active ? 'active' : 'inactive'}
             </span>
           </div>
-          <p className="text-sm text-slate-500 font-mono mt-0.5">
+          <p className="text-sm text-[#475569] font-mono mt-0.5">
             {node.host}:{node.port}
             {node.ssh_user && ` · ssh ${node.ssh_user}`}
           </p>
@@ -128,7 +128,7 @@ export default function NodeDetailPage() {
       {/* Stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="card p-4">
-          <p className="text-xs text-slate-500 font-mono">Last Status</p>
+          <p className="text-xs text-[#475569] font-mono">Last Status</p>
           <div className="mt-2">
             <StatusBadge status={latestLog?.status} />
           </div>
@@ -142,8 +142,8 @@ export default function NodeDetailPage() {
             percobaan terakhir, dan umur backup baik terakhir dimunculkan terpisah justru
             saat itu penting: ketika percobaan terakhir tidak sukses. */}
         <div className="card p-4">
-          <p className="text-xs text-slate-500 font-mono">Last Run</p>
-          <p className="text-sm font-mono text-slate-300 mt-1">
+          <p className="text-xs text-[#475569] font-mono">Last Run</p>
+          <p className="text-sm font-mono text-[#0F172A] mt-1">
             {formatDatetimeWIB(latestLog?.created_at ?? node.last_backup_at)}
           </p>
           {latestLog && latestLog.status !== 'success' && (
@@ -155,14 +155,14 @@ export default function NodeDetailPage() {
           )}
         </div>
         <div className="card p-4">
-          <p className="text-xs text-slate-500 font-mono">File Size</p>
-          <p className="text-sm font-mono text-slate-300 mt-1">
+          <p className="text-xs text-[#475569] font-mono">File Size</p>
+          <p className="text-sm font-mono text-[#0F172A] mt-1">
             {formatBytes(latestLog?.file_size)}
           </p>
         </div>
         <div className="card p-4">
-          <p className="text-xs text-slate-500 font-mono">Duration · Interval</p>
-          <p className="text-sm font-mono text-slate-300 mt-1">
+          <p className="text-xs text-[#475569] font-mono">Duration · Interval</p>
+          <p className="text-sm font-mono text-[#0F172A] mt-1">
             {formatDuration(latestLog?.duration_seconds)} · {node.schedule_interval_hours}h
           </p>
         </div>
@@ -170,9 +170,9 @@ export default function NodeDetailPage() {
 
       {/* Next run */}
       {node.schedule?.next_run_at && (
-        <div className="text-xs text-slate-500 font-mono px-1">
+        <div className="text-xs text-[#475569] font-mono px-1">
           Next scheduled run:{' '}
-          <span className="text-slate-400">
+          <span className="text-[#475569]">
             {formatDatetimeWIB(node.schedule.next_run_at)}
           </span>
         </div>
@@ -185,15 +185,15 @@ export default function NodeDetailPage() {
 
       {/* Tabs */}
       <div className="card">
-        <div className="flex border-b border-slate-700">
+        <div className="flex border-b border-[#E2E8F0]">
           {(['logs', 'files'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`px-5 py-3 text-sm font-mono transition-colors ${
                 activeTab === tab
-                  ? 'text-blue-400 border-b-2 border-blue-500'
-                  : 'text-slate-500 hover:text-slate-300'
+                  ? 'text-[#0077FF] border-b-2 border-blue-500'
+                  : 'text-[#475569] hover:text-[#0F172A]'
               }`}
             >
               {tab === 'logs' ? (

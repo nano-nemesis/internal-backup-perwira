@@ -18,7 +18,7 @@
   --surface: #F8FAFC;
   --border: #E2E8F0;
   --text-primary: #0F172A;
-  --text-secondary: #64748B;
+  --text-secondary: #475569;
   --sidebar-bg: #0F172A;
   --sidebar-text: #CBD5E1;
   --sidebar-active: #0077FF;
@@ -48,12 +48,12 @@
     @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#FEF2F0] text-[#E63000] border border-[#FECACA];
   }
   .badge-pending {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0];
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#F8FAFC] text-[#475569] border border-[#E2E8F0];
   }
   .badge-running {
     @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#EFF6FF] text-[#0077FF] border border-[#BFDBFE] animate-pulse;
   }
   .badge-unknown {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#F8FAFC] text-[#64748B] border border-[#E2E8F0];
+    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#F8FAFC] text-[#475569] border border-[#E2E8F0];
   }
 }

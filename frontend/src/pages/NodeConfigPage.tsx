@@ -87,7 +87,7 @@ export default function NodeConfigPage() {
     <div className="space-y-6 max-w-screen-lg">
       <div>
         <h1 className="text-2xl font-display font-bold text-[#0F172A]">Konfigurasi Node</h1>
-        <p className="text-sm text-[#64748B] mt-1">
+        <p className="text-sm text-[#475569] mt-1">
           Cadangkan daftar node ke berkas JSON, atau tambahkan node secara massal dari berkas.
         </p>
       </div>
@@ -99,7 +99,7 @@ export default function NodeConfigPage() {
           <h2 className="text-sm font-display font-semibold text-[#0F172A]">Ekspor</h2>
         </div>
 
-        <p className="text-sm text-[#64748B]">
+        <p className="text-sm text-[#475569]">
           Berkas berisi konfigurasi target: nama, tipe, host, port, user SSH, path key,
           nama/user database, dan interval jadwal. Riwayat backup dan berkas hasil backup
           <strong> tidak </strong> ikut — ini konfigurasi, bukan cadangan basis data.
@@ -155,7 +155,7 @@ export default function NodeConfigPage() {
         <div>
           <label
             htmlFor="node-config-file"
-            className="block text-sm text-[#64748B] mb-2"
+            className="block text-sm text-[#475569] mb-2"
           >
             Berkas JSON hasil ekspor (atau daftar node yang Anda tulis sendiri)
           </label>
@@ -174,7 +174,7 @@ export default function NodeConfigPage() {
                        border border-gray-300 rounded-md min-h-[44px] py-1.5 px-2"
           />
           {fileName && (
-            <p className="text-xs text-[#64748B] mt-2 flex items-center gap-1.5">
+            <p className="text-xs text-[#475569] mt-2 flex items-center gap-1.5">
               <FileJson className="w-3.5 h-3.5" />
               {fileName} · {nodes?.length ?? 0} node
             </p>
@@ -182,7 +182,7 @@ export default function NodeConfigPage() {
         </div>
 
         <fieldset className="space-y-2">
-          <legend className="text-sm text-[#64748B] mb-1">Kalau nama node sudah ada:</legend>
+          <legend className="text-sm text-[#475569] mb-1">Kalau nama node sudah ada:</legend>
           {([
             ['skip', 'Lewati — node yang sudah ada tidak disentuh sama sekali'],
             ['update', 'Perbarui — konfigurasinya ditimpa isi berkas'],
@@ -224,12 +224,12 @@ export default function NodeConfigPage() {
             <p className="text-[#0F172A] font-medium">
               Pratinjau — belum ada yang berubah
             </p>
-            <p className="text-[#64748B]">
+            <p className="text-[#475569]">
               {preview.summary.create} akan dibuat · {preview.summary.update} akan diperbarui ·{' '}
               {preview.summary.skip} dilewati
             </p>
             {preview.detail && (
-              <div className="text-xs text-[#64748B] pt-1 space-y-0.5">
+              <div className="text-xs text-[#475569] pt-1 space-y-0.5">
                 {(['create', 'update', 'skip'] as const).map((k) =>
                   preview.detail![k].length ? (
                     <p key={k}>

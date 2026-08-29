@@ -11,7 +11,7 @@ function LiveDot() {
   const fetching = useIsFetching() > 0
   return (
     <span
-      className="hidden sm:flex items-center gap-1.5 text-xs text-[#64748B]"
+      className="hidden sm:flex items-center gap-1.5 text-xs text-[#475569]"
       title="Halaman memperbarui datanya sendiri"
     >
       <span className="relative flex h-2 w-2">
@@ -36,7 +36,7 @@ interface TopbarProps {
 const roleBadge: Record<string, string> = {
   admin: 'bg-purple-50 text-purple-700 border-purple-200',
   operator: 'bg-[#EFF6FF] text-[#0077FF] border-[#BFDBFE]',
-  viewer: 'bg-[#F8FAFC] text-[#64748B] border-[#E2E8F0]',
+  viewer: 'bg-[#F8FAFC] text-[#475569] border-[#E2E8F0]',
 }
 
 export default function Topbar({ onToggleSidebar }: TopbarProps) {
@@ -47,7 +47,7 @@ export default function Topbar({ onToggleSidebar }: TopbarProps) {
       {/* Left: hamburger */}
       <button
         onClick={onToggleSidebar}
-        className="p-2 rounded-md hover:bg-[#F8FAFC] text-[#64748B] hover:text-[#0F172A] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+        className="p-2 rounded-md hover:bg-[#F8FAFC] text-[#475569] hover:text-[#0F172A] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
         aria-label="Toggle sidebar"
       >
         <Menu className="w-5 h-5" />
@@ -57,7 +57,7 @@ export default function Topbar({ onToggleSidebar }: TopbarProps) {
       <div className="flex items-center gap-3">
         <LiveDot />
         <div className="hidden md:flex items-center gap-2">
-          <User className="w-4 h-4 text-[#64748B]" />
+          <User className="w-4 h-4 text-[#475569]" />
           <span className="text-sm text-[#0F172A] font-medium">{user?.username}</span>
           <span
             className={`text-xs font-medium px-2 py-0.5 rounded border ${
@@ -69,11 +69,11 @@ export default function Topbar({ onToggleSidebar }: TopbarProps) {
         </div>
         {/* Mobile: just icon */}
         <div className="md:hidden">
-          <User className="w-5 h-5 text-[#64748B]" />
+          <User className="w-5 h-5 text-[#475569]" />
         </div>
         <button
           onClick={logout}
-          className="p-2 rounded-md hover:bg-[#FEF2F0] text-[#64748B] hover:text-[#E63000] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+          className="p-2 rounded-md hover:bg-[#FEF2F0] text-[#475569] hover:text-[#E63000] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
           title="Logout"
         >
           <LogOut className="w-4 h-4" />

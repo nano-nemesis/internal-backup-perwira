@@ -5,6 +5,7 @@ use App\Http\Controllers\BackupFilesController;
 use App\Http\Controllers\NodeController;
 use App\Http\Controllers\VpsMetricsController;
 use App\Http\Controllers\Admin\NodeConfigController;
+use App\Http\Controllers\Admin\TelegramSettingsController;
 use App\Http\Controllers\Admin\NodeController as AdminNodeController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +38,11 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
             ->middleware('throttle:remote-execute');
         // Impor bisa menimpa konfigurasi node produksi — admin saja.
         Route::post('/admin/nodes/import', [NodeConfigController::class, 'import']);
+
+        // Pengaturan bot Telegram — token adalah kredensial penuh atas bot, admin saja.
+        Route::get('/admin/telegram', [TelegramSettingsController::class, 'show']);
+        Route::put('/admin/telegram', [TelegramSettingsController::class, 'update']);
+        Route::post('/admin/telegram/test', [TelegramSettingsController::class, 'test']);
         Route::delete('/admin/nodes/bulk', [AdminNodeController::class, 'bulkDestroy']);
         Route::delete('/admin/nodes/all', [AdminNodeController::class, 'destroyAll']);
     });

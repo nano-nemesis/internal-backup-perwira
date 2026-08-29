@@ -21,12 +21,12 @@ export function StatCard({
     <div className="card p-5">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-medium text-[#64748B] uppercase tracking-wider">
+          <p className="text-xs font-medium text-[#475569] uppercase tracking-wider">
             {title}
           </p>
           <p className="text-3xl font-display font-bold mt-1 text-[#0F172A]">{value}</p>
           {subtitle && (
-            <p className="text-xs text-[#64748B] mt-1">{subtitle}</p>
+            <p className="text-xs text-[#475569] mt-1">{subtitle}</p>
           )}
         </div>
         <div

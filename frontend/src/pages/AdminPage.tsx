@@ -107,10 +107,10 @@ export default function AdminPage() {
     <div className="space-y-6 max-w-screen-xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-mono font-bold text-white">
+          <h1 className="text-2xl font-display font-bold text-[#0F172A]">
             User Management
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-[#475569] mt-1">
             {data?.data?.length ?? 0} users
           </p>
         </div>
@@ -123,12 +123,12 @@ export default function AdminPage() {
       <div className="card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-700">
+            <tr className="border-b border-[#E2E8F0]">
               {['Username', 'Email', 'Role', 'Status', 'Created', 'Actions'].map(
                 (h) => (
                   <th
                     key={h}
-                    className="px-4 py-3 text-left text-xs font-mono text-slate-500 uppercase tracking-wider"
+                    className="px-4 py-3 text-left text-xs font-mono text-[#475569] uppercase tracking-wider"
                   >
                     {h}
                   </th>
@@ -136,23 +136,23 @@ export default function AdminPage() {
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800">
+          <tbody className="divide-y divide-[#E2E8F0]">
             {(data?.data ?? []).map((user) => (
-              <tr key={user.id} className="hover:bg-slate-800/30">
+              <tr key={user.id} className="hover:bg-[#F8FAFC]">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <Shield className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                    <span className="font-mono text-slate-200">
+                    <Shield className="w-3.5 h-3.5 text-[#475569] flex-shrink-0" />
+                    <span className="font-mono text-[#0F172A]">
                       {user.username}
                     </span>
                     {user.id === me?.id && (
-                      <span className="text-xs text-blue-400 font-mono">
+                      <span className="text-xs text-[#0077FF] font-mono">
                         (you)
                       </span>
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-slate-400 text-xs font-mono">
+                <td className="px-4 py-3 text-[#475569] text-xs font-mono">
                   {user.email}
                 </td>
                 <td className="px-4 py-3">
@@ -160,7 +160,7 @@ export default function AdminPage() {
                     value={user.role}
                     onChange={(e) => handleRoleChange(user, e.target.value)}
                     disabled={user.id === me?.id}
-                    className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-slate-300 disabled:opacity-40 focus:outline-none focus:border-blue-500"
+                    className="bg-white border border-gray-300 rounded px-2 py-1 text-xs text-[#0F172A] disabled:opacity-40 focus:outline-none focus:border-[#0077FF]"
                   >
                     {roleOptions.map((r) => (
                       <option key={r.value} value={r.value}>
@@ -178,7 +178,7 @@ export default function AdminPage() {
                     {user.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-slate-500 text-xs font-mono">
+                <td className="px-4 py-3 text-[#475569] text-xs font-mono">
                   {user.created_at
                     ? new Date(user.created_at).toLocaleDateString('id-ID')
                     : '—'}
@@ -188,7 +188,7 @@ export default function AdminPage() {
                     <button
                       title="Reset Password"
                       onClick={() => setResetTarget(user)}
-                      className="p-1.5 rounded hover:bg-blue-900/50 text-blue-400 transition-colors"
+                      className="p-1.5 rounded hover:bg-[#EFF6FF] text-[#0077FF] transition-colors"
                     >
                       <Key className="w-3.5 h-3.5" />
                     </button>
@@ -208,12 +208,12 @@ export default function AdminPage() {
           </tbody>
         </table>
         {isLoading && (
-          <div className="p-8 text-center text-slate-500 font-mono text-sm animate-pulse">
+          <div className="p-8 text-center text-[#475569] font-mono text-sm animate-pulse">
             Loading...
           </div>
         )}
         {!isLoading && (data?.data?.length ?? 0) === 0 && (
-          <div className="p-8 text-center text-slate-500 font-mono text-sm">
+          <div className="p-8 text-center text-[#475569] font-mono text-sm">
             No users found
           </div>
         )}

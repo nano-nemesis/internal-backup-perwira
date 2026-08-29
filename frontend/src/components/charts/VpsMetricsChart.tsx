@@ -14,7 +14,7 @@ export function VpsMetricsChart() {
   const { data, isLoading } = useVpsMetrics()
 
   if (isLoading) {
-    return <div className="h-48 animate-pulse bg-slate-800 rounded" />
+    return <div className="h-48 animate-pulse bg-[#F1F5F9] rounded" />
   }
 
   const chartData = (data?.data ?? []).map((m) => ({
@@ -30,7 +30,7 @@ export function VpsMetricsChart() {
 
   if (chartData.length === 0) {
     return (
-      <div className="flex items-center justify-center h-48 text-slate-500 text-sm font-mono">
+      <div className="flex items-center justify-center h-48 text-[#475569] text-sm font-mono">
         No data yet
       </div>
     )

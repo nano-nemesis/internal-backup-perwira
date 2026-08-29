@@ -21,7 +21,7 @@ export function Button({
     secondary: 'bg-white hover:bg-[#F8FAFC] text-[#0F172A] border border-[#E2E8F0]',
     danger: 'bg-[#E63000] hover:bg-[#C02800] text-white',
     warning: 'bg-[#FF8C00] hover:bg-[#E07800] text-white',
-    ghost: 'text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC] border border-transparent',
+    ghost: 'text-[#475569] hover:text-[#0F172A] hover:bg-[#F8FAFC] border border-transparent',
   }
 
   const sizes = {

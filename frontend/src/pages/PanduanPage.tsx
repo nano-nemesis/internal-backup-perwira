@@ -51,7 +51,7 @@ export default function PanduanPage() {
         <h1 className="text-2xl font-display font-bold text-[#0F172A]">
           Panduan PerwiraBackup
         </h1>
-        <p className="text-sm text-[#64748B]">
+        <p className="text-sm text-[#475569]">
           Sistem ini menyalin konfigurasi router MikroTik dan dump database dari server
           target, lalu menyimpannya di VPS backup sesuai jadwal. Halaman ini menjelaskan
           pemakaian sehari-harinya — cukup dibaca sekali, lalu dipakai sebagai rujukan.
@@ -60,7 +60,7 @@ export default function PanduanPage() {
 
       {/* Daftar isi */}
       <nav className="card p-4">
-        <p className="text-xs font-medium text-[#64748B] uppercase tracking-wider mb-2">Isi</p>
+        <p className="text-xs font-medium text-[#475569] uppercase tracking-wider mb-2">Isi</p>
         <ol className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-sm list-decimal list-inside">
           {SECTIONS.map(([id, title]) => (
             <li key={id}>
@@ -310,6 +310,12 @@ export default function PanduanPage() {
           <li><K>/node &lt;nama&gt;</K> — detail satu node termasuk jadwal berikutnya.</li>
           <li><K>/help</K> — daftar perintah.</li>
         </ul>
+        <p>
+          Token bot dan Chat ID diisi lewat menu <strong>Bot Telegram</strong> (admin). Di sana
+          ada tombol <strong>Kirim pesan uji</strong> untuk memastikan sambungannya benar tanpa
+          menunggu backup berikutnya. Tokennya disimpan terenkripsi dan tidak pernah
+          ditampilkan kembali — hanya petunjuk bertopeng.
+        </p>
         <Note>
           Bot hanya <strong>membaca</strong> — tidak ada perintah yang memicu backup atau
           mengubah konfigurasi. Ia juga hanya menjawab di chat yang ber-ID sama dengan{' '}

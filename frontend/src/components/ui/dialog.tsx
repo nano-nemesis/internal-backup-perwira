@@ -43,7 +43,7 @@ export function Dialog({ open, onClose, title, children, className }: DialogProp
           <button
             onClick={onClose}
             aria-label="Tutup"
-            className="p-1.5 rounded-md hover:bg-[#F8FAFC] text-[#64748B] hover:text-[#0F172A] transition-colors"
+            className="p-1.5 rounded-md hover:bg-[#F8FAFC] text-[#475569] hover:text-[#0F172A] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>

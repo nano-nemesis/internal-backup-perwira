@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\BackupLog;
+use App\Models\Setting;
 use App\Models\Node;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -15,8 +16,9 @@ class TelegramNotifier
 
     public function __construct()
     {
-        $this->botToken = config('backup.telegram.bot_token');
-        $this->chatId = config('backup.telegram.chat_id');
+        // Setting (bisa diubah lewat UI) menimpa .env; .env tetap jadi cadangan.
+        $this->botToken = Setting::get('telegram.bot_token', config('backup.telegram.bot_token'));
+        $this->chatId = Setting::get('telegram.chat_id', config('backup.telegram.chat_id'));
     }
 
     public function notifySuccess(Node $node, BackupLog $log): void

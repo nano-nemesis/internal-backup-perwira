@@ -146,7 +146,7 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
       )}
 
       {nodes.length === 0 ? (
-        <div className="text-center py-16 text-[#64748B] text-sm">
+        <div className="text-center py-16 text-[#475569] text-sm">
           No nodes configured yet.
         </div>
       ) : (
@@ -173,7 +173,7 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
                 {['Name', 'Type', 'Host', 'Interval', 'Status', 'Last Run', ''].map((h) => (
                   <th
                     key={h}
-                    className={`px-4 py-3 text-left text-xs font-semibold text-[#64748B] uppercase tracking-wider ${
+                    className={`px-4 py-3 text-left text-xs font-semibold text-[#475569] uppercase tracking-wider ${
                       h === 'Host' || h === 'Interval' ? 'hidden md:table-cell' : ''
                     }`}
                   >
@@ -218,10 +218,10 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
                   <td className="px-4 py-3">
                     <Badge variant={node.type}>{node.type}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-[#64748B] font-mono text-xs hidden md:table-cell">
+                  <td className="px-4 py-3 text-[#475569] font-mono text-xs hidden md:table-cell">
                     {node.host}:{node.port}
                   </td>
-                  <td className="px-4 py-3 text-[#64748B] text-xs hidden md:table-cell">
+                  <td className="px-4 py-3 text-[#475569] text-xs hidden md:table-cell">
                     {node.schedule_interval_hours}h
                   </td>
                   <td className="px-4 py-3 min-w-[132px]">
@@ -237,7 +237,7 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
                       konsisten dengan StatusBadge di sebelahnya. Kalau pakai
                       last_backup_at, node yang gagal 3 malam tetap menampilkan tanggal
                       sukses lama yang terlihat menenangkan. */}
-                  <td className="px-4 py-3 text-[#64748B] text-xs">
+                  <td className="px-4 py-3 text-[#475569] text-xs">
                     {formatDatetimeWIB(node.latest_log?.created_at ?? node.last_backup_at)}
                   </td>
                   <td className="px-4 py-3">
@@ -263,7 +263,7 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
                               e.stopPropagation()
                               onEdit(node)
                             }}
-                            className="p-1.5 rounded-md hover:bg-[#F8FAFC] text-[#64748B] transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
+                            className="p-1.5 rounded-md hover:bg-[#F8FAFC] text-[#475569] transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
                           >
                             <Edit className="w-3.5 h-3.5" />
                           </button>
@@ -287,7 +287,7 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
                           </button>
                         </>
                       )}
-                      <ChevronRight className="w-4 h-4 text-[#CBD5E1] group-hover:text-[#64748B] transition-colors ml-1" />
+                      <ChevronRight className="w-4 h-4 text-[#CBD5E1] group-hover:text-[#475569] transition-colors ml-1" />
                     </div>
                   </td>
                 </tr>
@@ -333,7 +333,7 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="px-1 pb-1">
-            <label htmlFor="delete-all-confirm" className="block text-sm text-[#64748B] mb-2">
+            <label htmlFor="delete-all-confirm" className="block text-sm text-[#475569] mb-2">
               Ketik <span className="font-mono font-semibold text-red-600">HAPUS SEMUA</span> untuk mengaktifkan tombol.
             </label>
             <input

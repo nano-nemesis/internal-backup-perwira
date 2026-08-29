@@ -55,7 +55,10 @@ Proyek ini berupa monorepo dengan dua aplikasi:
   errornya), `/vps` (CPU/RAM/disk partisi backup), `/node <nama>`, `/help`. Memakai
   **long polling**, bukan webhook — webhook Telegram mewajibkan HTTPS, sementara
   aplikasi ini diakses lewat `http://IP`. Bot hanya menjawab di chat yang ber-ID sama
-  dengan `TELEGRAM_CHAT_ID`, dan tidak punya satu pun perintah yang mengubah keadaan.
+  dengan chat yang dikonfigurasi, dan tidak punya satu pun perintah yang mengubah keadaan.
+  Token bot dan Chat ID bisa diisi lewat menu **Bot Telegram** di UI (admin) — tersimpan
+  terenkripsi di database dan menimpa nilai `.env`. Ada tombol **kirim pesan uji** untuk
+  memastikan sambungannya benar tanpa menunggu backup berikutnya.
 - **Metrik VPS** — mengumpulkan CPU, memori, disk, dan load average host backup setiap menit
   (disimpan 24 jam) dan menampilkannya dalam grafik di dashboard.
 - **Terminal remote MikroTik** — admin bisa menjalankan perintah RouterOS (yang di-whitelist)
@@ -456,6 +459,9 @@ Semua endpoint berprefiks `/api`. Autentikasi memakai cookie session Sanctum.
 | `GET` | `/vps-metrics` | semua | Metrik VPS (1 jam terakhir + terbaru) |
 | `GET` | `/backup-files` | semua | Daftar file backup (paginasi) |
 | `GET` | `/backup-files/download` | semua | Unduh file backup |
+| `GET` | `/admin/telegram` | admin | Pengaturan bot (token hanya dikirim bertopeng) |
+| `PUT` | `/admin/telegram` | admin | Simpan token/chat id |
+| `POST` | `/admin/telegram/test` | admin | Kirim pesan uji |
 | `GET` | `/admin/nodes/export` | operator | Ekspor konfigurasi node (JSON). `?include_credentials=1` **admin saja** |
 | `POST` | `/admin/nodes/import` | admin | Impor konfigurasi node; `dry_run` untuk pratinjau |
 | `GET` | `/admin/nodes` | operator | Daftar node (tampilan manajemen) |

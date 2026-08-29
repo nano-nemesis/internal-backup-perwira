@@ -28,10 +28,10 @@ export function StatusBadge({ status }: { status: BackupStatus | undefined | nul
 }
 
 const variantStyles: Record<string, string> = {
-  default: 'bg-[#F8FAFC] text-[#64748B] border-[#E2E8F0]',
+  default: 'bg-[#F8FAFC] text-[#475569] border-[#E2E8F0]',
   admin: 'bg-purple-50 text-purple-700 border-purple-200',
   operator: 'bg-[#EFF6FF] text-[#0077FF] border-[#BFDBFE]',
-  viewer: 'bg-[#F8FAFC] text-[#64748B] border-[#E2E8F0]',
+  viewer: 'bg-[#F8FAFC] text-[#475569] border-[#E2E8F0]',
   mikrotik: 'bg-[#FFF7ED] text-[#FF8C00] border-orange-200',
   database: 'bg-teal-50 text-teal-700 border-teal-200',
   virtualizor_db: 'bg-indigo-50 text-indigo-700 border-indigo-200',

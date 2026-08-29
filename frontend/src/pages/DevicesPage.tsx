@@ -47,8 +47,8 @@ export default function DevicesPage() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-mono font-bold text-white">Devices</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <h1 className="text-2xl font-display font-bold text-[#0F172A]">Devices</h1>
+          <p className="text-sm text-[#475569] mt-1">
             {data ? `${data.data.length} nodes configured` : 'jumlah node tidak diketahui'}
           </p>
         </div>
@@ -62,13 +62,13 @@ export default function DevicesPage() {
 
       <div className="card">
         {isLoading ? (
-          <div className="p-8 text-center text-slate-500 font-mono text-sm animate-pulse">
+          <div className="p-8 text-center text-[#475569] font-mono text-sm animate-pulse">
             Loading nodes...
           </div>
         ) : data ? (
           <NodeTable nodes={data.data} onEdit={handleEdit} />
         ) : (
-          <div className="p-8 text-center text-[#64748B] text-sm">Daftar node tidak bisa dimuat. Ini bukan berarti tidak ada node.</div>
+          <div className="p-8 text-center text-[#475569] text-sm">Daftar node tidak bisa dimuat. Ini bukan berarti tidak ada node.</div>
         )}
       </div>
 

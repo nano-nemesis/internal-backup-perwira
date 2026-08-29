@@ -18,8 +18,8 @@ function FileCard({ file }: { file: BackupFileItem }) {
         <p className="text-sm font-medium text-[#0F172A] truncate">{file.filename}</p>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           <Badge variant={file.type as 'mikrotik' | 'database' | 'virtualizor_db'}>{file.type === 'virtualizor_db' ? 'Virtualizor' : file.type}</Badge>
-          <span className="text-xs text-[#64748B]">{file.node_name}</span>
-          <span className="text-xs text-[#64748B]">{file.size_human}</span>
+          <span className="text-xs text-[#475569]">{file.node_name}</span>
+          <span className="text-xs text-[#475569]">{file.size_human}</span>
         </div>
         <p className="text-xs text-[#94A3B8] mt-1">{formatDatetimeWIB(file.created_at)}</p>
       </div>
@@ -62,7 +62,7 @@ export default function BackupFilesPage() {
     <div className="space-y-6 max-w-screen-xl">
       <div>
         <h1 className="text-2xl font-display font-bold text-[#0F172A]">Backup Files</h1>
-        <p className="text-sm text-[#64748B] mt-1">Download file backup per node</p>
+        <p className="text-sm text-[#475569] mt-1">Download file backup per node</p>
       </div>
 
       {/* Filters */}
@@ -87,7 +87,7 @@ export default function BackupFilesPage() {
               className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                 type === t
                   ? 'bg-[#0077FF] text-white'
-                  : 'bg-[#F8FAFC] text-[#64748B] hover:bg-[#EFF6FF] hover:text-[#0077FF]'
+                  : 'bg-[#F8FAFC] text-[#475569] hover:bg-[#EFF6FF] hover:text-[#0077FF]'
               }`}
             >
               {t === '' ? 'All' : t === 'mikrotik' ? 'MikroTik' : t === 'database' ? 'Database' : 'Virtualizor'}
@@ -98,7 +98,7 @@ export default function BackupFilesPage() {
 
       {/* Loading */}
       {isLoading && (
-        <div className="card p-8 text-center text-[#64748B] text-sm animate-pulse">
+        <div className="card p-8 text-center text-[#475569] text-sm animate-pulse">
           Loading...
         </div>
       )}
@@ -107,7 +107,7 @@ export default function BackupFilesPage() {
       {!isLoading && files.length === 0 && (
         <div className="card p-16 text-center">
           <HardDrive className="w-12 h-12 text-[#CBD5E1] mx-auto mb-4" />
-          <p className="text-[#64748B] font-medium">Belum ada file backup tersedia.</p>
+          <p className="text-[#475569] font-medium">Belum ada file backup tersedia.</p>
           <p className="text-[#94A3B8] text-sm mt-1">
             File akan muncul di sini setelah backup pertama berjalan.
           </p>
@@ -133,7 +133,7 @@ export default function BackupFilesPage() {
                     {['Node', 'Filename', 'Ukuran', 'Tanggal', 'Download'].map((h) => (
                       <th
                         key={h}
-                        className="px-4 py-3 text-left text-xs font-semibold text-[#64748B] uppercase tracking-wider"
+                        className="px-4 py-3 text-left text-xs font-semibold text-[#475569] uppercase tracking-wider"
                       >
                         {h}
                       </th>
@@ -155,10 +155,10 @@ export default function BackupFilesPage() {
                       <td className="px-4 py-3 font-mono text-xs text-[#0F172A]">
                         {file.filename}
                       </td>
-                      <td className="px-4 py-3 text-[#64748B] text-xs whitespace-nowrap">
+                      <td className="px-4 py-3 text-[#475569] text-xs whitespace-nowrap">
                         {file.size_human}
                       </td>
-                      <td className="px-4 py-3 text-[#64748B] text-xs whitespace-nowrap">
+                      <td className="px-4 py-3 text-[#475569] text-xs whitespace-nowrap">
                         {formatDatetimeWIB(file.created_at)}
                       </td>
                       <td className="px-4 py-3">
@@ -182,7 +182,7 @@ export default function BackupFilesPage() {
           {/* Pagination */}
           {meta && meta.last_page > 1 && (
             <div className="flex items-center justify-between">
-              <p className="text-sm text-[#64748B]">
+              <p className="text-sm text-[#475569]">
                 {(meta.current_page - 1) * meta.per_page + 1}–
                 {Math.min(meta.current_page * meta.per_page, meta.total)} dari {meta.total} file
               </p>
@@ -190,7 +190,7 @@ export default function BackupFilesPage() {
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={meta.current_page === 1}
-                  className="p-2 rounded-md border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="p-2 rounded-md border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -200,7 +200,7 @@ export default function BackupFilesPage() {
                 <button
                   onClick={() => setPage((p) => Math.min(meta.last_page, p + 1))}
                   disabled={meta.current_page === meta.last_page}
-                  className="p-2 rounded-md border border-[#E2E8F0] text-[#64748B] hover:bg-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="p-2 rounded-md border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>

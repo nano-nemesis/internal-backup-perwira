@@ -17,7 +17,7 @@ function colorLine(text: string): string {
 export function LogViewer({ logs }: LogViewerProps) {
   if (logs.length === 0) {
     return (
-      <div className="text-center py-10 text-[#64748B] text-sm">
+      <div className="text-center py-10 text-[#475569] text-sm">
         No backup logs yet
       </div>
     )
@@ -29,21 +29,21 @@ export function LogViewer({ logs }: LogViewerProps) {
         <div key={log.id} className="px-4 py-3 hover:bg-[#1E293B]/10">
           <div className="flex items-center gap-3 flex-wrap">
             <StatusBadge status={log.status} />
-            <span className="text-xs text-[#64748B] font-mono">
+            <span className="text-xs text-[#475569] font-mono">
               {formatLogTime(log.created_at)}
             </span>
             {log.file_size != null && (
-              <span className="text-xs text-[#64748B]">
+              <span className="text-xs text-[#475569]">
                 {formatBytes(log.file_size)}
               </span>
             )}
             {log.duration_seconds != null && (
-              <span className="text-xs text-[#64748B]">
+              <span className="text-xs text-[#475569]">
                 {formatDuration(log.duration_seconds)}
               </span>
             )}
             {log.file_path && (
-              <span className="text-xs text-[#64748B] font-mono truncate max-w-xs">
+              <span className="text-xs text-[#475569] font-mono truncate max-w-xs">
                 {log.file_path}
               </span>
             )}

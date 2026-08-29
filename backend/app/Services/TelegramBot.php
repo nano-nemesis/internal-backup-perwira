@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Node;
+use App\Models\Setting;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -25,8 +26,9 @@ class TelegramBot
 
     public function __construct(private readonly VpsMetricsService $metrics)
     {
-        $this->botToken = config('backup.telegram.bot_token');
-        $this->chatId   = (string) config('backup.telegram.chat_id');
+        // Setting (bisa diubah lewat UI) menimpa .env; .env tetap jadi cadangan.
+        $this->botToken = Setting::get('telegram.bot_token', config('backup.telegram.bot_token'));
+        $this->chatId   = (string) Setting::get('telegram.chat_id', config('backup.telegram.chat_id'));
     }
 
     public function isConfigured(): bool

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Server, HardDrive, Users, FileJson, BookOpen, X } from 'lucide-react'
+import { LayoutDashboard, Server, HardDrive, Users, FileJson, BookOpen, Send, X } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
 
@@ -16,8 +16,11 @@ const navItems = [
 ]
 
 const adminItems = [
-  { to: '/admin', icon: Users, label: 'User Management' },
+  // `end` wajib untuk /admin: tanpa itu NavLink mencocokkan secara AWALAN, sehingga
+  // "User Management" ikut menyala saat berada di /admin/node-config.
+  { to: '/admin', icon: Users, label: 'User Management', end: true },
   { to: '/admin/node-config', icon: FileJson, label: 'Konfigurasi Node' },
+  { to: '/admin/telegram', icon: Send, label: 'Bot Telegram' },
 ]
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
@@ -90,10 +93,11 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                 Admin
               </p>
             </div>
-            {adminItems.map(({ to, icon: Icon, label }) => (
+            {adminItems.map(({ to, icon: Icon, label, end }) => (
               <NavLink
                 key={to}
                 to={to}
+                end={end}
                 onClick={closeOnMobile}
                 className={({ isActive }) =>
                   cn(

@@ -16,7 +16,7 @@ function MetricRow({
 }) {
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center gap-2 text-xs text-[#64748B]">
+      <div className="flex items-center gap-2 text-xs text-[#475569]">
         <Icon className="w-3.5 h-3.5 flex-shrink-0" />
         <span>{label}</span>
         <span className="ml-auto font-mono font-medium text-[#0F172A]">{value}</span>
@@ -41,7 +41,7 @@ export function VpsWidget() {
 
   if (!latest) {
     return (
-      <div className="card p-5 text-[#64748B] text-sm">
+      <div className="card p-5 text-[#475569] text-sm">
         No VPS metrics available yet. Collector runs every minute.
       </div>
     )
@@ -58,7 +58,7 @@ export function VpsWidget() {
     <div className="card p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-display font-semibold text-[#0F172A]">VPS Monitor</h3>
-        <span className="text-xs text-[#64748B]">
+        <span className="text-xs text-[#475569]">
           {new Date(latest.recorded_at).toLocaleTimeString('id-ID')}
         </span>
       </div>

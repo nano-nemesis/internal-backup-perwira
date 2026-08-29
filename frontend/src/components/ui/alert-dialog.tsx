@@ -53,7 +53,7 @@ export function AlertDialogTitle({ children }: { children: React.ReactNode }) {
 }
 
 export function AlertDialogDescription({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm text-[#64748B]">{children}</p>
+  return <p className="text-sm text-[#475569]">{children}</p>
 }
 
 export function AlertDialogFooter({ children }: { children: React.ReactNode }) {

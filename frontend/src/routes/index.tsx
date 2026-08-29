@@ -8,6 +8,7 @@ import NodeDetailPage from '../pages/NodeDetailPage'
 import AdminPage from '../pages/AdminPage'
 import NodeConfigPage from '../pages/NodeConfigPage'
 import PanduanPage from '../pages/PanduanPage'
+import TelegramPage from '../pages/TelegramPage'
 import BackupFilesPage from '../pages/BackupFilesPage'
 import AppShell from '../components/layout/AppShell'
 
@@ -31,6 +32,7 @@ export default function AppRoutes() {
         <Route path="/panduan" element={<PanduanPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/node-config" element={<NodeConfigPage />} />
+        <Route path="/admin/telegram" element={<TelegramPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
