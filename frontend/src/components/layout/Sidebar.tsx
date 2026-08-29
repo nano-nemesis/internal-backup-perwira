@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Server, HardDrive, Users, X } from 'lucide-react'
+import { LayoutDashboard, Server, HardDrive, Users, FileJson, X } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
 import logo from '../../assets/logo.png'
@@ -17,6 +17,7 @@ const navItems = [
 
 const adminItems = [
   { to: '/admin', icon: Users, label: 'User Management' },
+  { to: '/admin/node-config', icon: FileJson, label: 'Konfigurasi Node' },
 ]
 
 export default function Sidebar({ open, onClose }: SidebarProps) {

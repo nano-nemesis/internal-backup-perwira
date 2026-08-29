@@ -230,9 +230,11 @@ class NodeController extends Controller
     {
         $count = Node::count();
 
-        NodeSchedule::truncate();
-        BackupLog::truncate();
-        Node::truncate();
+        // delete(), BUKAN truncate(): MySQL menolak TRUNCATE pada tabel yang
+        // direferensikan foreign key (error 1701) — backup_logs dan node_schedules
+        // menunjuk ke nodes, jadi endpoint ini SELALU gagal 500 sebelumnya.
+        // FK-nya onDelete('cascade'), sehingga baris anak ikut terhapus sendiri.
+        Node::query()->delete();
 
         return response()->json([
             'message'       => "Semua {$count} node berhasil dihapus.",

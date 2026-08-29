@@ -55,6 +55,11 @@ Proyek ini berupa monorepo dengan dua aplikasi:
 - **Terminal remote MikroTik** — admin bisa menjalankan perintah RouterOS (yang di-whitelist)
   ke sebuah node langsung dari UI.
 - **Browser file backup** — menampilkan daftar dan mengunduh artefak backup yang tersimpan.
+- **Ekspor/impor konfigurasi node** (menu **Konfigurasi Node**, admin) — cadangkan daftar node
+  ke berkas JSON, atau tambahkan node secara massal dari berkas. Dua mode ekspor: *tanpa
+  password* (aman disimpan, cocok jadi templat) dan *lengkap* (password ikut dalam bentuk
+  terenkripsi — hanya bisa dipulihkan di instalasi dengan `APP_KEY` yang sama). Impor selalu
+  bisa dipratinjau dulu, dan ditolak seluruhnya kalau ada satu entri tidak valid.
 - **Alur setup awal** — saat belum ada user, aplikasi memandu pembuatan akun admin pertama.
 - **Kontrol akses berbasis role** — `admin`, `operator`, dan `viewer`.
 - **Kredensial terenkripsi** — password SSH dan database disimpan terenkripsi memakai app key
@@ -430,6 +435,8 @@ Semua endpoint berprefiks `/api`. Autentikasi memakai cookie session Sanctum.
 | `GET` | `/vps-metrics` | semua | Metrik VPS (1 jam terakhir + terbaru) |
 | `GET` | `/backup-files` | semua | Daftar file backup (paginasi) |
 | `GET` | `/backup-files/download` | semua | Unduh file backup |
+| `GET` | `/admin/nodes/export` | operator | Ekspor konfigurasi node (JSON). `?include_credentials=1` **admin saja** |
+| `POST` | `/admin/nodes/import` | admin | Impor konfigurasi node; `dry_run` untuk pratinjau |
 | `GET` | `/admin/nodes` | operator | Daftar node (tampilan manajemen) |
 | `POST` | `/admin/nodes` | operator | Buat node |
 | `GET` | `/admin/nodes/{id}` | operator | Ambil node |

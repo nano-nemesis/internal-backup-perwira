@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BackupFilesController;
 use App\Http\Controllers\NodeController;
 use App\Http\Controllers\VpsMetricsController;
+use App\Http\Controllers\Admin\NodeConfigController;
 use App\Http\Controllers\Admin\NodeController as AdminNodeController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +35,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::post('/nodes/{id}/execute', [NodeController::class, 'remoteExecute'])
             ->middleware('throttle:remote-execute');
+        // Impor bisa menimpa konfigurasi node produksi — admin saja.
+        Route::post('/admin/nodes/import', [NodeConfigController::class, 'import']);
         Route::delete('/admin/nodes/bulk', [AdminNodeController::class, 'bulkDestroy']);
         Route::delete('/admin/nodes/all', [AdminNodeController::class, 'destroyAll']);
     });
@@ -47,6 +50,10 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
 
     // Admin: Node Management
     Route::middleware('role:admin,operator')->group(function () {
+        // Ekspor/impor konfigurasi node (JSON). Ditaruh SEBELUM /admin/nodes/{id}
+        // supaya 'export' tidak tertangkap sebagai id node.
+        Route::get('/admin/nodes/export', [NodeConfigController::class, 'export']);
+
         Route::get('/admin/nodes', [AdminNodeController::class, 'index']);
         Route::post('/admin/nodes', [AdminNodeController::class, 'store']);
         Route::get('/admin/nodes/{id}', [AdminNodeController::class, 'show']);
