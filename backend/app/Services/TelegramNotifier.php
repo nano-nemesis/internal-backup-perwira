@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\BackupLog;
 use App\Models\Setting;
+use App\Support\BackupErrorSummary;
 use App\Models\Node;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -53,12 +54,27 @@ class TelegramNotifier
         Cache::put($cooldownKey, true, now()->addMinutes($cooldownMinutes));
         Cache::put("backup_failed_{$node->id}", true, now()->addDays(7));
 
-        $shortError = mb_substr($error, 0, 300);
+        $sebab = BackupErrorSummary::sebab($error);
+        $shortError = mb_substr(str_replace('`', "'", trim($error)), 0, 300);
+
         $message = "❌ *Backup Gagal*\n\n"
-            . "📦 Node: `{$node->name}`\n"
-            . "🔧 Tipe: `{$node->type}`\n"
-            . "💥 Error: `{$shortError}`\n"
-            . "🕐 Waktu: `" . now()->format('Y-m-d H:i:s') . "`";
+            . "📦 Node: `{$node->name}` · {$node->type}\n"
+            . "🖥 Host: `{$node->host}`\n";
+
+        // Sebab singkat lebih dulu; error mentah tetap ada di bawahnya untuk ditelusuri.
+        if ($sebab) {
+            $message .= "\n💡 *Kemungkinan sebab:*\n{$sebab}\n";
+        }
+
+        $message .= "\n💥 Error:\n`{$shortError}`\n";
+
+        $message .= $node->last_backup_at
+            ? "\n📅 Sukses terakhir: `" . $node->last_backup_at
+                ->setTimezone(config('backup.timezone', 'Asia/Jakarta'))->format('d M Y H:i') . " WIB`"
+            : "\n⚠️ Node ini *belum pernah* berhasil di-backup.";
+
+        $message .= "\n🕐 " . now(config('backup.timezone', 'Asia/Jakarta'))->format('d M Y H:i') . " WIB"
+            . "\n\n_/node " . $node->name . " untuk detail_";
 
         $this->send($message);
     }

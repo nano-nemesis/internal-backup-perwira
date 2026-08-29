@@ -50,6 +50,9 @@ Proyek ini berupa monorepo dengan dua aplikasi:
   otomatis dihapus setelah backup sukses.
 - **Notifikasi Telegram** — peringatan sukses/gagal dengan cooldown per-node agar tidak spam,
   plus notifikasi "recovery" otomatis saat node yang sebelumnya gagal kembali berhasil.
+  Notifikasi gagal memuat **kemungkinan sebab dalam satu kalimat** (hasil terjemahan pesan
+  error mentah oleh [`BackupErrorSummary`](backend/app/Support/BackupErrorSummary.php)),
+  error aslinya, umur backup baik terakhir, dan pintasan `/node <nama>`.
 - **Bot Telegram dua arah (baca saja)** — tanya keadaan sistem langsung dari Telegram:
   `/status` (ringkasan armada + kapasitas VPS), `/gagal` (node gagal beserta pesan
   errornya), `/vps` (CPU/RAM/disk partisi backup), `/node <nama>`, `/help`. Memakai

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Node;
 use App\Models\Setting;
+use App\Support\BackupErrorSummary;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -168,8 +169,12 @@ class TelegramBot
             $log = $n->latestBackupLog;
             $out .= "\n" . ($i + 1) . ". `{$n->name}` · {$n->type} · {$n->host}\n"
                   . "   gagal " . $this->waktu($log->created_at) . $this->lalu($log->created_at) . "\n"
-                  . '   ' . $this->suksesTerakhir($n) . "\n"
-                  . "   `" . $this->potong($log->error_message) . "`\n";
+                  . '   ' . $this->suksesTerakhir($n) . "\n";
+
+            if ($sebab = BackupErrorSummary::sebab($log->error_message)) {
+                $out .= "   💡 {$sebab}\n";
+            }
+            $out .= "   `" . $this->potong($log->error_message) . "`\n";
         }
 
         return $out;
@@ -214,6 +219,9 @@ class TelegramBot
         $out .= "\n         " . $this->suksesTerakhir($n);   // sejajar kolom label
 
         if ($log?->status === 'failed' && $log->error_message) {
+            if ($sebab = BackupErrorSummary::sebab($log->error_message)) {
+                $out .= "\n\n💡 *Kemungkinan sebab:*\n{$sebab}";
+            }
             $out .= "\n\nError:\n`" . $this->potong($log->error_message, 500) . "`";
         }
 
