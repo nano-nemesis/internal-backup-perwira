@@ -314,7 +314,7 @@ if systemctl list-unit-files 2>/dev/null | grep -q '^backup-api\.service'; then
   fi
 fi
 
-for unit in backup-queue backup-scheduler; do
+for unit in backup-queue backup-scheduler backup-telegram; do
   sed -e "s#/var/www/internal-backup-perwira#${APP_DIR}#g" \
       -e "s#/usr/bin/php[0-9.]*#${PHP_BIN}#g" \
       "$APP_DIR/deploy/${unit}.service" > "/etc/systemd/system/${unit}.service"
@@ -325,6 +325,18 @@ systemctl daemon-reload
 systemctl enable --now backup-queue backup-scheduler >/dev/null
 systemctl restart backup-queue backup-scheduler
 ok "backup-queue dan backup-scheduler aktif"
+
+# Bot Telegram hanya dinyalakan kalau token & chat id memang sudah diisi; kalau
+# tidak, perintahnya keluar dengan error dan systemd akan mengulanginya terus.
+if grep -qE '^TELEGRAM_BOT_TOKEN=.+' "$ENV_FILE" && grep -qE '^TELEGRAM_CHAT_ID=.+' "$ENV_FILE"; then
+  systemctl enable --now backup-telegram >/dev/null
+  systemctl restart backup-telegram
+  ok "backup-telegram aktif — kirim /status ke bot untuk mengujinya"
+else
+  systemctl disable --now backup-telegram >/dev/null 2>&1 || true
+  say "TELEGRAM_BOT_TOKEN/CHAT_ID belum diisi — bot Telegram tidak dinyalakan."
+  say "Isi keduanya di .env lalu jalankan: systemctl enable --now backup-telegram"
+fi
 
 # ── 9. Cache konfigurasi (opsional) ──────────────────────────────────────────
 step "9/9  Cache konfigurasi Laravel"

@@ -13,6 +13,7 @@ const SECTIONS = [
   ['terminal', 'Terminal MikroTik'],
   ['konfig', 'Cadangkan daftar node'],
   ['user', 'Pengguna dan hak akses'],
+  ['telegram', 'Cek lewat Telegram'],
   ['masalah', 'Kalau backup gagal'],
 ] as const
 
@@ -294,6 +295,25 @@ export default function PanduanPage() {
         <Note>
           Admin aktif terakhir tidak bisa diturunkan perannya. Kalau bisa, tidak akan ada
           lagi yang mampu mengelola pengguna dan sistem hanya bisa dipulihkan lewat database.
+        </Note>
+      </Section>
+
+      <Section id="telegram" title="Cek lewat Telegram">
+        <p>
+          Kalau bot Telegram sudah dikonfigurasi, keadaan sistem bisa ditanyakan langsung
+          dari HP tanpa membuka dashboard — berguna saat sedang di POP.
+        </p>
+        <ul className="list-disc pl-5 space-y-1.5">
+          <li><K>/status</K> — ringkasan armada plus kapasitas VPS dalam satu pesan.</li>
+          <li><K>/gagal</K> — node yang gagal, waktu gagalnya, umur backup baik terakhir, dan pesan errornya.</li>
+          <li><K>/vps</K> — CPU, RAM, disk (partisi backup), dan load average.</li>
+          <li><K>/node &lt;nama&gt;</K> — detail satu node termasuk jadwal berikutnya.</li>
+          <li><K>/help</K> — daftar perintah.</li>
+        </ul>
+        <Note>
+          Bot hanya <strong>membaca</strong> — tidak ada perintah yang memicu backup atau
+          mengubah konfigurasi. Ia juga hanya menjawab di chat yang ber-ID sama dengan{' '}
+          <K>TELEGRAM_CHAT_ID</K>; pesan dari chat lain diabaikan tanpa balasan.
         </Note>
       </Section>
 

@@ -50,6 +50,12 @@ Proyek ini berupa monorepo dengan dua aplikasi:
   otomatis dihapus setelah backup sukses.
 - **Notifikasi Telegram** — peringatan sukses/gagal dengan cooldown per-node agar tidak spam,
   plus notifikasi "recovery" otomatis saat node yang sebelumnya gagal kembali berhasil.
+- **Bot Telegram dua arah (baca saja)** — tanya keadaan sistem langsung dari Telegram:
+  `/status` (ringkasan armada + kapasitas VPS), `/gagal` (node gagal beserta pesan
+  errornya), `/vps` (CPU/RAM/disk partisi backup), `/node <nama>`, `/help`. Memakai
+  **long polling**, bukan webhook — webhook Telegram mewajibkan HTTPS, sementara
+  aplikasi ini diakses lewat `http://IP`. Bot hanya menjawab di chat yang ber-ID sama
+  dengan `TELEGRAM_CHAT_ID`, dan tidak punya satu pun perintah yang mengubah keadaan.
 - **Metrik VPS** — mengumpulkan CPU, memori, disk, dan load average host backup setiap menit
   (disimpan 24 jam) dan menampilkannya dalam grafik di dashboard.
 - **Terminal remote MikroTik** — admin bisa menjalankan perintah RouterOS (yang di-whitelist)
@@ -543,6 +549,9 @@ langkah. Ringkasnya:
 7. Jalankan queue worker dan scheduler sebagai service systemd:
    - [deploy/backup-queue.service](deploy/backup-queue.service) — `queue:work --queue=backup`
    - [deploy/backup-scheduler.service](deploy/backup-scheduler.service) — `schedule:run` tiap 60 detik
+   - [deploy/backup-telegram.service](deploy/backup-telegram.service) — bot Telegram
+     (`telegram:listen`), hanya dinyalakan kalau `TELEGRAM_BOT_TOKEN` dan
+     `TELEGRAM_CHAT_ID` sudah diisi
 
 > **Jangan pakai `artisan serve` di produksi.** Itu server dev bawaan PHP yang melayani satu
 > request pada satu waktu: satu unduhan backup besar membekukan seluruh API selama unduhan

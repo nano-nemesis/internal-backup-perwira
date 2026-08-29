@@ -1,0 +1,22 @@
+[Unit]
+Description=Telegram Bot Listener - internal-backup-perwira
+Documentation=https://core.telegram.org/bots/api#getupdates
+After=network.target mysql.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/internal-backup-perwira/backend
+# Long polling, bukan webhook: webhook Telegram mewajibkan HTTPS dengan sertifikat
+# sah, sementara aplikasi ini diakses lewat http://IP tanpa domain.
+# Perintahnya keluar sendiri tiap jam dan di-restart systemd, supaya proses PHP
+# berumur panjang didaur ulang secara berkala.
+ExecStart=/usr/bin/php8.3 artisan telegram:listen --max-runtime=3600
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=backup-telegram
+
+[Install]
+WantedBy=multi-user.target
