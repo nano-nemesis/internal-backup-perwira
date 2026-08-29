@@ -15,10 +15,18 @@ use Spatie\Ssh\Ssh;
  *    - Bisa menjalankan `mysqldump` (harus ada di PATH, biasanya via mysql-client)
  *    - TIDAK perlu sudo atau root
  *
- * 2. User MySQL (minimal):
+ * 2. User MySQL (minimal, sudah diuji di MySQL 8.4 dan MariaDB 11):
  *    CREATE USER 'backup_user'@'localhost' IDENTIFIED BY 'password';
- *    GRANT SELECT, LOCK TABLES, SHOW VIEW, EVENT, TRIGGER ON dbname.* TO 'backup_user'@'localhost';
+ *    GRANT SELECT, SHOW VIEW, TRIGGER ON dbname.* TO 'backup_user'@'localhost';
  *    FLUSH PRIVILEGES;
+ *
+ *    SHOW VIEW dan TRIGGER bukan opsional:
+ *      - tanpa SHOW VIEW, dump GAGAL kalau database punya view;
+ *      - tanpa TRIGGER, dump SELESAI dan lolos pemeriksaan '-- Dump completed',
+ *        tapi trigger-nya hilang tanpa satu pun pesan di stderr — backup yang
+ *        terlihat utuh padahal tidak.
+ *    LOCK TABLES tidak diperlukan (--single-transaction --lock-tables=false), dan
+ *    EVENT juga tidak (mysqldump tidak menyertakan event tanpa --events).
  *
  * 3. Pastikan mysqldump terinstall di target server:
  *    apt install mysql-client   (Ubuntu/Debian)
@@ -62,7 +70,11 @@ class DatabaseBackupService
             ? ' -p' . escapeshellarg($node->db_password)
             : '';
 
-        $cmd = 'mysqldump --single-transaction --quick --lock-tables=false'
+        // --no-tablespaces: tanpa ini, MySQL 8 menuntut privilege global PROCESS hanya
+        // untuk membaca metadata tablespace, dan menulis error ke stderr walau dump-nya
+        // tetap jadi. Kita tidak memerlukan metadata itu, jadi lebih baik tidak menuntut
+        // grant global demi sesuatu yang tidak dipakai. Diuji di MySQL 8.4 & MariaDB 11.
+        $cmd = 'mysqldump --no-tablespaces --single-transaction --quick --lock-tables=false'
              . ' -u' . escapeshellarg($node->db_user)
              . $dbPass
              . ' ' . escapeshellarg($node->db_name);

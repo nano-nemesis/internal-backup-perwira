@@ -138,11 +138,34 @@ export default function PanduanPage() {
             adalah public key-nya.
           </li>
         </ul>
-        <p>
-          Untuk MikroTik, user SSH-nya cukup punya policy <K>read</K> agar bisa menjalankan
-          <K>/export</K>. Untuk node database, user MySQL-nya cukup diberi
-          <K>SELECT, LOCK TABLES, SHOW VIEW, EVENT, TRIGGER</K> pada database yang dituju.
-        </p>
+        <p className="font-medium text-[#0F172A]">Izin minimum di sisi target</p>
+        <ul className="list-disc pl-5 space-y-1.5">
+          <li>
+            <strong>MikroTik</strong> — user RouterOS dengan grup <K>read</K>. Grup bawaan itu
+            sudah memuat policy <K>ssh</K>, <K>read</K>, dan <K>sensitive</K>. Policy{' '}
+            <K>sensitive</K> wajib: tanpanya <K>/export show-sensitive</K> tetap jalan tapi
+            nilai rahasianya keluar sebagai <K>***</K>. Tidak perlu <K>write</K> maupun{' '}
+            <K>policy</K>.
+          </li>
+          <li>
+            <strong>Server database</strong> — user SSH biasa (tanpa sudo, tanpa root) yang
+            bisa menjalankan <K>mysqldump</K>, ditambah user MySQL dengan{' '}
+            <K>GRANT SELECT, SHOW VIEW, TRIGGER ON dbname.*</K>. Ketiganya wajib; lihat
+            catatan di bawah.
+          </li>
+          <li>
+            <strong>Virtualizor</strong> — user SSH yang bisa membaca direktori backup
+            Virtualizor (bawaannya <K>/var/virtualizor/backup/db</K>). Tidak harus root:
+            akses baca lewat ACL sudah cukup, karena sistem hanya menyalin berkas yang ada.
+          </li>
+        </ul>
+        <Note tone="warn">
+          <strong>Grant database jangan dikurangi.</strong> Tanpa <K>SHOW VIEW</K>, dump gagal
+          kalau ada view. Tanpa <K>TRIGGER</K>, dump justru <em>selesai dan lolos
+          pemeriksaan</em> — tapi trigger hilang tanpa satu pun pesan error. Backup terlihat
+          utuh padahal tidak. <K>LOCK TABLES</K>, <K>EVENT</K>, dan <K>PROCESS</K> tidak
+          diperlukan.
+        </Note>
         <Note tone="warn">
           <strong>Key MikroTik harus RSA, bukan ed25519.</strong> Impor <em>user public key</em>{' '}
           ed25519 baru didukung sejak RouterOS 7.12 — versi 6.x dan 7.0–7.11 menolaknya dengan{' '}

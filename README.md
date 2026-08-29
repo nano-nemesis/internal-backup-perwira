@@ -360,10 +360,19 @@ echo 'ssh-ed25519 AAAA... perwira-backup' >> ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
 ```
 
-Target juga butuh `mysqldump` terpasang dan user MySQL dengan minimal hak
-`SELECT, LOCK TABLES, SHOW VIEW, EVENT, TRIGGER` pada database yang akan di-backup
-(lihat [`DatabaseBackupService`](backend/app/Services/DatabaseBackupService.php) untuk grant
-persisnya).
+Target juga butuh `mysqldump` terpasang dan user MySQL dengan hak minimal:
+
+```sql
+GRANT SELECT, SHOW VIEW, TRIGGER ON dbname.* TO 'backup_user'@'localhost';
+```
+
+> Ketiganya wajib. Tanpa `SHOW VIEW` dump **gagal** kalau ada view. Tanpa `TRIGGER` dump
+> **selesai dan lolos pemeriksaan**, tapi trigger hilang tanpa pesan apa pun di stderr —
+> backup yang terlihat utuh padahal tidak. Diuji di MySQL 8.4 dan MariaDB 11.
+>
+> `LOCK TABLES` dan `EVENT` **tidak** diperlukan: perintahnya memakai
+> `--single-transaction --lock-tables=false`, dan mysqldump tidak menyertakan event tanpa
+> `--events`. `PROCESS` juga tidak, karena perintahnya memakai `--no-tablespaces`.
 
 ### Langkah 2b — Target MikroTik CHR (node mikrotik)
 
@@ -541,7 +550,7 @@ langkah. Ringkasnya:
 
 > Untuk backup SSH berbasis password, pastikan `sshpass` terpasang di host backup. Untuk
 > backup database, server target butuh `mysqldump` (mysql-client) dan user MySQL dengan minimal
-> hak `SELECT, LOCK TABLES, SHOW VIEW, EVENT, TRIGGER` pada database target.
+> hak `SELECT, SHOW VIEW, TRIGGER` pada database target.
 
 ---
 
