@@ -1,5 +1,37 @@
 # Deployment Guide — internal-backup-perwira
 
+## Cara cepat — skrip otomatis
+
+Untuk VPS Ubuntu baru, seluruh panduan di bawah sudah dibungkus jadi satu skrip yang
+menanyakan hal-hal berisiko sebelum menjalankannya:
+
+```bash
+sudo apt update && sudo apt install -y git
+sudo git clone https://github.com/nano-nemesis/internal-backup-perwira.git \
+     /var/www/internal-backup-perwira
+cd /var/www/internal-backup-perwira
+sudo bash deploy/vps-setup.sh
+```
+
+Skrip ini **aman dijalankan berulang** — dipakai juga untuk memperbarui
+(`git pull` lalu jalankan lagi). Yang dijaga khusus:
+
+- **`APP_KEY` tidak pernah diganti** kalau sudah ada. Menggantinya membuat semua
+  password SSH/DB node yang tersimpan tidak bisa didekripsi.
+- **Password database tidak dirotasi** pada jalan ulang — dibaca kembali dari `.env`.
+- `.env` lama dicadangkan sebelum disunting.
+- `SANCTUM_STATEFUL_DOMAINS`, `SESSION_DOMAIN`, dan `APP_URL` diarahkan ke IP VPS.
+  Tanpa itu login **tidak akan pernah berhasil** lewat `http://IP_VPS`: Sanctum hanya
+  memakai sesi cookie untuk domain yang terdaftar stateful, dan `SESSION_DOMAIN=localhost`
+  membuat browser tidak pernah mengirim cookie sesinya ke alamat IP.
+- Kalau ada `backup-api.service` sisa deploy lama (`artisan serve`), ditawarkan untuk
+  dimatikan dan dihapus.
+
+Bagian di bawah adalah rujukan manual — berguna untuk memahami atau memperbaiki
+langkah tertentu kalau skripnya berhenti di tengah.
+
+---
+
 ## Prerequisites
 
 - Ubuntu 22.04 LTS

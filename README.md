@@ -496,8 +496,20 @@ Nama file diberi timestamp, mis. `backup-{node}-2026-06-06-14.30WIB.sql.gz`.
 ## Deployment Produksi
 
 Direktori [deploy/](deploy/) berisi semua yang dibutuhkan untuk deployment Ubuntu 22.04 +
-Nginx. Lihat **[deploy/DEPLOYMENT.md](deploy/DEPLOYMENT.md)** untuk panduan lengkap
-langkah demi langkah. Ringkasnya:
+Nginx.
+
+**Cara cepat** — jalankan skrip interaktifnya di VPS (aman diulang, dipakai juga untuk
+memperbarui):
+
+```bash
+sudo git clone https://github.com/nano-nemesis/internal-backup-perwira.git \
+     /var/www/internal-backup-perwira
+cd /var/www/internal-backup-perwira
+sudo bash deploy/vps-setup.sh
+```
+
+Lihat **[deploy/DEPLOYMENT.md](deploy/DEPLOYMENT.md)** untuk panduan manual langkah demi
+langkah. Ringkasnya:
 
 1. Install PHP 8.1, Composer, Node 18, Nginx, MySQL.
 2. Buat database dan user MySQL khusus.
