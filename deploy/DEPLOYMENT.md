@@ -35,7 +35,7 @@ langkah tertentu kalau skripnya berhenti di tengah.
 ## Prerequisites
 
 - Ubuntu 22.04 LTS
-- PHP 8.1 + extensions: `php8.1-cli php8.1-fpm php8.1-mysql php8.1-mbstring php8.1-xml php8.1-curl php8.1-zip php8.1-bcmath`
+- PHP 8.3 + extensions: `php8.3-cli php8.3-fpm php8.3-mysql php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip php8.3-bcmath`
 - Composer 2.x
 - MySQL 8.0 atau MariaDB 10.6+
 - Node.js 18+ dan npm
@@ -46,10 +46,10 @@ langkah tertentu kalau skripnya berhenti di tengah.
 ## 1. Install Dependencies
 
 ```bash
-# PHP 8.1
+# PHP 8.3
 sudo add-apt-repository ppa:ondrej/php
 sudo apt update
-sudo apt install php8.1 php8.1-cli php8.1-fpm php8.1-mysql php8.1-mbstring php8.1-xml php8.1-curl php8.1-zip php8.1-bcmath
+sudo apt install php8.3 php8.3-cli php8.3-fpm php8.3-mysql php8.3-mbstring php8.3-xml php8.3-curl php8.3-zip php8.3-bcmath
 
 # Composer
 curl -sS https://getcomposer.org/installer | php
@@ -107,20 +107,20 @@ cp .env.example .env
 nano .env  # Fill in DB credentials, TELEGRAM config, etc.
 
 # Generate app key
-php8.1 artisan key:generate
+php8.3 artisan key:generate
 
 # Run migrations
-php8.1 artisan migrate
+php8.3 artisan migrate
 
 # Seed admin user (development only)
-php8.1 artisan db:seed
+php8.3 artisan db:seed
 
 # Storage symlink — TIDAK diperlukan oleh aplikasi ini.
 # Berkas backup diunduh lewat /api/backup-files/download dan
 # /api/nodes/{id}/download/{file}, bukan lewat /storage, dan deploy/nginx.conf
 # memang tidak lagi melayani /storage. Jalankan hanya kalau Anda menambahkan
 # sendiri berkas publik di disk 'public'.
-# php8.1 artisan storage:link
+# php8.3 artisan storage:link
 
 # Fix permissions
 sudo chown -R www-data:www-data storage bootstrap/cache
@@ -171,10 +171,10 @@ Laravel dijalankan oleh **php-fpm**, bukan `artisan serve`.
 ```bash
 # Pool default Ubuntu sudah berjalan sebagai www-data — sama dengan pemilik storage/
 # dan dengan queue worker, jadi tidak ada yang perlu diubah soal izin berkas.
-sudo systemctl enable --now php8.1-fpm
+sudo systemctl enable --now php8.3-fpm
 
 # Pastikan soketnya ada dan namanya cocok dengan deploy/nginx.conf
-ls -l /run/php/php8.1-fpm.sock
+ls -l /run/php/php8.3-fpm.sock
 ```
 
 Kalau path soketnya berbeda (mis. versi PHP lain), sesuaikan baris `fastcgi_pass` di
@@ -201,15 +201,15 @@ pm.max_spare_servers = 4
 Perkiraan kasar: `pm.max_children` ≈ RAM yang boleh dipakai PHP dibagi ~40 MB per worker.
 
 ```bash
-sudo systemctl restart php8.1-fpm
+sudo systemctl restart php8.3-fpm
 ```
 
 ### Opsional: cache konfigurasi
 
 ```bash
 cd /var/www/internal-backup-perwira/backend
-php8.1 artisan config:cache
-php8.1 artisan route:cache
+php8.3 artisan config:cache
+php8.3 artisan route:cache
 ```
 
 > Ulangi kedua perintah itu **setiap kali `.env` diubah** — kalau tidak, perubahan `.env`
@@ -243,7 +243,7 @@ sudo systemctl status backup-scheduler
 
 ```bash
 # Check all services
-sudo systemctl status nginx php8.1-fpm backup-queue backup-scheduler
+sudo systemctl status nginx php8.3-fpm backup-queue backup-scheduler
 
 # Test API
 curl http://localhost/api/setup/status

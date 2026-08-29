@@ -3,17 +3,16 @@
     "type": "project",
     "description": "Internal Backup Management System for PerwiraMedia",
     "require": {
-        "php": "^8.1",
-        "laravel/framework": "^10.0",
-        "laravel/sanctum": "^3.3",
-        "spatie/ssh": "^1.10",
-        "doctrine/dbal": "^3.6"
+        "php": "^8.2",
+        "laravel/framework": "^12.0",
+        "laravel/sanctum": "^4.0",
+        "spatie/ssh": "^1.10"
     },
     "require-dev": {
-        "fakerphp/faker": "^1.21",
-        "laravel/pint": "^1.0",
-        "nunomaduro/collision": "^7.0",
-        "phpunit/phpunit": "^10.1"
+        "fakerphp/faker": "^1.23",
+        "laravel/pint": "^1.13",
+        "nunomaduro/collision": "^8.1",
+        "phpunit/phpunit": "^11.0"
     },
     "autoload": {
         "psr-4": {
@@ -54,6 +53,9 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
+        },
+        "platform": {
+            "php": "8.3"
         }
     },
     "minimum-stability": "stable",

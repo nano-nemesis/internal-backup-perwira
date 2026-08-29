@@ -12,7 +12,7 @@ WorkingDirectory=/var/www/internal-backup-perwira/backend
 # tampak "active (running)" tapi tidak pernah men-dispatch satu backup pun.
 # StandardOutput/StandardError=journal di bawah sudah menangkap outputnya:
 #   journalctl -u backup-scheduler -f
-ExecStart=/bin/bash -c "while true; do /usr/bin/php8.1 artisan schedule:run --no-interaction; sleep 60; done"
+ExecStart=/bin/bash -c "while true; do /usr/bin/php8.3 artisan schedule:run --no-interaction; sleep 60; done"
 Restart=always
 RestartSec=10
 StandardOutput=journal

@@ -7,7 +7,7 @@ After=network.target mysql.service
 User=www-data
 Group=www-data
 WorkingDirectory=/var/www/internal-backup-perwira/backend
-ExecStart=/usr/bin/php8.1 artisan queue:work --queue=backup --sleep=3 --tries=1 --timeout=300 --max-jobs=500
+ExecStart=/usr/bin/php8.3 artisan queue:work --queue=backup --sleep=3 --tries=1 --timeout=300 --max-jobs=500
 Restart=always
 RestartSec=5
 StandardOutput=journal

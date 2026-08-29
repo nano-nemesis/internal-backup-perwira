@@ -17,13 +17,6 @@ return [
     'cipher' => 'AES-256-CBC',
     'maintenance' => ['driver' => 'file'],
 
-    'providers' => ServiceProvider::defaultProviders()->merge([
-        App\Providers\AppServiceProvider::class,
-        App\Providers\AuthServiceProvider::class,
-        App\Providers\RouteServiceProvider::class,
-        Laravel\Sanctum\SanctumServiceProvider::class,
-    ])->toArray(),
-
     'aliases' => Facade::defaultAliases()->merge([
         // 'Example' => App\Facades\Example::class,
     ])->toArray(),

@@ -33,6 +33,13 @@ class AppServiceProvider extends ServiceProvider
         // code 127 dan MikrotikService melempar error berisi stderr-nya — jelas dan
         // tepat di titik pemakaian.
 
+        // Limiter 'api' dipakai grup middleware api (throttleApi()). Dulu didefinisikan
+        // di RouteServiceProvider, yang tidak ada lagi di Laravel 11+ — tanpa ini SETIAP
+        // request /api gagal 500 "Rate limiter [api] is not defined".
+        RateLimiter::for('api', function (Request $request) {
+            return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
+        });
+
         // 30 remote-execute calls per minute per authenticated user
         RateLimiter::for('remote-execute', function (Request $request) {
             return Limit::perMinute(30)

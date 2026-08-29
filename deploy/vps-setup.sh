@@ -66,7 +66,7 @@ if [[ -r /etc/os-release ]]; then
   [[ ${ID:-} == ubuntu ]] || warn "diuji di Ubuntu 22.04; sistem ini: ${PRETTY_NAME:-tidak dikenal}"
 fi
 
-PHP_VER=8.1
+PHP_VER=8.3   # Laravel 12 butuh PHP >= 8.2; lock di-resolve untuk 8.3
 PHP_BIN=/usr/bin/php${PHP_VER}
 FPM_SOCK=/run/php/php${PHP_VER}-fpm.sock
 FPM_SVC=php${PHP_VER}-fpm
@@ -221,8 +221,16 @@ chown www-data:www-data "$ENV_FILE"; chmod 640 "$ENV_FILE"
 # ── 4. Backend ───────────────────────────────────────────────────────────────
 step "4/9  Backend (composer + APP_KEY + migrasi)"
 cd "$APP_DIR/backend"
+
+# Dibuat SEBELUM composer install: composer menjalankan `artisan package:discover`,
+# dan itu gagal kalau bootstrap/cache belum ada atau tidak bisa ditulis.
+install -d -o www-data -g www-data -m 775 storage bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache
+chmod -R 775 storage bootstrap/cache
+ok "Direktori storage/ dan bootstrap/cache siap"
+
 say "composer install…"
-COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction -q
+COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction
 ok "Dependensi PHP terpasang"
 
 CURRENT_KEY=$(grep -E '^APP_KEY=' "$ENV_FILE" | cut -d= -f2- || echo "")
@@ -240,11 +248,6 @@ if ask_yn "Jalankan migrasi database sekarang?"; then
 else
   warn "Migrasi dilewati — aplikasi tidak akan jalan sampai ini dijalankan"
 fi
-
-install -d -o www-data -g www-data -m 775 storage bootstrap/cache
-chown -R www-data:www-data storage bootstrap/cache
-chmod -R 775 storage bootstrap/cache
-ok "Izin storage/ dan bootstrap/cache diatur"
 
 # ── 5. Frontend ──────────────────────────────────────────────────────────────
 step "5/9  Build frontend"
@@ -280,7 +283,7 @@ ok "php-fpm aktif, soket $FPM_SOCK"
 step "7/9  Nginx"
 SITE=/etc/nginx/sites-available/internal-backup-perwira
 sed -e "s#/var/www/internal-backup-perwira#${APP_DIR}#g" \
-    -e "s#unix:/run/php/php8.1-fpm.sock#unix:${FPM_SOCK}#" \
+    -e "s#unix:/run/php/php[0-9.]*-fpm\\.sock#unix:${FPM_SOCK}#" \
     "$APP_DIR/deploy/nginx.conf" > "$SITE"
 ln -sfn "$SITE" /etc/nginx/sites-enabled/internal-backup-perwira
 if [[ -e /etc/nginx/sites-enabled/default ]]; then
@@ -306,7 +309,7 @@ fi
 
 for unit in backup-queue backup-scheduler; do
   sed -e "s#/var/www/internal-backup-perwira#${APP_DIR}#g" \
-      -e "s#/usr/bin/php8.1#${PHP_BIN}#g" \
+      -e "s#/usr/bin/php[0-9.]*#${PHP_BIN}#g" \
       "$APP_DIR/deploy/${unit}.service" > "/etc/systemd/system/${unit}.service"
 done
 # Unit lama dengan nama berkas berbeda, kalau pernah terpasang

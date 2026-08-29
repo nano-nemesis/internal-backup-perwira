@@ -9,7 +9,7 @@ Proyek ini berupa monorepo dengan dua aplikasi:
 
 | Path | Stack | Peran |
 |---|---|---|
-| [backend/](backend/) | Laravel 10 (PHP 8.1) + Sanctum | REST API, mesin backup, scheduler, queue jobs |
+| [backend/](backend/) | Laravel 12 (PHP 8.3) + Sanctum | REST API, mesin backup, scheduler, queue jobs |
 | [frontend/](frontend/) | React 18 + TypeScript + Vite + Tailwind | Dashboard satu halaman (SPA) |
 | [deploy/](deploy/) | Nginx + systemd units | Artefak deployment produksi |
 
@@ -162,10 +162,9 @@ Penjadwalan sengaja **di-align ke tengah malam WIB** (`Asia/Jakarta`), diimpleme
 ## Tech Stack
 
 **Backend**
-- PHP 8.1, Laravel 10
-- Laravel Sanctum 3 (autentikasi cookie SPA)
+- PHP 8.3, Laravel 12
+- Laravel Sanctum 4 (autentikasi cookie SPA)
 - `spatie/ssh` (SSH database), `sshpass`/`ssh` via `proc_open` (SSH MikroTik)
-- `doctrine/dbal`
 - MySQL 8 / MariaDB 10.6+ (juga jadi driver queue database)
 
 **Frontend**
@@ -217,7 +216,7 @@ internal-backup-perwira/
 
 ### Prasyarat
 
-- PHP 8.1 dengan ekstensi `cli`, `mysql`, `mbstring`, `xml`, `curl`, `zip`, `bcmath`
+- PHP 8.2+ (diuji 8.3) dengan ekstensi `cli`, `mysql`, `mbstring`, `xml`, `curl`, `zip`, `bcmath`
 - Composer 2.x
 - Node.js 18+ dan npm
 - MySQL 8 / MariaDB 10.6+
@@ -511,7 +510,7 @@ sudo bash deploy/vps-setup.sh
 Lihat **[deploy/DEPLOYMENT.md](deploy/DEPLOYMENT.md)** untuk panduan manual langkah demi
 langkah. Ringkasnya:
 
-1. Install PHP 8.1, Composer, Node 18, Nginx, MySQL.
+1. Install PHP 8.3, Composer, Node 18, Nginx, MySQL.
 2. Buat database dan user MySQL khusus.
 3. `composer install --no-dev --optimize-autoloader`, konfigurasi `.env`, `key:generate`,
    `migrate`.
