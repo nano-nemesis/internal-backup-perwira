@@ -219,7 +219,7 @@ class NodeConfigController extends Controller
                         ? ['interval_hours' => $node->schedule_interval_hours]
                         : [
                             'interval_hours' => $node->schedule_interval_hours,
-                            'next_run_at'    => $this->getFirstSlot($node->schedule_interval_hours),
+                            'next_run_at'    => $this->getNextAlignedSlot($node->schedule_interval_hours),
                         ]
                 );
             }

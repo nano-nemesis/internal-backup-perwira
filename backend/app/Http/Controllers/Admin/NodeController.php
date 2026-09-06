@@ -100,7 +100,7 @@ class NodeController extends Controller
 
         // Interval bersifat nullable di validasi. Tanpa nilai eksplisit di sini,
         // $node->schedule_interval_hours masih null sampai baris dibaca ulang dari
-        // database — dan getFirstSlot(null) melempar TypeError, sehingga node
+        // database — dan getNextAlignedSlot(null) melempar TypeError, sehingga node
         // terbuat tapi jadwalnya tidak dan pengguna melihat 500.
         $interval = $validated['schedule_interval_hours'] ?? self::INTERVAL_DEFAULT;
         $validated['schedule_interval_hours'] = $interval;
@@ -109,9 +109,10 @@ class NodeController extends Controller
 
         NodeSchedule::create([
             'node_id'     => $node->id,
-            // Slot ter-align (besok 00:00 WIB), bukan now()+interval — kalau tidak,
-            // node baru langsung keluar dari grid jadwal yang dijanjikan README.
-            'next_run_at' => $this->getFirstSlot($interval),
+            // Slot ter-align berikutnya menurut interval-nya (mis. interval 6 jam
+            // pada 00:15 → 06:00 hari ini), bukan now()+interval — kalau tidak, node
+            // baru langsung keluar dari grid jadwal yang dijanjikan README.
+            'next_run_at' => $this->getNextAlignedSlot($interval),
             'interval_hours' => $interval,
         ]);
 
@@ -159,9 +160,17 @@ class NodeController extends Controller
         }
 
         if (isset($validated['schedule_interval_hours'])) {
+            // next_run_at ikut dihitung ulang: tanpa ini interval baru baru berlaku
+            // setelah jadwal LAMA jalan (ubah 24→6 jam pukul 00:15 tetap menunggu
+            // besok 00:00), dan pada node yang belum punya baris jadwal
+            // updateOrCreate membuatnya dengan next_run_at NULL — scheduler melewati
+            // baris itu selamanya sehingga node tidak pernah dibackup.
             NodeSchedule::updateOrCreate(
                 ['node_id' => $node->id],
-                ['interval_hours' => $validated['schedule_interval_hours']]
+                [
+                    'interval_hours' => $validated['schedule_interval_hours'],
+                    'next_run_at'    => $this->getNextAlignedSlot($validated['schedule_interval_hours']),
+                ]
             );
         }
 

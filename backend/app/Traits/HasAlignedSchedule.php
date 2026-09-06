@@ -32,15 +32,4 @@ trait HasAlignedSchedule
         // Tidak ada slot hari ini → besok jam 00:00 WIB
         return $midnight->copy()->addDay();
     }
-
-    /**
-     * Hitung slot pertama untuk node baru.
-     * Selalu return besok jam 00:00 WIB — tidak peduli jam berapa node ditambahkan.
-     */
-    protected function getFirstSlot(int $intervalHours): Carbon
-    {
-        $now = Carbon::now(config('app.timezone'));
-
-        return $now->copy()->startOfDay()->addDay();
-    }
 }

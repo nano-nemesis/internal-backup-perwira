@@ -175,8 +175,10 @@ Backup bisa dipicu lewat tiga cara:
 Penjadwalan sengaja **di-align ke tengah malam WIB** (`Asia/Jakarta`), diimplementasikan di
 [`HasAlignedSchedule`](backend/app/Traits/HasAlignedSchedule.php):
 
-- Node yang baru ditambahkan dijadwalkan **pertama kali besok jam 00:00 WIB**, tidak peduli
-  kapan node itu dibuat.
+- Node yang baru ditambahkan dijadwalkan pada **slot ter-align berikutnya menurut
+  intervalnya**, bukan `now() + interval` (mis. node interval 6 jam yang dibuat pukul 00:15
+  jalan pertama kali 06:00 WIB hari itu juga; kalau dibuat pukul 23:50, besok 00:00).
+  Mengubah interval lewat UI juga langsung menghitung ulang slot berikutnya.
 - Run berikutnya jatuh pada slot yang sudah di-align: `00:00`, lalu setiap `interval_hours`
   setelahnya (mis. interval 6 jam → 00:00, 06:00, 12:00, 18:00 WIB).
 - Perintah [`backup:run-scheduled`](backend/app/Console/Commands/RunScheduledBackups.php)
