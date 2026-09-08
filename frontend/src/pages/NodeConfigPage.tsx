@@ -5,6 +5,8 @@ import { Button } from '../components/ui/button'
 import { toast } from '../components/ui/toaster'
 import { useAuth } from '../context/AuthContext'
 import {
+  downloadJson,
+  NODE_TEMPLATE,
   useExportNodes,
   useImportNodes,
   type ImportError,
@@ -150,6 +152,21 @@ export default function NodeConfigPage() {
         <div className="flex items-center gap-2">
           <Upload className="w-4 h-4 text-[#0077FF]" />
           <h2 className="text-sm font-display font-semibold text-[#0F172A]">Impor</h2>
+        </div>
+
+        <div className="rounded-md border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-[#475569]">
+            Belum punya berkasnya? Unduh templat berisi satu contoh per tipe node, lalu
+            sunting dengan editor teks.
+          </p>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => downloadJson(NODE_TEMPLATE, 'templat-node.json')}
+          >
+            <FileJson className="w-4 h-4" />
+            Unduh templat JSON
+          </Button>
         </div>
 
         <div>
