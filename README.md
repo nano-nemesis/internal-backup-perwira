@@ -156,6 +156,10 @@ Backup dikoordinasi oleh [`BackupService`](backend/app/Services/BackupService.ph
      `spatie/ssh`), memvalidasi outputnya benar-benar SQL dump, lalu meng-kompresnya dengan
      `gzip` native PHP menjadi `.sql.gz`. SQL ditangkap sebagai teks (bukan dipipe ke `gzip`
      remote) agar stdout tidak korup.
+     **SSH User dikosongkan** = mode MySQL langsung: `mysqldump` jalan di VPS backup ini ke
+     `host:port` MySQL target (port node = port MySQL, biasanya 3306), untuk server yang tidak
+     membuka SSH. User MySQL harus diizinkan dari IP VPS backup (`'user'@'IP'` atau `'%'`),
+     grant-nya sama. Butuh client `mysqldump` MySQL 8 di VPS backup (ikut `mysql-server`).
 3. Saat sukses: log diperbarui (`success`, ukuran file, durasi), `last_backup_at` diisi,
    notifikasi sukses Telegram dikirim, dan backup lama dibersihkan.
 4. Saat gagal: log mencatat error, peringatan gagal Telegram dikirim (dibatasi cooldown).

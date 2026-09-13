@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Node;
 use Spatie\Ssh\Ssh;
+use Symfony\Component\Process\Process;
 
 /**
  * DatabaseBackupService — Backup MySQL/MariaDB via SSH stdout
@@ -34,6 +35,7 @@ use Spatie\Ssh\Ssh;
  *
  * Flow backup:
  *   SSH → mysqldump (plain SQL stdout) → capture di VPS backup → gzip lokal → simpan .sql.gz
+ *   Kalau ssh_user kosong: mysqldump lokal langsung ke MySQL target (lihat dumpDirect()).
  *
  * Mengapa tidak pipe ke gzip via SSH?
  *   Output binary dari gzip tidak bisa di-capture via SSH stdout sebagai string — file akan corrupt.
@@ -59,28 +61,13 @@ class DatabaseBackupService
 
         $localPath = "{$localDir}/{$filename}";
 
-        $ssh = $this->buildSsh($node);
-
-        // Plain SQL output — no pipe to gzip so stdout stays as text, safe to capture
-        // $node->db_password already decrypted by the model accessor
-        // escapeshellarg(), bukan addslashes(): di dalam kutip tunggal shell, \' TIDAK
-        // mengescape apa pun — ia menutup kutipnya. Password/nama DB berisi kutip tunggal
-        // bisa keluar dari kutip dan menyuntikkan perintah ke server target.
-        $dbPass = $node->db_password
-            ? ' -p' . escapeshellarg($node->db_password)
-            : '';
-
         // --no-tablespaces: tanpa ini, MySQL 8 menuntut privilege global PROCESS hanya
         // untuk membaca metadata tablespace, dan menulis error ke stderr walau dump-nya
         // tetap jadi. Kita tidak memerlukan metadata itu, jadi lebih baik tidak menuntut
         // grant global demi sesuatu yang tidak dipakai. Diuji di MySQL 8.4 & MariaDB 11.
-        $cmd = 'mysqldump --no-tablespaces --single-transaction --quick --lock-tables=false'
-             . ' -u' . escapeshellarg($node->db_user)
-             . $dbPass
-             . ' ' . escapeshellarg($node->db_name);
-
-        // removeBash() prevents bash-wrapper overhead; command has no shell features
-        $process = $ssh->removeBash()->execute($cmd);
+        $process = $node->ssh_user
+            ? $this->dumpViaSsh($node)
+            : $this->dumpDirect($node);
         $content = $process->getOutput();
 
         if (empty(trim($content))) {
@@ -134,6 +121,57 @@ class DatabaseBackupService
         }
 
         return $localPath;
+    }
+
+    private function dumpViaSsh(Node $node): Process
+    {
+        // Plain SQL output — no pipe to gzip so stdout stays as text, safe to capture
+        // $node->db_password already decrypted by the model accessor
+        // escapeshellarg(), bukan addslashes(): di dalam kutip tunggal shell, \' TIDAK
+        // mengescape apa pun — ia menutup kutipnya. Password/nama DB berisi kutip tunggal
+        // bisa keluar dari kutip dan menyuntikkan perintah ke server target.
+        $dbPass = $node->db_password
+            ? ' -p' . escapeshellarg($node->db_password)
+            : '';
+
+        $cmd = 'mysqldump --no-tablespaces --single-transaction --quick --lock-tables=false'
+             . ' -u' . escapeshellarg($node->db_user)
+             . $dbPass
+             . ' ' . escapeshellarg($node->db_name);
+
+        // removeBash() prevents bash-wrapper overhead; command has no shell features
+        return $this->buildSsh($node)->removeBash()->execute($cmd);
+    }
+
+    /**
+     * Mode MySQL langsung (SSH User kosong): mysqldump jalan di VPS backup ini dan
+     * menyambung ke host:port MySQL target. Untuk server yang hanya membuka MySQL
+     * remote tanpa SSH (mis. hosting WHMCS). `port` node di mode ini = port MySQL.
+     *
+     * User MySQL-nya harus diizinkan dari IP VPS backup ('user'@'IP' atau '%'),
+     * dengan grant yang sama: SELECT, SHOW VIEW, TRIGGER.
+     */
+    private function dumpDirect(Node $node): Process
+    {
+        // Password lewat MYSQL_PWD, bukan argumen -p: argumen terlihat oleh semua user
+        // di `ps`, environment hanya oleh pemilik proses.
+        // --column-statistics=0: mysqldump 8 (dari mysql-server yang dipasang
+        // vps-setup.sh) gagal total ke server MariaDB/MySQL 5.7 tanpa flag ini.
+        // ponytail: flag ini membuat client MariaDB menolak jalan; kalau VPS backup
+        // pindah ke mariadb-client, flag-nya harus dibuang.
+        $process = new Process([
+            'mysqldump', '--no-tablespaces', '--single-transaction', '--quick',
+            '--lock-tables=false', '--column-statistics=0',
+            '-h', $node->host, '-P', (string) ($node->port ?: 3306),
+            '-u', (string) $node->db_user,
+            (string) $node->db_name,
+        ], null, ['MYSQL_PWD' => (string) $node->db_password], null,
+            // Di bawah BackupJob::$timeout (300) supaya error-nya jelas, bukan job terbunuh.
+            280);
+
+        $process->run();
+
+        return $process;
     }
 
     private function buildSsh(Node $node): Ssh

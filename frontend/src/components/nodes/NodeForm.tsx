@@ -81,6 +81,8 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
   }
 
   const loading = create.isPending || update.isPending
+  // Database tanpa SSH User = mysqldump langsung ke port MySQL target, tanpa SSH.
+  const directMysql = form.type === 'database' && !form.ssh_user.trim()
 
   return (
     <Dialog
@@ -116,7 +118,7 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
             placeholder="192.168.1.1"
           />
           <Input
-            label="SSH Port"
+            label={directMysql ? 'MySQL Port' : 'SSH Port'}
             type="number"
             min={1}
             max={65535}
@@ -127,7 +129,7 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
             label="SSH User"
             value={form.ssh_user}
             onChange={(e) => set('ssh_user', e.target.value)}
-            placeholder="admin"
+            placeholder={form.type === 'database' ? 'kosongkan = MySQL langsung' : 'admin'}
           />
           <Input
             label={editingNode ? 'SSH Password (blank = keep)' : 'SSH Password'}
@@ -147,6 +149,14 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
 
         {form.type === 'database' && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-[#E2E8F0]">
+            {directMysql && (
+              <div className="sm:col-span-3 p-3 rounded-md bg-blue-50 border border-blue-200 text-sm text-blue-800">
+                <strong>MySQL langsung</strong> — SSH User kosong, jadi VPS backup menjalankan{' '}
+                <code className="text-xs bg-blue-100 px-1 rounded">mysqldump</code> langsung ke{' '}
+                {form.host || 'host'}:{form.port}. Port biasanya 3306, dan user MySQL harus
+                diizinkan dari IP VPS backup.
+              </div>
+            )}
             <Input
               label="Database Name"
               value={form.db_name}
