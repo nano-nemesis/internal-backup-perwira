@@ -157,7 +157,8 @@ export default function NodeConfigPage() {
         <div className="rounded-md border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-[#475569]">
             Belum punya berkasnya? Unduh templat berisi satu contoh per tipe node, lalu
-            sunting dengan editor teks.
+            sunting dengan editor teks. Password boleh diisi teks polos — hapus berkasnya
+            setelah impor.
           </p>
           <Button
             variant="secondary"

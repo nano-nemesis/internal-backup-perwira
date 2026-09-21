@@ -134,6 +134,9 @@ class NodeConfigController extends Controller
                 'is_active'               => 'nullable|boolean',
                 'ssh_password_encrypted'  => 'nullable|string',
                 'db_password_encrypted'   => 'nullable|string',
+                // Teks polos (dari templat) — dienkripsi mutator model saat disimpan.
+                'ssh_password'            => 'nullable|string|max:255',
+                'db_password'             => 'nullable|string|max:255',
             ];
 
             $v = Validator::make($row, $rules);
@@ -208,6 +211,14 @@ class NodeConfigController extends Controller
                 ] as $col => $key) {
                     if (! empty($row[$key])) {
                         $node->setRawAttributes(array_merge($node->getAttributes(), [$col => $row[$key]]));
+                    }
+                }
+
+                // Teks polos lewat mutator (terenkripsi dengan APP_KEY instalasi ini);
+                // menang atas blob bila keduanya ada.
+                foreach (['ssh_password', 'db_password'] as $col) {
+                    if (! empty($row[$col])) {
+                        $node->{$col} = $row[$col];
                     }
                 }
 

@@ -35,13 +35,14 @@ export function downloadJson(data: unknown, filename: string) {
   URL.revokeObjectURL(url)
 }
 
-/** Contoh berkas impor — satu entri per tipe node, tanpa password. */
+/** Contoh berkas impor — satu entri per tipe node. */
 export const NODE_TEMPLATE = {
   format: 'internal-backup-perwira/nodes',
   version: 1,
   _petunjuk:
-    'Hapus contoh yang tidak dipakai, lalu isi datamu. Password TIDAK ada di berkas ini — ' +
-    'isi lewat halaman Devices setelah impor. schedule_interval_hours: 1,2,3,4,6,8,12,24.',
+    'Hapus contoh yang tidak dipakai, lalu isi datamu. ssh_password/db_password boleh diisi ' +
+    'teks polos (dienkripsi saat impor) atau dihapus lalu diisi lewat halaman Devices. ' +
+    'HAPUS berkas ini setelah impor kalau berisi password. schedule_interval_hours: 1,2,3,4,6,8,12,24.',
   nodes: [
     {
       name: 'CCR1009-NOC',
@@ -49,6 +50,7 @@ export const NODE_TEMPLATE = {
       host: '10.29.0.1',
       port: 22,
       ssh_user: 'backup',
+      ssh_password: '',
       ssh_key_path: null,
       schedule_interval_hours: 6,
       is_active: true,
@@ -62,6 +64,7 @@ export const NODE_TEMPLATE = {
       ssh_key_path: '/root/.ssh/id_ed25519',
       db_name: 'billing',
       db_user: 'backup',
+      db_password: '',
       schedule_interval_hours: 12,
       is_active: true,
     },
@@ -71,6 +74,7 @@ export const NODE_TEMPLATE = {
       host: '10.29.0.30',
       port: 22,
       ssh_user: 'root',
+      ssh_password: '',
       schedule_interval_hours: 24,
       is_active: true,
     },
