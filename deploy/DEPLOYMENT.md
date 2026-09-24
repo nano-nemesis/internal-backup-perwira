@@ -287,3 +287,21 @@ storage/app/backups/
   mikrotik/{node-name}/    ← MikroTik .rsc files
   database/{node-name}/    ← MySQL .sql.gz dumps
 ```
+
+## HTTPS (backup.thama.web.id)
+
+Domain lewat Cloudflare (mode SSL Full), jadi server wajib melayani port 443. Sertifikat
+Let's Encrypt diambil sekali lewat webroot; `vps-setup.sh` otomatis mengaktifkan baris
+`#TLS` di `nginx.conf` begitu sertifikatnya ada. Perpanjangan ditangani `certbot.timer`.
+
+```bash
+apt-get install -y certbot && mkdir -p /var/www/letsencrypt
+certbot certonly --webroot -w /var/www/letsencrypt -d backup.thama.web.id \
+  --non-interactive --agree-tos --register-unsafely-without-email \
+  --deploy-hook "systemctl reload nginx"
+sudo bash deploy/vps-setup.sh   # atau buka komentar #TLS manual lalu reload nginx
+```
+
+Rute default server harus tetap lewat gateway lokal `10.29.0.1` (IP keluar `163.61.159.9`):
+server database dan router 10.28.0.x hanya mengizinkan IP itu. IP publik `41.216.191.51`
+cukup sebagai alamat kedua untuk akses masuk.

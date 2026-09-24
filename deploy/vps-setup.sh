@@ -290,8 +290,15 @@ ok "php-fpm aktif, soket $FPM_SOCK"
 # ── 7. Nginx ─────────────────────────────────────────────────────────────────
 step "7/9  Nginx"
 SITE=/etc/nginx/sites-available/internal-backup-perwira
+# Sertifikat diambil sekali secara manual (lihat DEPLOYMENT.md); di sini hanya diaktifkan.
+TLS_SED='s#^    \#TLS .*##'
+if [[ -f /etc/letsencrypt/live/backup.thama.web.id/fullchain.pem ]]; then
+  TLS_SED='s#^    \#TLS #    #'
+fi
+mkdir -p /var/www/letsencrypt
 sed -e "s#/var/www/internal-backup-perwira#${APP_DIR}#g" \
     -e "s#unix:/run/php/php[0-9.]*-fpm\\.sock#unix:${FPM_SOCK}#" \
+    -e "$TLS_SED" \
     "$APP_DIR/deploy/nginx.conf" > "$SITE"
 ln -sfn "$SITE" /etc/nginx/sites-enabled/internal-backup-perwira
 if [[ -e /etc/nginx/sites-enabled/default ]]; then
