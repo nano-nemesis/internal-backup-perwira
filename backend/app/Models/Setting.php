@@ -25,10 +25,13 @@ class Setting extends Model
 
     public static function get(string $key, mixed $default = null): mixed
     {
-        return Cache::remember(self::CACHE_PREFIX . $key, 300, function () use ($key, $default) {
+        // Yang di-cache hanya nilai dari DB. $default (config/.env) sengaja di luar
+        // cache: kalau ikut disimpan, perubahan .env baru terasa setelah cache kedaluwarsa.
+        // null tidak disimpan Cache::remember, jadi kunci kosong selalu dibaca ulang.
+        return Cache::remember(self::CACHE_PREFIX . $key, 300, function () use ($key) {
             $row = static::find($key);
             if (! $row || $row->value === null || $row->value === '') {
-                return $default;
+                return null;
             }
 
             if (! $row->is_encrypted) {
@@ -40,9 +43,9 @@ class Setting extends Model
             } catch (\Throwable $e) {
                 // Umumnya karena APP_KEY dirotasi. Jangan menebak nilai lama.
                 Log::warning("Setting [{$key}] tidak bisa didekripsi — APP_KEY berubah?");
-                return $default;
+                return null;
             }
-        });
+        }) ?? $default;
     }
 
     public static function put(string $key, ?string $value, bool $encrypt = false): void
