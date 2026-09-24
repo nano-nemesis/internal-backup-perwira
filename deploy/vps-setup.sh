@@ -214,6 +214,7 @@ set_env SANCTUM_STATEFUL_DOMAINS "${VPS_IP},localhost,127.0.0.1"
 # browser tidak akan pernah mengirim cookie sesinya ke http://IP_VPS.
 set_env SESSION_DOMAIN null
 set_env SESSION_SECURE_COOKIE false   # tanpa TLS; ubah ke true kalau nanti pakai HTTPS
+set_env SESSION_LIFETIME 43200        # 30 hari, sliding — PWA di HP tidak minta login tiap dibuka
 ok "APP_URL, Sanctum, dan cookie sesi diarahkan ke ${VPS_IP}"
 
 chown www-data:www-data "$ENV_FILE"; chmod 640 "$ENV_FILE"

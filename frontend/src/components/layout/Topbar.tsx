@@ -43,7 +43,7 @@ export default function Topbar({ onToggleSidebar }: TopbarProps) {
   const { user, logout } = useAuth()
 
   return (
-    <header className="flex items-center justify-between px-4 py-3 bg-white border-b border-[#E2E8F0] shadow-sm flex-shrink-0">
+    <header className="flex items-center justify-between px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] bg-white border-b border-[#E2E8F0] shadow-sm flex-shrink-0">
       {/* Left: hamburger */}
       <button
         onClick={onToggleSidebar}

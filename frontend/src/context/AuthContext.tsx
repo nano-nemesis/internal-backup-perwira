@@ -24,6 +24,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false))
   }, [])
 
+  // PWA di HP jarang dimuat ulang — dibuka lagi dari latar belakang saja. Sentuh
+  // /me saat kembali aktif supaya sesi (sliding, lihat SESSION_LIFETIME) diperpanjang.
+  const masuk = user !== null
+  useEffect(() => {
+    if (!masuk) return
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') api.get('/me').catch(() => {})
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [masuk])
+
   const login = async (username: string, password: string) => {
     await api.get('/sanctum/csrf-cookie', { baseURL: '/' })
     const res = await api.post('/login', { username, password })

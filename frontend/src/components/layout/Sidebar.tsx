@@ -1,7 +1,11 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Server, HardDrive, Users, FileJson, BookOpen, Send, X } from 'lucide-react'
+import { LayoutDashboard, Server, HardDrive, Users, FileJson, BookOpen, Send, X, Download, Sparkles } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
+import { semver, build } from '../../lib/versi'
+import { usePasang, LANGKAH_IOS } from '../InstallPrompt'
+import { YangBaru } from '../YangBaru'
 
 interface SidebarProps {
   open: boolean
@@ -25,6 +29,9 @@ const adminItems = [
 
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const { isAdmin } = useAuth()
+  const { jenis, pasang } = usePasang()
+  const [langkahIos, setLangkahIos] = useState(false)
+  const [lihatBaru, setLihatBaru] = useState(false)
 
   // Menutup laci setelah navigasi hanya masuk akal di HP.
   const closeOnMobile = () => {
@@ -35,6 +42,8 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
     <aside
       className={cn(
         'fixed inset-y-0 left-0 z-40 w-60 flex flex-col bg-[#0F172A]',
+        // Mode standalone di HP: jangan tertimpa notch / bilah gestur.
+        'pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]',
         'transition-all duration-200',
         'md:relative md:z-auto',
         // HP: laci yang menggeser masuk/keluar.
@@ -120,9 +129,27 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         )}
       </nav>
 
-      <div className="px-4 py-3 border-t border-[#1E293B] text-xs text-[#475569] flex-shrink-0">
-        v1.0.0
+      <div className="px-2 py-2 border-t border-[#1E293B] text-xs text-[#94A3B8] flex-shrink-0 space-y-0.5">
+        {jenis && (
+          <button
+            onClick={() => (jenis === 'prompt' ? pasang() : setLangkahIos((v) => !v))}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-[#CBD5E1] hover:bg-[#1E293B] hover:text-white transition-colors whitespace-nowrap"
+          >
+            <Download className="w-4 h-4 flex-shrink-0 text-[#0084FF]" />
+            Pasang ke layar utama
+          </button>
+        )}
+        {jenis === 'ios' && langkahIos && <p className="px-3 pb-2 leading-relaxed">{LANGKAH_IOS}</p>}
+        <button
+          onClick={() => setLihatBaru(true)}
+          title={`build ${build}`}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-[#1E293B] hover:text-white transition-colors whitespace-nowrap tabular-nums"
+        >
+          <Sparkles className="w-4 h-4 flex-shrink-0" />
+          v{semver} · Yang baru
+        </button>
       </div>
+      <YangBaru open={lihatBaru} onClose={() => setLihatBaru(false)} />
     </aside>
   )
 }
