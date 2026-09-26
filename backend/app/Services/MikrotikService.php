@@ -23,15 +23,20 @@ class MikrotikService
         }
         $localPath = "{$localDir}/{$filename}";
 
-        // '/export' polos MENYAMARKAN secret (PPPoE/RADIUS/PSK) di RouterOS 6.44+ dan v7,
+        // '/export' polos MENYAMARKAN secret (PPPoE/RADIUS/PSK) di RouterOS v7,
         // sehingga backup-nya tidak cukup untuk memulihkan layanan pelanggan. Flag ini
         // membuat file .rsc berisi KREDENSIAL PELANGGAN PLAINTEXT — file ditulis 0600.
-        // RouterOS lawas (<6.44) tidak mengenal flag-nya, jadi ada fallback ke /export polos.
+        // RouterOS 6 tidak mengenal flag-nya (dan /export-nya sudah memuat secret —
+        // diverifikasi di 6.49.21), jadi ada fallback ke /export polos.
         try {
             $content = $this->runSshCommand($node, '/export show-sensitive');
         } catch (\RuntimeException $e) {
-            // Normal di RouterOS 6 (flag-nya belum ada; v6 memang menampilkan secret).
-            // Error lain (auth/koneksi) akan gagal lagi di bawah dan tercatat sebagai gagal.
+            // RouterOS menolak perintah = exit code 1 (normal di v6: flag-nya belum ada,
+            // v6 memang menampilkan secret). Error SSH (255) / sshpass (5,6) dilempar
+            // langsung — mengulang hanya menggandakan percobaan login yang gagal.
+            if (!str_contains($e->getMessage(), '(exit code 1)')) {
+                throw $e;
+            }
             ActivityLog::info('backup', 'mikrotik.export-polos',
                 "{$node->name}: '/export show-sensitive' ditolak router, diulang dengan '/export' polos (wajar untuk RouterOS 6).",
                 ['error' => $e->getMessage()], $node);
