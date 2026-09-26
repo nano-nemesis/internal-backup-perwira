@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Node;
 use App\Models\NodeSchedule;
 use App\Traits\HasAlignedSchedule;
@@ -79,6 +80,10 @@ class NodeConfigController extends Controller
             $withCredentials ? 'lengkap' : 'aman',
             now(config('backup.timezone', 'Asia/Jakarta'))->format('Y-m-d-H.i') . 'WIB'
         );
+
+        ActivityLog::warning('node', 'node.ekspor',
+            'Konfigurasi ' . $nodes->count() . ' node diekspor ' . ($withCredentials ? 'BESERTA password terenkripsi.' : 'tanpa password.'),
+            ['berkas' => $filename, 'dengan_kredensial' => $withCredentials]);
 
         return response()->json($payload, 200, [
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
@@ -235,6 +240,11 @@ class NodeConfigController extends Controller
                 );
             }
         });
+
+        ActivityLog::warning('node', 'node.impor',
+            "Impor konfigurasi node (mode {$mode}): " . count($plan['create']) . ' dibuat, '
+            . count($plan['update']) . ' diperbarui, ' . count($plan['skip']) . ' dilewati.',
+            ['mode' => $mode] + $plan);
 
         return response()->json([
             'message' => 'Impor selesai.',

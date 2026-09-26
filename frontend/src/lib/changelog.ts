@@ -5,6 +5,18 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.2.0',
+    tanggal: '2026-09-26',
+    judul: 'Log Sistem',
+    poin: [
+      'Halaman baru "Log Sistem" (menu Admin): semua kejadian tercatat dengan keterangan yang jelas.',
+      'Tercatat: login berhasil/gagal/diblokir, logout, backup mulai/berhasil/gagal (beserta kemungkinan sebabnya), perubahan node & user, perintah terminal, unduhan berkas backup, pengaturan Telegram, dan error server.',
+      'Klik satu baris untuk melihat detail teknis: error mentah, kolom yang diubah (dari → ke), durasi, ukuran berkas, dll.',
+      'Filter per tingkat (error/peringatan/info), kategori, node, tanggal, dan pencarian bebas; ringkasan 24 jam di atas.',
+      'Backup MikroTik RouterOS 6 kembali berjalan, dan otomatis mencoba password bila SSH key ditolak.',
+    ],
+  },
+  {
     versi: '1.1.0',
     tanggal: '2026-09-24',
     judul: 'Bisa dipasang ke layar utama',

@@ -3,13 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\BackupJob;
+use App\Models\ActivityLog;
 use App\Models\BackupLog;
 use App\Models\Node;
 use App\Services\MikrotikService;
 use App\Support\RouterOsCommandPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class NodeController extends Controller
@@ -97,7 +97,7 @@ class NodeController extends Controller
         ]);
     }
 
-    public function triggerBackup(string $id): JsonResponse
+    public function triggerBackup(Request $request, string $id): JsonResponse
     {
         $node = Node::findOrFail($id);
 
@@ -105,7 +105,8 @@ class NodeController extends Controller
             return response()->json(['message' => 'Node is not active'], 422);
         }
 
-        BackupJob::dispatch($node->id)->onQueue('backup');
+        BackupJob::dispatch($node->id, $request->user()->username)->onQueue('backup');
+        ActivityLog::info('backup', 'backup.manual', "Backup manual {$node->name} dimasukkan ke antrean.", [], $node);
 
         return response()->json(['message' => "Backup job queued for node [{$node->name}]"]);
     }
@@ -129,6 +130,9 @@ class NodeController extends Controller
 
         // Kebijakan + tesnya ada di App\Support\RouterOsCommandPolicy.
         if (RouterOsCommandPolicy::isDestructive($request->command)) {
+            ActivityLog::warning('terminal', 'terminal.ditolak', "Perintah terminal di {$node->name} ditolak karena mengubah konfigurasi: {$request->command}", [
+                'command' => $request->command,
+            ], $node);
             return response()->json([
                 'message' => 'Perintah yang mengubah konfigurasi router ditolak dari terminal ini. '
                     . 'Gunakan akses langsung ke router untuk perubahan.',
@@ -137,19 +141,18 @@ class NodeController extends Controller
 
         // Jejak audit: perintah ini menyentuh router produksi. Tanpa catatan siapa
         // yang menjalankannya, insiden tidak bisa ditelusuri.
-        Log::warning('AUDIT remote-execute', [
-            'user' => $request->user()->username,
-            'ip' => $request->ip(),
-            'node' => $node->name,
-            'command' => $request->command,
-        ]);
-
         try {
             /** @var MikrotikService $mikrotik */
             $mikrotik = app(MikrotikService::class);
             $output = $mikrotik->execute($node, $request->command);
+            ActivityLog::warning('terminal', 'terminal.jalan', "Perintah terminal di {$node->name}: {$request->command}", [
+                'command' => $request->command, 'panjang_output' => strlen($output),
+            ], $node);
             return response()->json(['data' => ['output' => $output]]);
         } catch (\Exception $e) {
+            ActivityLog::error('terminal', 'terminal.gagal', "Perintah terminal di {$node->name} gagal: {$request->command}", [
+                'command' => $request->command, 'error' => $e->getMessage(),
+            ], $node);
             return response()->json(['message' => $e->getMessage()], 500);
         }
     }
@@ -178,6 +181,7 @@ class NodeController extends Controller
                 && str_starts_with($resolved, $baseDir . DIRECTORY_SEPARATOR)
                 && is_file($resolved)
             ) {
+                ActivityLog::info('berkas', 'unduh', "Berkas backup {$safeName} diunduh.", ['file' => $safeName], $node);
                 return response()->download($resolved);
             }
         }

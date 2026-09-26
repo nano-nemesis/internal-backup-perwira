@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -47,6 +48,10 @@ class AuthController extends Controller
             'is_active' => true,
         ]);
 
+        ActivityLog::info('auth', 'setup', "Setup awal selesai: akun admin pertama '{$user->username}' dibuat.", [
+            'username' => $user->username,
+        ]);
+
         return response()->json([
             'data' => ['username' => $user->username],
             'message' => 'Setup complete. You can now login.',
@@ -59,6 +64,9 @@ class AuthController extends Controller
 
         if (RateLimiter::tooManyAttempts($key, 5)) {
             $seconds = RateLimiter::availableIn($key);
+            ActivityLog::warning('auth', 'login.diblokir', "Login dari IP ini diblokir sementara ({$seconds} detik lagi) karena 5x gagal berturut-turut.", [
+                'username' => (string) $request->input('username'),
+            ]);
             return response()->json([
                 'message' => "Too many login attempts. Please try again in {$seconds} seconds.",
             ], 429);
@@ -73,10 +81,20 @@ class AuthController extends Controller
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             RateLimiter::hit($key, 300);
+            $sisa = RateLimiter::remaining($key, 5);
+            ActivityLog::warning('auth', 'login.gagal', $user
+                ? "Login gagal untuk '{$user->username}': password salah. Sisa {$sisa} percobaan sebelum IP diblokir 5 menit."
+                : "Login gagal: username '{$request->username}' tidak terdaftar. Sisa {$sisa} percobaan sebelum IP diblokir 5 menit.", [
+                'username' => (string) $request->username,
+                'sebab'    => $user ? 'password salah' : 'username tidak ada',
+            ]);
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
         if (!$user->is_active) {
+            ActivityLog::warning('auth', 'login.nonaktif', "Login ditolak untuk '{$user->username}': akun sedang dinonaktifkan.", [
+                'username' => $user->username,
+            ]);
             return response()->json(['message' => 'Account is deactivated'], 403);
         }
 
@@ -84,6 +102,10 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
         Auth::login($user);
+
+        ActivityLog::info('auth', 'login.berhasil', "'{$user->username}' ({$user->role}) berhasil login.", [
+            'user_agent' => mb_substr((string) $request->userAgent(), 0, 255),
+        ]);
 
         return response()->json([
             'data' => [
@@ -98,6 +120,8 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
+        // Dicatat SEBELUM logout, selagi user & sesinya masih dikenali.
+        ActivityLog::info('auth', 'logout', "'{$request->user()->username}' logout.");
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

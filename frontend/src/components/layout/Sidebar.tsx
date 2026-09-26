@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Server, HardDrive, Users, FileJson, BookOpen, Send, X, Download, Sparkles } from 'lucide-react'
+import { LayoutDashboard, Server, HardDrive, Users, FileJson, BookOpen, Send, ScrollText, X, Download, Sparkles } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
 import { semver, build } from '../../lib/versi'
@@ -25,6 +25,7 @@ const adminItems = [
   { to: '/admin', icon: Users, label: 'User Management', end: true },
   { to: '/admin/node-config', icon: FileJson, label: 'Konfigurasi Node' },
   { to: '/admin/telegram', icon: Send, label: 'Bot Telegram' },
+  { to: '/admin/log', icon: ScrollText, label: 'Log Sistem' },
 ]
 
 export default function Sidebar({ open, onClose }: SidebarProps) {

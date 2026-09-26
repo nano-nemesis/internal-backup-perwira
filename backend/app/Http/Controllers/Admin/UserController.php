@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 
 class UserController extends Controller
 {
@@ -37,6 +37,10 @@ class UserController extends Controller
             'is_active' => true,
         ]);
 
+        ActivityLog::info('user', 'user.tambah', "User '{$user->username}' ({$user->role}) dibuat.", [
+            'target' => $user->username, 'email' => $user->email, 'role' => $user->role,
+        ]);
+
         return response()->json([
             'data' => $user->only('id', 'username', 'email', 'role', 'is_active'),
             'message' => 'User created successfully',
@@ -59,8 +63,7 @@ class UserController extends Controller
             ], 422);
         }
 
-        Log::warning('AUDIT ubah-peran', [
-            'user' => $request->user()->username, 'ip' => $request->ip(),
+        ActivityLog::warning('user', 'user.ubah-peran', "Peran '{$user->username}' diubah dari {$user->role} ke {$request->role}.", [
             'target' => $user->username, 'dari' => $user->role, 'ke' => $request->role,
         ]);
 
@@ -80,8 +83,8 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
         $request->validate(['password' => ['required', 'string', self::aturanPassword()]]);
-        Log::warning('AUDIT reset-password', [
-            'user' => $request->user()->username, 'ip' => $request->ip(), 'target' => $user->username,
+        ActivityLog::warning('user', 'user.reset-password', "Password '{$user->username}' direset.", [
+            'target' => $user->username,
         ]);
 
         $user->update(['password' => Hash::make($request->password)]);
@@ -96,8 +99,8 @@ class UserController extends Controller
             return response()->json(['message' => 'Cannot delete your own account'], 422);
         }
 
-        Log::warning('AUDIT hapus-user', [
-            'user' => $request->user()->username, 'ip' => $request->ip(), 'target' => $user->username,
+        ActivityLog::warning('user', 'user.hapus', "User '{$user->username}' ({$user->role}) dihapus.", [
+            'target' => $user->username, 'role' => $user->role,
         ]);
 
         $user->delete();

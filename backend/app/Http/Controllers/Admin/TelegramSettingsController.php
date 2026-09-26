@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Setting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -57,6 +58,12 @@ class TelegramSettingsController extends Controller
             Setting::put(self::KEY_CHAT, $v['chat_id'] ?: null);
         }
 
+        $diubah = array_filter([
+            $request->boolean('hapus_token') ? 'token dihapus' : (! empty($v['bot_token']) ? 'token diganti' : null),
+            array_key_exists('chat_id', $v) ? 'chat ID = ' . ($v['chat_id'] ?: '(kosong)') : null,
+        ]);
+        ActivityLog::info('pengaturan', 'telegram.ubah', 'Pengaturan bot Telegram diubah: ' . (implode(', ', $diubah) ?: 'tanpa perubahan') . '.');
+
         return $this->show();
     }
 
@@ -78,14 +85,17 @@ class TelegramSettingsController extends Controller
                 'parse_mode' => 'Markdown',
             ]);
         } catch (\Throwable $e) {
+            ActivityLog::error('pengaturan', 'telegram.tes-gagal', 'Pesan uji Telegram gagal: server tidak bisa menghubungi api.telegram.org.', ['error' => $e->getMessage()]);
             return response()->json(['message' => 'Gagal menghubungi Telegram: ' . $e->getMessage()], 502);
         }
 
         if ($res->successful()) {
+            ActivityLog::info('pengaturan', 'telegram.tes', 'Pesan uji Telegram terkirim.');
             return response()->json(['message' => 'Pesan uji terkirim — cek grup Telegram Anda.']);
         }
 
         // Teruskan alasan dari Telegram apa adanya; itu yang paling menjelaskan.
+        ActivityLog::error('pengaturan', 'telegram.tes-gagal', 'Pesan uji Telegram ditolak: ' . ($res->json('description') ?? 'HTTP ' . $res->status()) . '. Periksa token dan chat ID.');
         return response()->json([
             'message' => 'Telegram menolak: ' . ($res->json('description') ?? 'HTTP ' . $res->status()),
         ], 422);

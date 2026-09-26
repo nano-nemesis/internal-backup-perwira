@@ -1,6 +1,7 @@
 <?php
 namespace App\Services;
 
+use App\Models\ActivityLog;
 use App\Models\Node;
 
 class MikrotikService
@@ -29,6 +30,11 @@ class MikrotikService
         try {
             $content = $this->runSshCommand($node, '/export show-sensitive');
         } catch (\RuntimeException $e) {
+            // Normal di RouterOS 6 (flag-nya belum ada; v6 memang menampilkan secret).
+            // Error lain (auth/koneksi) akan gagal lagi di bawah dan tercatat sebagai gagal.
+            ActivityLog::info('backup', 'mikrotik.export-polos',
+                "{$node->name}: '/export show-sensitive' ditolak router, diulang dengan '/export' polos (wajar untuk RouterOS 6).",
+                ['error' => $e->getMessage()], $node);
             $content = $this->runSshCommand($node, '/export');
         }
 
@@ -98,6 +104,10 @@ class MikrotikService
                     throw $e;
                 }
                 $keyError = $e->getMessage();
+                ActivityLog::warning('backup', 'ssh.failover-password',
+                    "{$node->name}: login SSH key ditolak router, mencoba failover ke password. "
+                    . 'Periksa public key user ' . $user . ' di router supaya tidak bergantung pada password.',
+                    ['key' => $node->ssh_key_path, 'error' => $keyError], $node);
             }
         }
 

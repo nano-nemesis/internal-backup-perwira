@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\ActivityLog;
 use App\Models\BackupLog;
 use App\Models\Node;
+use App\Support\BackupErrorSummary;
 use Illuminate\Support\Facades\Log;
 
 class BackupService
@@ -15,8 +17,15 @@ class BackupService
         private VirtualizorBackupService $virtualizor,
     ) {}
 
-    public function run(Node $node): BackupLog
+    public function run(Node $node, ?string $pemicu = null): BackupLog
     {
+        $cara = $pemicu ? "manual oleh {$pemicu}" : 'terjadwal';
+        ActivityLog::info('backup', 'backup.mulai', "Backup {$node->name} ({$node->type}, {$node->host}) dimulai — {$cara}.", [
+            'pemicu' => $pemicu ?? 'jadwal',
+            'host'   => "{$node->host}:" . ($node->port ?? 22),
+            'user'   => $node->ssh_user,
+        ], $node);
+
         $log = BackupLog::create([
             'node_id' => $node->id,
             'status' => 'running',
@@ -47,6 +56,12 @@ class BackupService
 
             $node->update(['last_backup_at' => now()]);
 
+            ActivityLog::info('backup', 'backup.berhasil',
+                "Backup {$node->name} berhasil: " . basename($filePath) . ' (' . $log->fresh()->file_size_formatted . ", {$duration} detik).",
+                ['file' => basename($filePath), 'ukuran_byte' => $fileSize, 'durasi_detik' => $duration, 'pemicu' => $pemicu ?? 'jadwal'],
+                $node,
+            );
+
             $this->telegram->notifySuccess($node, $log->fresh());
             $this->cleanOldBackups($node);
 
@@ -60,7 +75,15 @@ class BackupService
                 'finished_at' => now(),
             ]);
 
-            Log::error("Backup failed for node [{$node->name}]: " . $e->getMessage());
+            // Pesan dibuka dengan SEBAB yang bisa ditindaklanjuti; error mentah tetap
+            // disimpan utuh di konteks untuk penelusuran.
+            $sebab = BackupErrorSummary::sebab($e->getMessage());
+            ActivityLog::error('backup', 'backup.gagal',
+                "Backup {$node->name} ({$node->host}) gagal setelah {$duration} detik. "
+                . ($sebab ? "Kemungkinan sebab: {$sebab}." : 'Sebab tidak dikenali otomatis — lihat error mentah di detail.'),
+                ['error' => $e->getMessage(), 'sebab' => $sebab, 'durasi_detik' => $duration, 'pemicu' => $pemicu ?? 'jadwal'],
+                $node,
+            );
             $this->telegram->notifyFailure($node, $e->getMessage());
         }
 
@@ -83,6 +106,7 @@ class BackupService
             "{$basePath}/virtualizor/{$safeName}",
         ];
 
+        $dihapus = [];
         foreach ($dirs as $dir) {
             if (!is_dir($dir)) {
                 continue;
@@ -91,8 +115,14 @@ class BackupService
                 if (is_file($file) && filemtime($file) < $cutoff) {
                     unlink($file);
                     BackupLog::where('file_path', $file)->delete();
+                    $dihapus[] = basename($file);
                 }
             }
+        }
+
+        if ($dihapus) {
+            ActivityLog::info('backup', 'retensi', 'Retensi ' . count($dihapus) . " berkas backup lama {$node->name} dihapus (lebih tua dari {$retentionDays} hari).",
+                ['berkas' => $dihapus], $node);
         }
     }
 }

@@ -7,6 +7,7 @@ use App\Models\Setting;
 use App\Support\BackupErrorSummary;
 use App\Models\Node;
 use Illuminate\Support\Facades\Cache;
+use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -87,7 +88,7 @@ class TelegramNotifier
         }
 
         try {
-            Http::timeout(10)->post(
+            $res = Http::timeout(10)->post(
                 "https://api.telegram.org/bot{$this->botToken}/sendMessage",
                 [
                     'chat_id' => $this->chatId,
@@ -95,8 +96,17 @@ class TelegramNotifier
                     'parse_mode' => 'Markdown',
                 ]
             );
+            // Http tidak melempar untuk 4xx/5xx — tanpa cek ini notifikasi yang ditolak
+            // Telegram (token salah, bot dikeluarkan dari grup, Markdown rusak) hilang diam-diam.
+            if (! $res->successful()) {
+                ActivityLog::error('sistem', 'telegram.kirim-gagal',
+                    'Notifikasi Telegram ditolak: ' . ($res->json('description') ?? 'HTTP ' . $res->status()) . '. Notifikasi backup tidak sampai ke grup.',
+                    ['status' => $res->status(), 'awal_pesan' => mb_substr($message, 0, 200)]);
+            }
         } catch (\Exception $e) {
-            Log::error("Telegram notification failed: " . $e->getMessage());
+            ActivityLog::error('sistem', 'telegram.kirim-gagal',
+                'Notifikasi Telegram gagal dikirim: server tidak bisa menghubungi api.telegram.org. Notifikasi backup tidak sampai ke grup.',
+                ['error' => $e->getMessage()]);
         }
     }
 }

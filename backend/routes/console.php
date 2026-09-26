@@ -6,3 +6,4 @@ use Illuminate\Support\Facades\Schedule;
 // Perintahnya sendiri ditemukan otomatis dari app/Console/Commands.
 Schedule::command('backup:run-scheduled')->everyMinute();
 Schedule::command('metrics:collect')->everyMinute();
+Schedule::command('model:prune', ['--model' => [\App\Models\ActivityLog::class]])->daily();

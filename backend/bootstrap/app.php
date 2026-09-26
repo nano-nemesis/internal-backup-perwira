@@ -49,6 +49,22 @@ return Application::configure(basePath: dirname(__DIR__))
             'password_confirmation',
         ]);
 
+        // Error tak tertangani (HTTP 500, crash command/worker) ikut masuk Log Sistem.
+        // Validasi/404/403/sesi habis tidak sampai ke sini — Laravel tidak me-report-nya.
+        // Pelaporan bawaan ke laravel.log tetap berjalan (callback tidak menghentikannya).
+        $exceptions->report(function (\Throwable $e) {
+            $req = app()->runningInConsole() ? null : request();
+            \App\Models\ActivityLog::error('sistem', 'error',
+                ($req ? "Error server saat {$req->method()} /{$req->path()}: " : 'Error di proses latar belakang: ')
+                . $e->getMessage(),
+                [
+                    'exception' => get_class($e),
+                    'lokasi'    => str_replace(base_path() . '/', '', $e->getFile()) . ':' . $e->getLine(),
+                    'perintah'  => $req ? null : implode(' ', array_slice($_SERVER['argv'] ?? [], 1)),
+                    'trace'     => array_slice(explode("\n", $e->getTraceAsString()), 0, 8),
+                ]);
+        });
+
         // Bentuk respons validasi dipertahankan seperti sebelumnya: frontend membaca
         // `errors` lebih dulu, lalu `message`.
         $exceptions->render(function (ValidationException $e, Request $request) {

@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\BackupLog;
 use App\Models\Node;
 use App\Models\NodeSchedule;
 use App\Traits\HasAlignedSchedule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class NodeController extends Controller
@@ -116,6 +116,10 @@ class NodeController extends Controller
             'interval_hours' => $interval,
         ]);
 
+        ActivityLog::info('node', 'node.tambah', "Node {$node->name} ({$node->type}, {$node->host}) ditambahkan, jadwal tiap {$interval} jam.", [
+            'host' => $node->host, 'port' => $node->port, 'ssh_user' => $node->ssh_user, 'interval_jam' => $interval,
+        ], $node);
+
         return response()->json(['data' => $node, 'message' => 'Node created successfully'], 201);
     }
 
@@ -153,7 +157,22 @@ class NodeController extends Controller
         }
 
         $oldName = $node->name;
-        $node->update($validated);
+        $node->fill($validated);
+        // Catat kolom yang benar-benar berubah, dari → ke. Password hanya disebut
+        // "diubah", nilainya tidak pernah masuk log.
+        $perubahan = [];
+        foreach ($node->getDirty() as $kolom => $baru) {
+            $perubahan[$kolom] = in_array($kolom, ['ssh_password', 'db_password'], true)
+                ? '(diubah)'
+                : ['dari' => $node->getOriginal($kolom), 'ke' => $node->{$kolom}];
+        }
+        $node->save();
+
+        if ($perubahan) {
+            ActivityLog::info('node', 'node.ubah',
+                "Node {$node->name} diubah: " . implode(', ', array_keys($perubahan)) . '.',
+                ['perubahan' => $perubahan], $node);
+        }
 
         if ($node->name !== $oldName) {
             $this->renameBackupDirs($oldName, $node->name);
@@ -203,10 +222,10 @@ class NodeController extends Controller
             }
 
             if (!@rename($src, $dst)) {
-                Log::warning(
-                    "Gagal memindahkan direktori backup [{$src}] ke [{$dst}] saat node "
-                    . "diganti nama. Berkas lama masih ada, tapi tidak lagi terhubung ke node."
-                );
+                ActivityLog::warning('node', 'node.pindah-folder-gagal',
+                    "Node {$from} diganti nama jadi {$to}, tapi folder backup {$type} lama gagal dipindahkan. "
+                    . 'Berkas lama masih ada di server, tapi tidak lagi terhubung ke node — pindahkan manual.',
+                    ['dari' => $src, 'ke' => $dst]);
             }
         }
     }
@@ -215,9 +234,9 @@ class NodeController extends Controller
     {
         $node = Node::findOrFail($id);
 
-        Log::warning('AUDIT hapus-node', [
-            'user' => $request->user()->username, 'ip' => $request->ip(), 'node' => $node->name,
-        ]);
+        ActivityLog::warning('node', 'node.hapus', "Node {$node->name} ({$node->host}) dihapus beserta riwayat backupnya.", [
+            'host' => $node->host, 'type' => $node->type,
+        ], $node);
 
         $node->delete();
         return response()->json(['message' => 'Node deleted successfully']);
@@ -228,6 +247,9 @@ class NodeController extends Controller
         $node = Node::findOrFail($id);
         $node->update(['is_active' => !$node->is_active]);
         $status = $node->is_active ? 'activated' : 'deactivated';
+        ActivityLog::info('node', $node->is_active ? 'node.aktif' : 'node.nonaktif',
+            "Node {$node->name} " . ($node->is_active ? 'diaktifkan — backup terjadwal berjalan lagi.' : 'dinonaktifkan — backup terjadwal dihentikan.'),
+            [], $node);
         return response()->json(['data' => $node, 'message' => "Node {$status}"]);
     }
 
@@ -240,8 +262,8 @@ class NodeController extends Controller
 
         $count = Node::whereIn('id', $request->ids)->count();
 
-        Log::warning('AUDIT hapus-node-massal', [
-            'user' => $request->user()->username, 'ip' => $request->ip(), 'jumlah' => $count,
+        ActivityLog::warning('node', 'node.hapus-massal', "{$count} node dihapus sekaligus.", [
+            'nodes' => Node::whereIn('id', $request->ids)->pluck('name')->all(),
         ]);
 
         NodeSchedule::whereIn('node_id', $request->ids)->delete();
@@ -258,8 +280,8 @@ class NodeController extends Controller
     {
         $count = Node::count();
 
-        Log::warning('AUDIT hapus-semua-node', [
-            'user' => $request->user()->username, 'ip' => $request->ip(), 'jumlah' => $count,
+        ActivityLog::warning('node', 'node.hapus-semua', "SEMUA node ({$count}) dihapus.", [
+            'nodes' => Node::pluck('name')->all(),
         ]);
 
         // delete(), BUKAN truncate(): MySQL menolak TRUNCATE pada tabel yang

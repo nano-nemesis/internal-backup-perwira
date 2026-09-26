@@ -135,3 +135,26 @@ export interface VpsMetricsResponse {
   data: VpsMetric[]
   latest: VpsMetric | null
 }
+
+export type LogLevel = 'info' | 'warning' | 'error'
+
+export interface ActivityLogItem {
+  id: number
+  level: LogLevel
+  kategori: string
+  aksi: string
+  pesan: string
+  konteks: Record<string, unknown> | null
+  user_id: string | null
+  username: string | null
+  ip: string | null
+  node_id: string | null
+  node_name: string | null
+  created_at: string
+}
+
+export interface ActivityLogsResponse {
+  data: ActivityLogItem[]
+  meta: { current_page: number; last_page: number; per_page: number; total: number }
+  ringkasan: Partial<Record<LogLevel, number>>
+}

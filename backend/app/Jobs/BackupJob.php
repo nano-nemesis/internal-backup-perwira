@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\ActivityLog;
 use App\Models\Node;
 use App\Models\NodeSchedule;
 use App\Services\BackupService;
@@ -20,7 +21,17 @@ class BackupJob implements ShouldQueue
     public int $timeout = 300;
     public int $tries = 1;
 
-    public function __construct(public readonly string $nodeId) {}
+    /**
+     * Siapa yang memicu: username untuk backup manual, null = terjadwal.
+     * Properti biasa (bukan promoted readonly) supaya job lama di antrean yang
+     * belum punya properti ini tetap bisa di-unserialize.
+     */
+    public ?string $pemicu = null;
+
+    public function __construct(public readonly string $nodeId, ?string $pemicu = null)
+    {
+        $this->pemicu = $pemicu;
+    }
 
     public function handle(BackupService $backupService): void
     {
@@ -32,7 +43,7 @@ class BackupJob implements ShouldQueue
         }
 
         Log::info("BackupJob: starting backup for node [{$node->name}]");
-        $backupService->run($node);
+        $backupService->run($node, $this->pemicu);
 
         $this->updateSchedule();
     }
@@ -40,6 +51,15 @@ class BackupJob implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         Log::error("BackupJob: unexpected failure for node [{$this->nodeId}]: " . $exception->getMessage());
+        // Sampai di sini berarti job mati di luar try/catch BackupService — biasanya
+        // melewati batas waktu 300 detik atau worker kehabisan memori.
+        $node = Node::find($this->nodeId);
+        ActivityLog::error('backup', 'backup.crash',
+            'Job backup ' . ($node?->name ?? $this->nodeId) . ' berhenti tidak wajar (bukan gagal biasa): '
+            . $exception->getMessage() . '. Biasanya karena melewati batas waktu 300 detik atau worker kehabisan memori.',
+            ['exception' => get_class($exception), 'error' => $exception->getMessage()],
+            $node,
+        );
         $this->updateSchedule();
     }
 
