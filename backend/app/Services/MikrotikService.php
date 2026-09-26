@@ -67,34 +67,59 @@ class MikrotikService
         $port = $node->port ?? 22;
         $user = $node->ssh_user;
 
+        // RouterOS 6.x hanya bisa tanda tangan kunci RSA dengan ssh-rsa (SHA-1), yang
+        // dimatikan default sejak OpenSSH 8.8 — tanpa ini kunci tidak pernah ditawarkan
+        // ("no mutual signature algorithm") dan ssh jatuh ke password.
         $baseOptions = sprintf(
             '-p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=%d'
-            . ' -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -o BatchMode=no',
+            . ' -o PubkeyAcceptedAlgorithms=+ssh-rsa -o LogLevel=ERROR'
+            . ' -o ServerAliveInterval=15 -o ServerAliveCountMax=3',
             $port,
             $timeout
         );
+        $target = escapeshellarg($user) . '@' . escapeshellarg($host) . ' ' . escapeshellarg($command);
+        $password = $node->ssh_password;
+        $keyError = null;
 
         if ($node->ssh_key_path && file_exists($node->ssh_key_path)) {
-            $sshCmd = sprintf(
-                'ssh -i %s %s %s@%s %s',
-                escapeshellarg($node->ssh_key_path),
-                $baseOptions,
-                escapeshellarg($user),
-                escapeshellarg($host),
-                escapeshellarg($command)
-            );
-        } else {
-            $password = $node->ssh_password ?? '';
-            $sshCmd = sprintf(
-                'sshpass -p %s ssh %s -o PasswordAuthentication=yes %s@%s %s',
-                escapeshellarg($password),
-                $baseOptions,
-                escapeshellarg($user),
-                escapeshellarg($host),
-                escapeshellarg($command)
-            );
+            // BatchMode=yes: kalau kunci ditolak, ssh berhenti — bukan mengirim password
+            // kosong (worker tanpa TTY) yang bisa memicu blacklist brute-force di router.
+            try {
+                return $this->runProcess(sprintf(
+                    'ssh -i %s %s -o BatchMode=yes %s',
+                    escapeshellarg($node->ssh_key_path),
+                    $baseOptions,
+                    $target
+                ), $host);
+            } catch (\RuntimeException $e) {
+                // Failover ke password HANYA saat autentikasi ditolak. Timeout, koneksi
+                // ditolak, atau error perintah dilempar apa adanya.
+                if (!$password || !str_contains($e->getMessage(), 'Permission denied')) {
+                    throw $e;
+                }
+                $keyError = $e->getMessage();
+            }
         }
 
+        try {
+            return $this->runProcess(sprintf(
+                'sshpass -p %s ssh %s -o PubkeyAuthentication=no -o PasswordAuthentication=yes %s',
+                escapeshellarg($password ?? ''),
+                $baseOptions,
+                $target
+            ), $host);
+        } catch (\RuntimeException $e) {
+            if ($keyError === null) {
+                throw $e;
+            }
+            throw new \RuntimeException(
+                "Login SSH key ditolak, failover password juga gagal. Key: {$keyError} | Password: {$e->getMessage()}"
+            );
+        }
+    }
+
+    private function runProcess(string $sshCmd, string $host): string
+    {
         $descriptors = [
             0 => ['pipe', 'r'],
             1 => ['pipe', 'w'],
