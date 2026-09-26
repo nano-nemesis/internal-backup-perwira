@@ -25,11 +25,14 @@ class BackupErrorSummary
         ['/exit code 127|command not found|not found.*sshpass|sshpass.*not found/i',
          'sshpass belum terpasang di VPS backup — pasang, atau pindah ke autentikasi SSH key'],
 
-        ['/permission denied|publickey|authentication failed|auth fail/i',
+        ['/permission denied|publickey|authentication failed|auth fail|password ditolak/i',
          'Autentikasi SSH ditolak perangkat — periksa user, password, atau public key yang terpasang'],
 
         ['/connection timed out|operation timed out|timed out/i',
          'Perangkat tidak menjawab — kemungkinan mati, sibuk, atau terhalang firewall'],
+
+        ['/connection closed by|connection reset by|kex_exchange_identification/i',
+         'Router memutus koneksi SSH sebelum login — periksa /ip service ssh (address=), firewall input, atau blacklist brute-force'],
 
         ['/connection refused/i',
          'Koneksi ditolak — layanan SSH mati atau portnya berbeda'],

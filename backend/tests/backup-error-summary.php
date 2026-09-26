@@ -10,6 +10,8 @@ $kasus = [
     ['SSH command gagal ke 10.10.3.1 (exit code 255): Permission denied (publickey,password).', 'Autentikasi SSH'],
     ['ssh: connect to host 10.0.0.4 port 22: Connection timed out', 'tidak menjawab'],
     ['ssh: connect to host 10.0.0.5 port 22: Connection refused', 'ditolak'],
+    ['SSH command gagal ke 45.32.114.199 (exit code 255): Connection closed by 45.32.114.199 port 22', 'memutus koneksi'],
+    ['SSH command gagal ke 10.0.0.7 (exit code 5): password ditolak (sshpass exit 5)', 'Autentikasi SSH'],
     ['ssh: Could not resolve hostname rb-x: Name or service not known', 'tidak terjangkau'],
     ["Output /export kosong dari 10.10.0.1. Pastikan user SSH memiliki policy 'read' di MikroTik.", 'policy'],
     ["Dump dari 10.0.0.9 tidak lengkap — penanda '-- Dump completed' tidak ditemukan.", 'terputus'],

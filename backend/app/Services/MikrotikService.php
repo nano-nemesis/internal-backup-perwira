@@ -83,7 +83,7 @@ class MikrotikService
         // ("no mutual signature algorithm") dan ssh jatuh ke password.
         $baseOptions = sprintf(
             '-p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=%d'
-            . ' -o PubkeyAcceptedAlgorithms=+ssh-rsa -o LogLevel=ERROR'
+            . ' -o PubkeyAcceptedAlgorithms=+ssh-rsa'
             . ' -o ServerAliveInterval=15 -o ServerAliveCountMax=3',
             $port,
             $timeout
@@ -162,8 +162,17 @@ class MikrotikService
         // jaringan) menyisakan output parsial + exit code gagal, lalu lolos sebagai
         // backup "sukses" — file .rsc terpotong yang baru ketahuan saat restore.
         if ($exitCode !== 0) {
+            // Buang derau "Permanently added ... known hosts" (akibat UserKnownHostsFile=/dev/null)
+            // di sini, BUKAN lewat LogLevel=ERROR — itu ikut menyembunyikan pesan penting
+            // seperti "Connection closed by ..." sehingga error-nya kosong.
+            $error = trim(preg_replace('/^Warning: Permanently added .*$\R?/m', '', $error));
+            $pesan = match (true) {
+                $error !== '' => $error,
+                $exitCode === 5 => 'password ditolak (sshpass exit 5)',
+                default => 'tanpa pesan error dari ssh',
+            };
             throw new \RuntimeException(
-                "SSH command gagal ke {$host} (exit code {$exitCode}): " . trim($error)
+                "SSH command gagal ke {$host} (exit code {$exitCode}): {$pesan}"
             );
         }
 
