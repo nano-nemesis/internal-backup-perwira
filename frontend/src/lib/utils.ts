@@ -54,3 +54,38 @@ export function formatLogTime(dateString: string | null | undefined): string {
     return dateString
   }
 }
+
+const WIB = 'Asia/Jakarta'
+const tanggalWIB = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: WIB }) // YYYY-MM-DD
+const jamWIB = (d: Date) => d.toLocaleTimeString('en-GB', { timeZone: WIB, hour: '2-digit', minute: '2-digit' })
+
+/** "Hari ini 19:40", "Kemarin 09:12", "3 hari lalu", lalu "12 Sep 2026". Hitungan hari menurut kalender WIB. */
+export function kapan(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  const hari = Math.round((Date.parse(tanggalWIB(new Date())) - Date.parse(tanggalWIB(d))) / 86_400_000)
+  if (hari <= 0) return `Hari ini ${jamWIB(d)}`
+  if (hari === 1) return `Kemarin ${jamWIB(d)}`
+  if (hari < 7) return `${hari} hari lalu`
+  return d.toLocaleDateString('id-ID', { timeZone: WIB, day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+/** "baru saja", "5 menit lalu", "18 jam lalu", "3 hari lalu". */
+export function lalu(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const detik = (Date.now() - Date.parse(iso)) / 1000
+  if (!(detik >= 60)) return 'baru saja'
+  if (detik < 3600) return `${Math.floor(detik / 60)} menit lalu`
+  if (detik < 86_400) return `${Math.floor(detik / 3600)} jam lalu`
+  return `${Math.floor(detik / 86_400)} hari lalu`
+}
+
+/** 1.234 / 12,5 GB gaya Indonesia. */
+export function ukuran(byte: number): string {
+  const satuan = ['B', 'KB', 'MB', 'GB', 'TB']
+  let n = byte
+  let i = 0
+  while (n >= 1024 && i < satuan.length - 1) { n /= 1024; i++ }
+  return `${n.toLocaleString('id-ID', { maximumFractionDigits: i ? 1 : 0 })} ${satuan[i]}`
+}

@@ -99,7 +99,7 @@ export function InstallPrompt() {
                  bg-white rounded-t-[28px] sm:rounded-[22px] px-5 pt-3 sm:pt-5
                  pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-5
                  shadow-[0_-20px_40px_-20px_rgba(15,23,42,0.4)] sm:shadow-[0_20px_40px_-16px_rgba(15,23,42,0.35)]
-                 flex flex-col gap-4"
+                 flex flex-col gap-4 animate-naik sm:animate-muncul"
     >
       <span aria-hidden="true" className="sm:hidden self-center w-11 h-[5px] rounded-full bg-[#D5D8E2]" />
       <div className="flex items-center gap-3.5">

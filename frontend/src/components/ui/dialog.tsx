@@ -25,7 +25,7 @@ export function Dialog({ open, onClose, title, children, className }: DialogProp
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="fixed inset-0 bg-[#0F172A]/50"
+        className="fixed inset-0 bg-[#0F172A]/50 animate-pudar"
         onClick={onClose}
       />
       <div
@@ -34,7 +34,7 @@ export function Dialog({ open, onClose, title, children, className }: DialogProp
         aria-label={title}
         className={cn(
           'relative bg-white rounded-[22px] shadow-[0_30px_60px_-20px_rgba(15,23,42,0.45)] w-full max-w-lg p-5 md:p-7 max-h-[calc(100dvh-2rem)] overflow-y-auto',
-          'animate-in fade-in zoom-in-95 duration-150',
+          'animate-muncul',
           className,
         )}
       >

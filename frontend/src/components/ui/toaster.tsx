@@ -56,7 +56,7 @@ export function Toaster() {
         <div
           key={t.id}
           role="status"
-          className={`flex items-start gap-3 px-4 py-3 rounded-2xl text-sm font-medium shadow-[0_20px_40px_-16px_rgba(15,23,42,0.5)] ${styles[t.type]}`}
+          className={`animate-geser flex items-start gap-3 px-4 py-3 rounded-2xl text-sm font-medium shadow-[0_20px_40px_-16px_rgba(15,23,42,0.5)] ${styles[t.type]}`}
         >
           <i aria-hidden="true" className="mt-1.5 w-2 h-2 rounded-full flex-shrink-0" />
           <span className="flex-1 break-words">{t.message}</span>

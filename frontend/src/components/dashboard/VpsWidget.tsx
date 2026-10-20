@@ -23,7 +23,7 @@ function MetricRow({
       </div>
       <div className="w-full bg-[#F1F2F7] rounded-full h-2">
         <div
-          className="h-2 rounded-full transition-all duration-500"
+          className="h-2 rounded-full transition-all duration-500 animate-tumbuh"
           style={{ width: `${Math.min(100, pct)}%`, backgroundColor: barColor }}
         />
       </div>

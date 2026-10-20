@@ -18,6 +18,7 @@ export interface User {
   email: string
   role: UserRole
   is_active: boolean
+  last_login_at?: string | null
   created_at?: string
 }
 
@@ -78,6 +79,9 @@ export interface BackupFileItem {
   download_url: string
 }
 
+export type JenisBerkas = 'rsc' | 'backup' | 'sql' | 'lain'
+export type UrutBerkas = 'terbaru' | 'terlama' | 'nama' | 'terbesar'
+
 export interface BackupFilesResponse {
   data: BackupFileItem[]
   meta: {
@@ -85,6 +89,12 @@ export interface BackupFilesResponse {
     per_page: number
     current_page: number
     last_page: number
+  }
+  /** Seluruh berkas (tanpa saringan) per jenis, dan kapasitas partisi backup. */
+  ringkasan?: {
+    jenis: Record<JenisBerkas, { jumlah: number; byte: number }>
+    disk: { total: number; bebas: number } | null
+    retensi_hari: number
   }
 }
 

@@ -23,6 +23,7 @@ class User extends Model implements AuthenticatableContract
 
     protected $casts = [
         'is_active' => 'boolean',
+        'last_login_at' => 'datetime',
         'password' => 'hashed',
     ];
 

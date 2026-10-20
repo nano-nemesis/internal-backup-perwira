@@ -193,7 +193,7 @@ export default function NodeDetailPage() {
 
       {/* Semua kartu membaca percobaan TERAKHIR (latestLog); umur sukses terakhir
           dimunculkan terpisah justru saat itu penting: ketika percobaan terakhir tidak sukses. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 berurutan">
         <Kartu
           judul="Backup"
           pill={latestLog ? STATUS[latestLog.status] : { teks: 'Belum ada', gaya: 'bg-[#E5E7EB] text-[#374151]' }}
@@ -255,7 +255,7 @@ export default function NodeDetailPage() {
               <span
                 key={l.id}
                 title={`${formatDatetimeWIB(l.created_at)} · ${STATUS[l.status].teks}`}
-                className={cn('flex-1 max-w-[28px] rounded-[5px]', l.status === 'failed' ? 'bg-[#DC2626]' : l.status === 'success' ? 'bg-[#4255F0]' : 'bg-[#C7CCFB]')}
+                className={cn('flex-1 max-w-[28px] rounded-[5px] origin-bottom animate-[masuk_0.4s_ease-out_backwards]', l.status === 'failed' ? 'bg-[#DC2626]' : l.status === 'success' ? 'bg-[#4255F0]' : 'bg-[#C7CCFB]')}
               />
             ))}
           </div>
@@ -295,7 +295,8 @@ export default function NodeDetailPage() {
             </button>
           ))}
         </div>
-        <div>
+        {/* key: isi tab berganti dengan pudar singkat, bukan lompatan. */}
+        <div key={activeTab} className="animate-pudar">
           {activeTab === 'logs' && (
             <LogViewer logs={data.logs ?? []} />
           )}

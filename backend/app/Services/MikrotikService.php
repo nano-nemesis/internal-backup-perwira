@@ -170,7 +170,18 @@ class MikrotikService
             $node->update(['doctor_report' => ['galat' => $e->getMessage()], 'doctor_checked_at' => now()]);
             throw $e;
         }
+        $lama = $node->doctor_report;
         $node->update(['doctor_report' => $laporan, 'doctor_checked_at' => now()]);
+
+        // Satu-satunya tempat laporan berganti (backup, Periksa sekarang, Periksa semua),
+        // jadi perubahan menjadi kritis tidak terlewat dari jalur mana pun.
+        if ($baru = RouterDoctor::kritisBaru($lama, $laporan)) {
+            try {
+                app(TelegramNotifier::class)->notifyDoctorKritis($node, $baru);
+            } catch (\Throwable) {
+                // Notifikasi gagal tidak boleh menggagalkan doctor; kegagalan kirim sudah dicatat notifier.
+            }
+        }
 
         return $laporan;
     }

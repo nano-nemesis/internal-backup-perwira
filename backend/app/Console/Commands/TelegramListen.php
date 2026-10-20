@@ -15,6 +15,7 @@ class TelegramListen extends Command
     protected $description = 'Dengarkan perintah bot Telegram (long polling, tanpa webhook)';
 
     private const OFFSET_KEY = 'telegram_update_offset';
+    public const DETAK_KEY = 'telegram_listen_detak';
 
     public function handle(TelegramBot $bot): int
     {
@@ -37,6 +38,8 @@ class TelegramListen extends Command
         $this->info('Mendengarkan perintah Telegram…');
 
         while (time() < $deadline) {
+            // Detak untuk menu Bot Telegram: tanpa ini halaman tidak tahu pendengar perintah mati.
+            Cache::put(self::DETAK_KEY, time(), 600);
             try {
                 $baru = $bot->poll($offset);
 

@@ -111,6 +111,24 @@ final class RouterDoctor
     }
 
     /**
+     * Pemeriksaan yang KRITIS di laporan baru tapi tidak kritis di laporan lama (untuk notifikasi
+     * Telegram). Tanpa laporan lama yang sah (belum pernah diperiksa / dulu tak terjangkau) tidak
+     * ada pembanding, jadi tidak ada yang dianggap "baru": node baru tidak membanjiri grup.
+     *
+     * @return list<array> daftar cek dari laporan baru
+     */
+    public static function kritisBaru(?array $lama, array $baru): array
+    {
+        if (! $lama || isset($lama['galat']) || ! isset($lama['cek'])) {
+            return [];
+        }
+        $dulu = array_column(array_filter($lama['cek'], fn ($c) => $c['status'] === 'kritis'), 'id');
+
+        return array_values(array_filter($baru['cek'] ?? [],
+            fn ($c) => $c['status'] === 'kritis' && ! in_array($c['id'], $dulu, true)));
+    }
+
+    /**
      * @param array<string, string> $terbaru versi terbaru per kanal, mis. ['a7.long-term' => '7.23.8']
      */
     public static function periksa(array $data, array $terbaru = []): array

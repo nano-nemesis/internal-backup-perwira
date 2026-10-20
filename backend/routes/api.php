@@ -95,6 +95,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/admin/users', [UserController::class, 'store']);
         Route::patch('/admin/users/{id}/role', [UserController::class, 'updateRole']);
         Route::patch('/admin/users/{id}/password', [UserController::class, 'resetPassword']);
+        Route::patch('/admin/users/{id}/status', [UserController::class, 'updateStatus']);
         Route::delete('/admin/users/{id}', [UserController::class, 'destroy']);
     });
 });

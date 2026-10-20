@@ -5,6 +5,19 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.8.0',
+    tanggal: '2026-10-21',
+    judul: 'Cari, urutkan, dan halaman yang sesuai mockup',
+    poin: [
+      'Perangkat: kotak cari (nama atau IP), saringan Bermasalah dan per tipe, urutan Paling mendesak, Nama, atau Backup terbaru/terlama. Kolom Backup dan Konfigurasi seperti mockup.',
+      'Berkas Backup: cari nama berkas atau node, saring per jenis (.rsc, .backup, .sql.gz) dan node, urutkan, ringkasan jumlah dan disk, serta tautan Simulasi restore.',
+      'Pengguna: kartu peran, Login terakhir, tombol Aktifkan/Nonaktifkan; akun dihapus setelah dinonaktifkan.',
+      'Konfigurasi Node: pratinjau impor langsung muncul sebagai tabel, dan Hapus semua node pindah ke Zona berbahaya.',
+      'Bot Telegram: pilih notifikasi (gagal, pulih, Doctor kritis baru, setiap backup berhasil), atur jedanya, dan lihat apakah bot sedang mendengarkan perintah.',
+      'Panduan ditata ulang dua kolom dan diperbarui mengikuti tampilan baru. Ditambah animasi halus di seluruh halaman.',
+    ],
+  },
+  {
     versi: '1.7.0',
     tanggal: '2026-10-20',
     judul: 'Tampilan baru',

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useRestoreCheck, useSimulateFailure } from '../../hooks/useNodes'
 import { useAuth } from '../../context/AuthContext'
 import type { BackupFile, CekStatus, RestoreCheckResult, SkenarioGangguan } from '../../types'
@@ -29,7 +30,9 @@ export function SimulasiPanel({ nodeId, files }: { nodeId: string; files: Backup
   const gangguan = useSimulateFailure()
 
   const kandidat = files.filter((f) => /\.(rsc|backup)$/.test(f.filename))
-  const [pilihan, setPilihan] = useState('')
+  // ?berkas= dari menu Berkas Backup: langsung memilih berkas yang diklik di sana.
+  const [sp] = useSearchParams()
+  const [pilihan, setPilihan] = useState(() => sp.get('berkas') ?? '')
   // Berkas yang dipilih bisa hilang dimakan retensi; jatuh ke yang terbaru.
   const berkas = kandidat.some((f) => f.filename === pilihan) ? pilihan : kandidat[0]?.filename ?? ''
   const hasil = restore.data

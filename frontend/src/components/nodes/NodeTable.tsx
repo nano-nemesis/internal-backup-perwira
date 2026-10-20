@@ -1,17 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Play, Power, Edit, Trash2, ChevronRight } from 'lucide-react'
-import type { Node } from '../../types'
-import { StatusBadge } from '../ui/badge'
-import { Badge } from '../ui/badge'
+import type { Node, NodeType } from '../../types'
 import { Button } from '../ui/button'
-import { formatDatetimeWIB } from '../../lib/utils'
+import { cn, lalu } from '../../lib/utils'
 import {
   useTriggerBackup,
   useToggleNode,
   useDeleteNode,
   useBulkDeleteNodes,
-  useDeleteAllNodes,
 } from '../../hooks/useNodes'
 import { useAuth } from '../../context/AuthContext'
 import { useBackupWatcher, isRunning } from '../../hooks/useBackupWatcher'
@@ -29,15 +26,71 @@ import {
 } from '../ui/alert-dialog'
 
 interface NodeTableProps {
+  /** Baris yang ditampilkan (boleh sudah disaring/diurutkan). */
   nodes: Node[]
+  /** Semua node, untuk pemantau backup: node yang tersaring tetap harus dikabari saat selesai. */
+  semua?: Node[]
   onEdit: (node: Node) => void
 }
 
-export function NodeTable({ nodes, onEdit }: NodeTableProps) {
+export const LABEL_TIPE: Record<NodeType, { teks: string; gaya: string }> = {
+  mikrotik: { teks: 'MikroTik', gaya: 'bg-[#FFEDD5] text-[#9A3412]' },
+  database: { teks: 'Database', gaya: 'bg-[#CCFBF1] text-[#115E59]' },
+  virtualizor_db: { teks: 'Virtualizor', gaya: 'bg-[#E0E3FF] text-[#2E3AC2]' },
+}
+
+const ABU = 'bg-[#E5E7EB] text-[#374151]'
+
+/** Lampu Backup: percobaan terakhir, plus kapan terakhir sukses kalau gagal. */
+function Backup({ node }: { node: Node }) {
+  const log = node.latest_log
+  if (isRunning(log?.status)) {
+    return (
+      <>
+        <span className="pill bg-[#E0E3FF] text-[#2E3AC2]">{log?.status === 'running' ? 'Berjalan' : 'Antre'}</span>
+        <BackupProgress startedAt={log?.created_at} className="mt-1.5" />
+      </>
+    )
+  }
+  const [teks, gaya] = !log
+    ? ['Belum ada', ABU]
+    : log.status === 'success' ? ['Sehat', 'bg-[#BBF7D0] text-[#14532D]'] : ['Gagal', 'bg-[#FEE2E2] text-[#991B1B]']
+  const ket = !log
+    ? 'belum pernah dibackup'
+    : log.status === 'success'
+      ? `${lalu(log.created_at)} · ${node.backup_binary ? '.backup' : node.type === 'mikrotik' ? '.rsc' : '.sql.gz'}`
+      : node.last_backup_at ? `sukses ${lalu(node.last_backup_at)}` : 'belum pernah sukses'
+  return (
+    <>
+      <span className={cn('pill', gaya)}>{teks}</span>
+      <span className="block text-xs text-[#475569] mt-1 whitespace-nowrap">{ket}</span>
+    </>
+  )
+}
+
+/** Lampu Konfigurasi: ringkasan Doctor (hanya MikroTik). */
+export function Konfigurasi({ node }: { node: Node }) {
+  if (node.type !== 'mikrotik') return <span className="text-[#94A3B8]">—</span>
+  const d = node.doctor
+  const r = d?.ringkasan
+  const [teks, gaya] = !d
+    ? ['Belum diperiksa', ABU]
+    : d.galat ? ['Tak terjangkau', ABU]
+      : r?.kritis ? [`${r.kritis} kritis`, 'bg-[#DC2626] text-white']
+        : r?.peringatan ? [`${r.peringatan} perhatian`, 'bg-[#FEF3C7] text-[#92400E]']
+          : ['Sesuai', 'bg-[#BBF7D0] text-[#14532D]']
+  return <span className={cn('pill', gaya)}>{teks}</span>
+}
+
+const versi = (n: Node) =>
+  [n.doctor?.peran?.includes('CHR') && 'CHR', n.routeros_version && `ROS ${n.routeros_version.split(' ')[0]}`]
+    .filter(Boolean).join(' · ')
+
+export function NodeTable({ nodes, semua, onEdit }: NodeTableProps) {
   // Dipasang di sini karena NodeTable dipakai Dashboard maupun Devices — satu
   // tempat, dan hanya satu di antaranya yang aktif pada satu waktu, jadi tidak
   // ada notifikasi ganda.
-  useBackupWatcher(nodes)
+  useBackupWatcher(semua ?? nodes)
 
   const navigate = useNavigate()
   const { isAdmin, isOperator } = useAuth()
@@ -45,13 +98,13 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
   const toggle = useToggleNode()
   const del = useDeleteNode()
   const bulkDel = useBulkDeleteNodes()
-  const deleteAll = useDeleteAllNodes()
 
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false)
-  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false)
-  const [deleteAllConfirm, setDeleteAllConfirm] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
+  // Hanya yang masih terlihat: node yang dipilih lalu tersembunyi oleh saringan
+  // tidak boleh ikut terhapus diam-diam.
+  const terpilih = selectedIds.filter((id) => nodes.some((n) => n.id === id))
 
   const handleBackup = async (node: Node, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -83,8 +136,8 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
   const handleBulkDelete = async () => {
     setIsDeleting(true)
     try {
-      await bulkDel.mutateAsync(selectedIds)
-      toast(`${selectedIds.length} node berhasil dihapus`, 'success')
+      await bulkDel.mutateAsync(terpilih)
+      toast(`${terpilih.length} node berhasil dihapus`, 'success')
       setSelectedIds([])
       setShowBulkDeleteDialog(false)
     } catch (err: any) {
@@ -94,260 +147,188 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
     }
   }
 
-  const handleDeleteAll = async () => {
-    setIsDeleting(true)
-    try {
-      await deleteAll.mutateAsync()
-      toast('Semua node berhasil dihapus', 'success')
-      setSelectedIds([])
-      setShowDeleteAllDialog(false)
-    } catch (err: any) {
-      toast(err.response?.data?.message ?? 'Gagal menghapus semua node', 'error')
-    } finally {
-      setIsDeleting(false)
-    }
+  if (nodes.length === 0) {
+    return <div className="text-center py-16 text-[#475569] text-sm">Belum ada node.</div>
   }
 
   return (
     <>
-      {isAdmin && nodes.length > 0 && (
-        <div className="hidden lg:flex items-center justify-between gap-2 flex-wrap px-6 pb-3">
-          <div className="flex items-center gap-2">
-            {selectedIds.length > 0 && (
-              <>
-                <span className="text-sm font-semibold text-[#334155]">{selectedIds.length} node dipilih</span>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => setShowBulkDeleteDialog(true)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Hapus {selectedIds.length} Node
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setSelectedIds([])}
-                >
-                  Batalkan Pilihan
-                </Button>
-              </>
-            )}
-          </div>
-          {/* Sengaja tidak mencolok: aksi paling merusak di halaman ini. */}
-          <button
-            onClick={() => setShowDeleteAllDialog(true)}
-            className="inline-flex ml-auto min-h-[40px] px-3 rounded-xl text-[13px] font-semibold text-[#991B1B] hover:bg-[#FEE2E2] items-center gap-1.5 transition-colors"
-          >
+      {isAdmin && terpilih.length > 0 && (
+        <div className="hidden lg:flex items-center gap-2 flex-wrap px-5 pt-1 pb-3 animate-pudar">
+          <span className="text-sm font-semibold text-[#334155]">{terpilih.length} node dipilih</span>
+          <Button variant="danger" size="sm" onClick={() => setShowBulkDeleteDialog(true)}>
             <Trash2 className="w-4 h-4" />
-            Hapus semua node
-          </button>
+            Hapus {terpilih.length} node
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => setSelectedIds([])}>
+            Batalkan pilihan
+          </Button>
         </div>
       )}
 
-      {nodes.length === 0 ? (
-        <div className="text-center py-16 text-[#475569] text-sm">
-          Belum ada node.
-        </div>
-      ) : (
-        <>
-        {/* HP & tablet: daftar kartu. Aksi per node ada di halaman detail. */}
-        <ul className="lg:hidden divide-y divide-[#EEF0F6] px-5">
-          {nodes.map((node) => (
-            <li key={node.id}>
-              <button
-                onClick={() => navigate(`/devices/${node.id}`)}
-                className="w-full flex items-center gap-3 py-3.5 text-left min-h-[64px]"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${node.is_active ? 'bg-[#16A34A]' : 'bg-[#CBD5E1]'}`} />
-                    <span className="font-bold text-sm truncate">{node.name}</span>
-                  </span>
-                  <span className="block text-xs text-[#475569] mt-0.5 truncate">
-                    {node.type}
-                    {node.routeros_version && <span className="font-mono"> · ROS {node.routeros_version.split(' ')[0]}</span>}
-                  </span>
-                  <span className="block text-xs text-[#475569]">
-                    {formatDatetimeWIB(node.latest_log?.created_at ?? node.last_backup_at)}
-                  </span>
-                  {isRunning(node.latest_log?.status) && (
-                    <BackupProgress startedAt={node.latest_log?.created_at} className="mt-1.5" />
-                  )}
+      {/* HP & tablet: daftar kartu. Aksi per node ada di halaman detail. */}
+      <ul className="lg:hidden divide-y divide-[#EEF0F6] px-5 berurutan">
+        {nodes.map((node) => (
+          <li key={node.id}>
+            <button
+              onClick={() => navigate(`/devices/${node.id}`)}
+              className="w-full flex items-center gap-3 py-3.5 text-left min-h-[64px]"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${node.is_active ? 'bg-[#16A34A]' : 'bg-[#CBD5E1]'}`} />
+                  <span className="font-bold text-sm truncate">{node.name}</span>
                 </span>
-                <StatusBadge status={node.latest_log?.status} />
-                <ChevronRight className="w-4 h-4 text-[#94A3B8] flex-shrink-0" />
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div className="hidden lg:block overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-y border-[#EEF0F6] bg-[#F8F9FC]">
+                <span className="block text-xs text-[#475569] mt-0.5 truncate font-mono">{node.host}</span>
+                {node.type === 'mikrotik' && (
+                  <span className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    <Konfigurasi node={node} />
+                  </span>
+                )}
+              </span>
+              <span className="flex flex-col items-end text-right">
+                <Backup node={node} />
+              </span>
+              <ChevronRight className="w-4 h-4 text-[#94A3B8] flex-shrink-0" />
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <div className="hidden lg:block overflow-x-auto px-2 pb-2">
+        <table className="w-full text-sm">
+          <thead>
+            <tr>
+              {isAdmin && (
+                <th className="th w-10">
+                  <input
+                    type="checkbox"
+                    aria-label="Pilih semua"
+                    checked={terpilih.length === nodes.length}
+                    onChange={(e) => setSelectedIds(e.target.checked ? nodes.map((n) => n.id) : [])}
+                    className="w-4 h-4 accent-[#4255F0] cursor-pointer"
+                  />
+                </th>
+              )}
+              <th className="th">Router</th>
+              {/* Layar sedang: kolom Tipe disembunyikan, ringkasannya pindah ke bawah nama. */}
+              <th className="th hidden xl:table-cell">Tipe</th>
+              <th className="th">Backup</th>
+              <th className="th">Konfigurasi</th>
+              <th className="th hidden 2xl:table-cell">Jadwal</th>
+              <th className="th"><span className="sr-only">Aksi</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {nodes.map((node) => (
+              <tr
+                key={node.id}
+                onClick={() => navigate(`/devices/${node.id}`)}
+                className="border-t border-[#EEF0F6] hover:bg-[#F8F9FC] cursor-pointer transition-colors group"
+              >
                 {isAdmin && (
-                  <th className="px-3 py-3 w-10">
+                  <td className="px-3 py-3.5" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
-                      checked={selectedIds.length === nodes.length}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedIds(nodes.map((n) => n.id))
-                        } else {
-                          setSelectedIds([])
-                        }
-                      }}
+                      aria-label={`Pilih ${node.name}`}
+                      checked={selectedIds.includes(node.id)}
+                      onChange={(e) =>
+                        setSelectedIds((prev) => (e.target.checked ? [...prev, node.id] : prev.filter((id) => id !== node.id)))
+                      }
                       className="w-4 h-4 accent-[#4255F0] cursor-pointer"
                     />
-                  </th>
+                  </td>
                 )}
-                {['Nama', 'Tipe', 'Jadwal', 'Status', 'Percobaan terakhir', ''].map((h) => (
-                  <th
-                    key={h}
-                    className={`px-3 py-3 text-left text-xs font-semibold text-[#475569] whitespace-nowrap ${
-                      h === 'Jadwal' ? 'hidden 2xl:table-cell' : h === 'Tipe' ? 'hidden xl:table-cell' : ''
-                    }`}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#EEF0F6]">
-              {nodes.map((node) => (
-                <tr
-                  key={node.id}
-                  onClick={() => navigate(`/devices/${node.id}`)}
-                  className="hover:bg-[#F4F5FA] cursor-pointer transition-colors group"
-                >
-                  {isAdmin && (
-                    <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(node.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedIds((prev) => [...prev, node.id])
-                          } else {
-                            setSelectedIds((prev) => prev.filter((id) => id !== node.id))
-                          }
-                        }}
-                        className="w-4 h-4 accent-[#4255F0] cursor-pointer"
-                      />
-                    </td>
+                <td className="px-3 py-3.5">
+                  <div className="flex items-center gap-2">
+                    <span
+                      title={node.is_active ? 'aktif' : 'nonaktif'}
+                      className={`w-2 h-2 rounded-full flex-shrink-0 ${node.is_active ? 'bg-[#16A34A]' : 'bg-[#CBD5E1]'}`}
+                    />
+                    <span className={cn('font-bold', node.is_active ? 'text-[#0F172A]' : 'text-[#475569]')}>{node.name}</span>
+                  </div>
+                  <p className="text-xs text-[#475569] font-mono mt-0.5 pl-4 whitespace-nowrap">
+                    {node.host}
+                    <span className="xl:hidden font-sans"> · {LABEL_TIPE[node.type].teks}</span>
+                  </p>
+                </td>
+                <td className="px-3 py-3.5 hidden xl:table-cell">
+                  <span className={cn('pill', LABEL_TIPE[node.type].gaya)}>{LABEL_TIPE[node.type].teks}</span>
+                  {versi(node) && (
+                    <span className="block text-xs text-[#475569] mt-1 whitespace-nowrap" title={node.routeros_model ?? undefined}>
+                      {versi(node)}
+                    </span>
                   )}
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                          node.is_active ? 'bg-[#16A34A]' : 'bg-[#CBD5E1]'
-                        }`}
-                      />
-                      <span className="font-bold text-[#0F172A]">{node.name}</span>
-                    </div>
-                    <p className="text-[11px] text-[#475569] font-mono mt-0.5 pl-4 whitespace-nowrap">
-                      {node.host}:{node.port}
-                      {/* Layar sedang: kolom Tipe disembunyikan, ringkasannya pindah ke sini. */}
-                      <span className="xl:hidden"> · {node.type}{node.routeros_version && ` ${node.routeros_version.split(' ')[0]}`}</span>
-                    </p>
-                  </td>
-                  <td className="px-3 py-3 hidden xl:table-cell">
-                    <Badge variant={node.type}>{node.type}</Badge>
-                    {/* Di bawah badge, bukan kolom sendiri: kolom tambahan membuat tabel
-                        melebar di layar 1280 px dan tombol aksi terpotong. */}
-                    {node.type === 'mikrotik' && node.routeros_version && (
-                      <p className="text-[11px] text-[#475569] font-mono mt-1 whitespace-nowrap" title={node.routeros_model ?? undefined}>
-                        ROS {node.routeros_version.split(' ')[0]}
-                      </p>
+                </td>
+                <td className="px-3 py-3.5 min-w-[150px]">
+                  <Backup node={node} />
+                </td>
+                <td className="px-3 py-3.5 whitespace-nowrap">
+                  <Konfigurasi node={node} />
+                </td>
+                <td className="px-3 py-3.5 text-[#475569] hidden 2xl:table-cell whitespace-nowrap">
+                  {node.schedule_interval_hours} jam
+                </td>
+                <td className="px-2 py-2">
+                  <div className="flex items-center justify-end gap-0.5" onClick={(e) => e.stopPropagation()}>
+                    {isOperator && (
+                      <button
+                        title="Backup sekarang"
+                        aria-label={`Backup ${node.name} sekarang`}
+                        onClick={(e) => handleBackup(node, e)}
+                        disabled={trigger.isPending || !node.is_active}
+                        className="bg-[#F0FDF4] hover:bg-[#DCFCE7] text-[#15803D] transition-colors disabled:opacity-40 w-9 h-9 rounded-[10px] flex items-center justify-center"
+                      >
+                        <Play className="w-4 h-4" />
+                      </button>
                     )}
-                  </td>
-                  <td className="px-3 py-3 text-[#475569] text-xs hidden 2xl:table-cell whitespace-nowrap">
-                    {node.schedule_interval_hours} jam
-                  </td>
-                  <td className="px-3 py-3 min-w-[132px]">
-                    <StatusBadge status={node.latest_log?.status} />
-                    {isRunning(node.latest_log?.status) && (
-                      <BackupProgress
-                        startedAt={node.latest_log?.created_at}
-                        className="mt-1.5"
-                      />
-                    )}
-                  </td>
-                  {/* Percobaan terakhir, bukan sukses terakhir — supaya tanggal ini
-                      konsisten dengan StatusBadge di sebelahnya. Kalau pakai
-                      last_backup_at, node yang gagal 3 malam tetap menampilkan tanggal
-                      sukses lama yang terlihat menenangkan. */}
-                  <td className="px-3 py-3 text-[#475569] text-xs">
-                    {formatDatetimeWIB(node.latest_log?.created_at ?? node.last_backup_at)}
-                  </td>
-                  <td className="px-3 py-3">
-                    <div
-                      className="flex items-center gap-0.5"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {isOperator && (
+                    {isAdmin && (
+                      <>
                         <button
-                          title="Backup sekarang"
-                          aria-label={`Backup ${node.name} sekarang`}
-                          onClick={(e) => handleBackup(node, e)}
-                          disabled={trigger.isPending}
-                          className="hover:bg-[#DCFCE7] text-[#16A34A] transition-colors disabled:opacity-50 w-9 h-9 rounded-xl flex items-center justify-center"
+                          title="Ubah node"
+                          aria-label={`Ubah ${node.name}`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onEdit(node)
+                          }}
+                          className="hover:bg-[#F1F2F7] text-[#334155] transition-colors w-9 h-9 rounded-[10px] flex items-center justify-center"
                         >
-                          <Play className="w-4 h-4" />
+                          <Edit className="w-4 h-4" />
                         </button>
-                      )}
-                      {isAdmin && (
-                        <>
-                          <button
-                            title="Edit"
-                            aria-label={`Edit ${node.name}`}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onEdit(node)
-                            }}
-                            className="hover:bg-[#F4F5FA] text-[#475569] transition-colors w-9 h-9 rounded-xl flex items-center justify-center"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            title={node.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-                            aria-label={`${node.is_active ? 'Nonaktifkan' : 'Aktifkan'} ${node.name}`}
-                            onClick={(e) => handleToggle(node, e)}
-                            className={`transition-colors w-9 h-9 rounded-xl flex items-center justify-center ${
-                              node.is_active
-                                ? 'hover:bg-[#FEF3C7] text-[#D97706]'
-                                : 'hover:bg-[#DCFCE7] text-[#16A34A]'
-                            }`}
-                          >
-                            <Power className="w-4 h-4" />
-                          </button>
-                          <button
-                            title="Hapus"
-                            aria-label={`Hapus ${node.name}`}
-                            onClick={(e) => handleDelete(node, e)}
-                            className="hover:bg-[#FEE2E2] text-[#B91C1C] transition-colors w-9 h-9 rounded-xl flex items-center justify-center"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                      <ChevronRight className="hidden xl:block w-4 h-4 text-[#CBD5E1] group-hover:text-[#475569] transition-colors ml-1" />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        </>
-      )}
+                        <button
+                          title={node.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+                          aria-label={`${node.is_active ? 'Nonaktifkan' : 'Aktifkan'} ${node.name}`}
+                          onClick={(e) => handleToggle(node, e)}
+                          className={`transition-colors w-9 h-9 rounded-[10px] flex items-center justify-center ${
+                            node.is_active ? 'hover:bg-[#FEF3C7] text-[#B45309]' : 'hover:bg-[#DCFCE7] text-[#15803D]'
+                          }`}
+                        >
+                          <Power className="w-4 h-4" />
+                        </button>
+                        <button
+                          title="Hapus"
+                          aria-label={`Hapus ${node.name}`}
+                          onClick={(e) => handleDelete(node, e)}
+                          className="hover:bg-[#FEE2E2] text-[#B91C1C] transition-colors w-9 h-9 rounded-[10px] flex items-center justify-center"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus {selectedIds.length} Node?</AlertDialogTitle>
+            <AlertDialogTitle>Hapus {terpilih.length} node?</AlertDialogTitle>
             <AlertDialogDescription>
-              Tindakan ini tidak dapat dibatalkan. Semua data backup log untuk node yang dipilih juga akan dihapus permanen.
+              Tindakan ini tidak dapat dibatalkan. Semua log backup untuk node yang dipilih juga akan dihapus permanen.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -357,46 +338,7 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
               onClick={handleBulkDelete}
               disabled={isDeleting}
             >
-              {isDeleting ? 'Menghapus...' : `Hapus ${selectedIds.length} Node`}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog
-        open={showDeleteAllDialog}
-        onOpenChange={(open) => {
-          setShowDeleteAllDialog(open)
-          if (!open) setDeleteAllConfirm('')
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Hapus Semua Node?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tindakan ini akan menghapus SEMUA node beserta seluruh backup log secara permanen, termasuk kredensial SSH/DB tiap node. Tindakan ini tidak dapat dibatalkan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="px-1 pb-1">
-            <label htmlFor="delete-all-confirm" className="block text-sm text-[#475569] mb-2">
-              Ketik <span className="font-mono font-semibold text-[#991B1B]">HAPUS SEMUA</span> untuk mengaktifkan tombol.
-            </label>
-            <input
-              id="delete-all-confirm"
-              autoComplete="off"
-              value={deleteAllConfirm}
-              onChange={(e) => setDeleteAllConfirm(e.target.value)}
-              className="w-full px-3.5 py-2 border border-[#DADDE8] rounded-xl font-mono text-sm min-h-[44px] focus:outline-none focus:border-[#4255F0] focus:ring-4 focus:ring-[#4255F0]/15"
-            />
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowDeleteAllDialog(false)}>Batal</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-[#DC2626] hover:bg-[#B91C1C] text-white"
-              onClick={handleDeleteAll}
-              disabled={isDeleting || deleteAllConfirm !== 'HAPUS SEMUA'}
-            >
-              {isDeleting ? 'Menghapus...' : 'Hapus Semua Node'}
+              {isDeleting ? 'Menghapus...' : `Hapus ${terpilih.length} node`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

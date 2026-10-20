@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import React, { useState, type ReactNode } from 'react'
 import { Archive, XCircle, HelpCircle, Stethoscope, ChevronRight, type LucideIcon } from 'lucide-react'
 import { VpsWidget } from '../components/dashboard/VpsWidget'
 import { VpsMetricsChart } from '../components/charts/VpsMetricsChart'
@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom'
 import { hitungDoctor } from '../components/nodes/DoctorPanel'
 import type { Node } from '../types'
 import { cn } from '../lib/utils'
+import { Hitung } from '../components/ui/hitung'
 
 const tanggal = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
@@ -57,7 +58,12 @@ function Cincin({ data }: { data: { label: string; nilai: number; total: number;
         return (
           <g key={d.label} transform="rotate(135 110 110)" fill="none" strokeWidth="13" strokeLinecap="round">
             <circle cx="110" cy="110" r={r} stroke="#E4E6EE" strokeDasharray={`${busur} ${keliling}`} />
-            {isi > 0 && <circle cx="110" cy="110" r={r} stroke={d.warna} strokeDasharray={`${isi} ${keliling}`} />}
+            {isi > 0 && (
+              <circle
+                cx="110" cy="110" r={r} stroke={d.warna} strokeDasharray={`${isi} ${keliling}`}
+                className="animate-cincin" style={{ '--isi': isi, animationDelay: `${i * 120}ms` } as React.CSSProperties}
+              />
+            )}
           </g>
         )
       })}
@@ -75,7 +81,6 @@ export default function DashboardPage() {
   const [editingNode, setEditingNode] = useState<Node | null>(null)
 
   const stats = data?.stats ?? { total: 0, success: 0, failed: 0, unknown: 0 }
-  const statValue = (n: number) => (data ? n : '—')
   const doctor = hitungDoctor(data?.data ?? [])
   const doctorTeratas = doctor.urut.filter((n) => n.doctor?.galat || n.doctor?.ringkasan?.kritis).slice(0, 3)
 
@@ -109,33 +114,33 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] gap-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 content-start">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 content-start berurutan">
           <Angka
             hero
             icon={Archive}
             judul="Backup berhasil"
-            nilai={data ? `${stats.success} / ${stats.total}` : '—'}
+            nilai={data ? <><Hitung n={stats.success} /> / <Hitung n={stats.total} /></> : '—'}
             ket="node, percobaan terakhir"
             pill={data && stats.total ? { teks: `${persen(stats.success, stats.total)}% sehat`, gaya: 'bg-[#BBF7D0] text-[#14532D]' } : undefined}
           />
           <Angka
             icon={XCircle}
             judul="Backup gagal"
-            nilai={statValue(stats.failed)}
+            nilai={data ? <Hitung n={stats.failed} /> : '—'}
             ket="node, percobaan terakhir"
             pill={stats.failed ? { teks: 'perlu dicek', gaya: 'bg-[#DC2626] text-white' } : { teks: 'aman', gaya: 'bg-[#BBF7D0] text-[#14532D]' }}
           />
           <Angka
             icon={HelpCircle}
             judul="Belum ada hasil"
-            nilai={statValue(stats.unknown)}
+            nilai={data ? <Hitung n={stats.unknown} /> : '—'}
             ket="node belum pernah dibackup"
           />
-          <Link to="/doctor" className="rounded-[20px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4255F0]">
+          <Link to="/doctor" className="rounded-[20px] angkat focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4255F0]">
             <Angka
               icon={Stethoscope}
               judul="Doctor kritis"
-              nilai={data ? doctor.kritis : '—'}
+              nilai={data ? <Hitung n={doctor.kritis} /> : '—'}
               ket={`dari ${doctor.urut.length} MikroTik`}
               pill={doctor.kritis ? { teks: 'lihat temuan', gaya: 'bg-[#FEE2E2] text-[#991B1B]' } : undefined}
             />
@@ -150,7 +155,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-5 flex-wrap">
             <Cincin data={lampu} />
             <div className="flex flex-col gap-1.5">
-              <span className="text-[34px] leading-none font-extrabold">{statValue(stats.total)}</span>
+              <span className="text-[34px] leading-none font-extrabold">{data ? <Hitung n={stats.total} /> : '—'}</span>
               <span className="text-[13px] text-[#475569]">node dipantau</span>
               <span className="pill self-start bg-[#E0E3FF] text-[#2E3AC2]">{doctor.urut.length} MikroTik</span>
             </div>
@@ -191,7 +196,7 @@ export default function DashboardPage() {
               <li key={n.id}>
                 <Link
                   to={`/devices/${n.id}?tab=doctor`}
-                  className="flex items-center gap-3 py-3 min-h-[56px] group"
+                  className="flex items-center gap-3 py-3 min-h-[56px] group -mx-2 px-2 rounded-xl hover:bg-[#F8F9FC] transition-colors"
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block font-bold text-sm">{n.name}</span>
@@ -202,7 +207,7 @@ export default function DashboardPage() {
                   {!!n.doctor?.ringkasan?.kritis && (
                     <span className="pill bg-[#DC2626] text-white">{n.doctor.ringkasan.kritis} kritis</span>
                   )}
-                  <ChevronRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#0F172A] flex-shrink-0" />
+                  <ChevronRight className="w-4 h-4 text-[#94A3B8] group-hover:text-[#0F172A] group-hover:translate-x-0.5 transition-transform flex-shrink-0" />
                 </Link>
               </li>
             ))}

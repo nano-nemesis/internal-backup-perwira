@@ -5,6 +5,7 @@ import { Button } from '../components/ui/button'
 import { toast } from '../components/ui/toaster'
 import { PeranBadges, hitungDoctor } from '../components/nodes/DoctorPanel'
 import { cn, formatDatetimeWIB } from '../lib/utils'
+import { Hitung } from '../components/ui/hitung'
 
 export default function DoctorPage() {
   const { data, isLoading } = useNodes()
@@ -56,14 +57,14 @@ export default function DoctorPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5 berurutan">
         {kartu.map(([label, n, warna, hero]) => (
           <section
             key={label}
             className={cn('rounded-[20px] p-4 md:p-5', hero ? 'bg-[#4255F0] shadow-[0_12px_24px_-12px_#4255F0CC]' : 'bg-white')}
           >
             <p className={cn('text-[13px] font-semibold', hero ? 'text-white' : 'text-[#334155]')}>{label}</p>
-            <p className={cn('text-[30px] leading-none font-extrabold mt-2', warna)}>{n}</p>
+            <p className={cn('text-[30px] leading-none font-extrabold mt-2', warna)}><Hitung n={n} /></p>
             <p className={cn('text-xs mt-1', hero ? 'text-[#E6E9FF]' : 'text-[#475569]')}>router</p>
           </section>
         ))}
@@ -82,7 +83,7 @@ export default function DoctorPage() {
                 <span>{jml}</span>
               </div>
               <div className="h-2 rounded-full bg-[#F1F2F7] mt-1.5">
-                <div className="h-2 rounded-full bg-[#4255F0]" style={{ width: `${(jml / nodes.length) * 100}%` }} />
+                <div className="h-2 rounded-full bg-[#4255F0] animate-tumbuh" style={{ width: `${(jml / nodes.length) * 100}%` }} />
               </div>
             </div>
           ))}
@@ -100,7 +101,7 @@ export default function DoctorPage() {
             <Link
               key={n.id}
               to={`/devices/${n.id}?tab=doctor`}
-              className="flex items-start gap-3 md:gap-4 px-5 md:px-6 py-4 hover:bg-[#F8F9FC] transition-colors flex-wrap sm:flex-nowrap"
+              className="group flex items-start gap-3 md:gap-4 px-5 md:px-6 py-4 hover:bg-[#F8F9FC] transition-colors flex-wrap sm:flex-nowrap"
             >
               <div className="flex-1 min-w-0 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">

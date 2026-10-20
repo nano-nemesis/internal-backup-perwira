@@ -28,4 +28,67 @@
   .badge-pending { @apply pill bg-[#E5E7EB] text-[#374151]; }
   .badge-running { @apply pill bg-[#E0E3FF] text-[#2E3AC2] animate-pulse; }
   .badge-unknown { @apply pill bg-[#E5E7EB] text-[#374151]; }
+
+  /* Kepala tabel seperti mockup: huruf kapital kecil berjarak, tanpa latar. */
+  .th {
+    @apply px-3 py-3.5 text-left text-xs font-bold uppercase tracking-[0.04em] text-[#475569] whitespace-nowrap;
+  }
+  /* Chip saring: yang aktif gelap, sisanya putih bergaris. */
+  .chip {
+    @apply inline-flex items-center gap-1.5 min-h-[40px] px-3.5 rounded-full text-[13px] font-semibold whitespace-nowrap
+           border border-[#DADDE8] bg-white text-[#334155] hover:bg-[#F1F2F7] transition-colors;
+  }
+  .chip[aria-pressed='true'] {
+    @apply border-[#111827] bg-[#111827] text-white hover:bg-[#111827];
+  }
+  .kotak-cari {
+    @apply w-full h-11 pl-11 pr-3.5 rounded-xl border border-[#DADDE8] bg-[#F8F9FC] text-sm text-[#0F172A] placeholder-[#64748B]
+           focus:outline-none focus:bg-white focus:border-[#4255F0] focus:ring-4 focus:ring-[#4255F0]/15 transition-colors;
+  }
+  .pilih {
+    @apply h-10 rounded-[10px] border border-[#DADDE8] bg-white px-2.5 text-[13px] font-semibold text-[#0F172A]
+           focus:outline-none focus:border-[#4255F0] focus:ring-4 focus:ring-[#4255F0]/15;
+  }
+  /* Kartu yang bisa diklik: sedikit terangkat saat disentuh kursor. */
+  .angkat {
+    @apply transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-18px_rgba(15,23,42,0.35)];
+  }
+}
+
+/* ── Gerak ─────────────────────────────────────────────────────────────
+   Singkat (≤ 400 ms) dan hanya transform/opacity supaya tetap halus di HP murah.
+   fill-mode "backwards", BUKAN "both": dengan both, transform identitas tertinggal setelah
+   animasi selesai dan menjadi containing block bagi dialog position:fixed di dalam halaman.
+   Semua dimatikan untuk pengguna yang meminta "kurangi gerakan" di sistemnya. */
+@keyframes masuk { from { opacity: 0; transform: translateY(10px); } }
+@keyframes pudar { from { opacity: 0; } }
+@keyframes muncul { from { opacity: 0; transform: translateY(8px) scale(0.97); } }
+@keyframes naik { from { transform: translateY(100%); } }
+@keyframes geser { from { opacity: 0; transform: translateX(24px); } }
+@keyframes tumbuh { from { transform: scaleX(0); } }
+@keyframes isi-cincin { from { stroke-dashoffset: var(--isi); } }
+
+@layer utilities {
+  .animate-masuk { animation: masuk 0.38s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+  .animate-pudar { animation: pudar 0.2s ease-out backwards; }
+  .animate-muncul { animation: muncul 0.24s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+  .animate-naik { animation: naik 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+  .animate-geser { animation: geser 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+  .animate-tumbuh { animation: tumbuh 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; transform-origin: left; }
+  .animate-cincin { animation: isi-cincin 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+  /* Anak-anak muncul bergantian: kartu di satu baris tidak datang serentak. */
+  .berurutan > * { animation: masuk 0.38s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+  .berurutan > :nth-child(2) { animation-delay: 50ms; }
+  .berurutan > :nth-child(3) { animation-delay: 100ms; }
+  .berurutan > :nth-child(4) { animation-delay: 150ms; }
+  .berurutan > :nth-child(5) { animation-delay: 200ms; }
+  .berurutan > :nth-child(n + 6) { animation-delay: 250ms; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

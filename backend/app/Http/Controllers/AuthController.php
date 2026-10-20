@@ -102,6 +102,7 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
         Auth::login($user);
+        $user->forceFill(['last_login_at' => now()])->save();
 
         ActivityLog::info('auth', 'login.berhasil', "'{$user->username}' ({$user->role}) berhasil login.", [
             'user_agent' => mb_substr((string) $request->userAgent(), 0, 255),

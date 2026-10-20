@@ -232,5 +232,15 @@ $harap('hanya-forward', $e2, ['firewall-input' => 'kritis']);
 $s = D::script();
 if (substr_count($s, 'on-error=') < 30 || !str_contains($s, '##service')) $gagal[] = 'script: pembungkus on-error kurang';
 
+// 6. Kritis baru: hanya yang berubah menjadi kritis, dan hanya kalau ada laporan lama yang sah.
+$ids = fn (array $l) => array_column($l, 'id');
+if (D::kritisBaru(null, $b) !== []) $gagal[] = 'kritisBaru: tanpa laporan lama harus kosong';
+if (D::kritisBaru(['galat' => 'SSH timeout'], $b) !== []) $gagal[] = 'kritisBaru: laporan lama galat harus kosong';
+if (D::kritisBaru($b, $b) !== []) $gagal[] = 'kritisBaru: laporan sama harus kosong';
+$kritisB = $ids(array_filter($b['cek'], fn ($x) => $x['status'] === 'kritis'));
+if ($ids(D::kritisBaru($c, $b)) !== $kritisB) $gagal[] = 'kritisBaru: sehat → chrPppoe harus semua kritis chrPppoe, dapat ' . json_encode($ids(D::kritisBaru($c, $b)));
+if (D::kritisBaru($b, $c) !== []) $gagal[] = 'kritisBaru: membaik tidak boleh dilaporkan';
+if (!$kritisB) $gagal[] = 'kritisBaru: profil chrPppoe seharusnya punya temuan kritis';
+
 if ($gagal) { fwrite(STDERR, implode("\n", $gagal) . "\n"); exit(1); }
 echo "OK — 3 profil router dinilai sesuai standar\n";

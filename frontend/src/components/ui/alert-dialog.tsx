@@ -22,14 +22,14 @@ export function AlertDialog({ open, onOpenChange, children }: AlertDialogProps) 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="fixed inset-0 bg-[#0F172A]/50"
+        className="fixed inset-0 bg-[#0F172A]/50 animate-pudar"
         onClick={() => onOpenChange(false)}
       />
       {/* alertdialog + aria-modal: dialog ini memagari aksi destruktif (hapus node,
           hapus semua). Tanpa peran ini pembaca layar tidak mengumumkannya sama sekali.
           Catatan: fokus belum dikurung di dalam dialog — Tab masih bisa menjangkau
           elemen di belakang overlay. */}
-      <div role="alertdialog" aria-modal="true" className="relative z-50 w-full max-w-md">
+      <div role="alertdialog" aria-modal="true" className="relative z-50 w-full max-w-md animate-muncul">
         {children}
       </div>
     </div>

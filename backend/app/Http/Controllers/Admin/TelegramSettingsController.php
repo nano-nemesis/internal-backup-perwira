@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Console\Commands\TelegramListen;
 use App\Models\Setting;
+use App\Services\TelegramNotifier;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -33,6 +36,11 @@ class TelegramSettingsController extends Controller
                 'token_dari_env' => (bool) (! Setting::get(self::KEY_TOKEN) && config('backup.telegram.bot_token')),
                 'chat_id' => $chat ? (string) $chat : '',
                 'siap' => (bool) ($token && $chat),
+                'notif' => array_combine(TelegramNotifier::JENIS, array_map(
+                    fn ($j) => TelegramNotifier::aktif($j), TelegramNotifier::JENIS)),
+                'jeda_menit' => TelegramNotifier::jedaMenit(),
+                // Detik sejak service backup-telegram terakhir berdetak; null = tidak pernah / mati > 10 menit.
+                'pendengar_detik_lalu' => ($d = Cache::get(TelegramListen::DETAK_KEY)) ? time() - (int) $d : null,
             ],
         ]);
     }
@@ -44,6 +52,9 @@ class TelegramSettingsController extends Controller
             'bot_token' => 'nullable|string|max:255',
             'chat_id'   => 'nullable|string|max:64|regex:/^-?\d+$/',
             'hapus_token' => 'boolean',
+            'notif'       => 'array',
+            'notif.*'     => 'boolean',
+            'jeda_menit'  => 'nullable|integer|min:5|max:1440',
         ], [
             'chat_id.regex' => 'Chat ID harus berupa angka (boleh diawali tanda minus untuk grup).',
         ]);
@@ -58,9 +69,21 @@ class TelegramSettingsController extends Controller
             Setting::put(self::KEY_CHAT, $v['chat_id'] ?: null);
         }
 
+        foreach (TelegramNotifier::JENIS as $j) {
+            if ($request->has("notif.{$j}")) {
+                Setting::put("telegram.notif_{$j}", $request->boolean("notif.{$j}") ? '1' : '0');
+            }
+        }
+        if (! empty($v['jeda_menit'])) {
+            Setting::put('telegram.jeda_menit', (string) $v['jeda_menit']);
+        }
+
         $diubah = array_filter([
             $request->boolean('hapus_token') ? 'token dihapus' : (! empty($v['bot_token']) ? 'token diganti' : null),
             array_key_exists('chat_id', $v) ? 'chat ID = ' . ($v['chat_id'] ?: '(kosong)') : null,
+            $request->has('notif') ? 'notifikasi: ' . implode(', ', array_map(
+                fn ($j) => $j . '=' . (TelegramNotifier::aktif($j) ? 'on' : 'off'), TelegramNotifier::JENIS)) : null,
+            ! empty($v['jeda_menit']) ? "jeda gagal {$v['jeda_menit']} menit" : null,
         ]);
         ActivityLog::info('pengaturan', 'telegram.ubah', 'Pengaturan bot Telegram diubah: ' . (implode(', ', $diubah) ?: 'tanpa perubahan') . '.');
 

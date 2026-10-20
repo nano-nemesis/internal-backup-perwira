@@ -84,8 +84,8 @@ export default function SetupPage() {
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             required
-            minLength={8}
-            placeholder="minimal 8 karakter"
+            minLength={12}
+            placeholder="minimal 12 karakter, huruf dan angka"
           />
           {error && (
             <div role="alert" className="text-sm text-[#991B1B] px-3.5 py-3 bg-[#FEE2E2] rounded-xl">

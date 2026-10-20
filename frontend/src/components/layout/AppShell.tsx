@@ -22,7 +22,7 @@ export default function AppShell() {
       {/* Mobile backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-[#0F172A]/50 z-30 md:hidden"
+          className="fixed inset-0 bg-[#0F172A]/50 z-30 md:hidden animate-pudar"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -36,7 +36,10 @@ export default function AppShell() {
           {/* key={pathname}: tanpa ini, state error bertahan setelah pindah halaman —
               teknisi klik menu lain tapi tetap terjebak di layar error. */}
           <ErrorBoundary key={location.pathname}>
-            <Outlet />
+            {/* Ganti halaman dengan sedikit gerak naik, bukan berkedip. */}
+            <div key={location.pathname} className="animate-masuk">
+              <Outlet />
+            </div>
           </ErrorBoundary>
         </main>
       </div>

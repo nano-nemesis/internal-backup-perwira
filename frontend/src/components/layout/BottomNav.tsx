@@ -14,7 +14,7 @@ const gaya = 'flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[56
 
 function Ikon({ aktif, children }: { aktif: boolean; children: ReactNode }) {
   return (
-    <span className={cn('w-[52px] h-[30px] rounded-full flex items-center justify-center', aktif && 'bg-[#E0E3FF]')}>
+    <span className={cn('w-[52px] h-[30px] rounded-full flex items-center justify-center transition-colors duration-200', aktif && 'bg-[#E0E3FF]')}>
       {children}
     </span>
   )

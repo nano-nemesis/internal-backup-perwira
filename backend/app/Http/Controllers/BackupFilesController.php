@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Node;
+use App\Support\DaftarBerkas;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -15,6 +16,9 @@ class BackupFilesController extends Controller
             'type'     => 'nullable|in:mikrotik,database,virtualizor_db',
             'page'     => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
+            'q'        => 'nullable|string|max:100',
+            'jenis'    => 'nullable|in:rsc,backup,sql',
+            'urut'     => 'nullable|in:' . implode(',', DaftarBerkas::URUT),
         ]);
 
         $nodeId  = $request->query('node_id');
@@ -33,11 +37,9 @@ class BackupFilesController extends Controller
             'virtualizor_db' => 'virtualizor',
         ];
 
-        if ($type) {
-            $folders = [[$type, $typeFolderMap[$type] ?? $type]];
-        } else {
-            $folders = array_map(fn($t, $f) => [$t, $f], array_keys($typeFolderMap), array_values($typeFolderMap));
-        }
+        // Selalu pindai semua folder: kartu ringkasan di atas daftar menghitung seluruh berkas,
+        // bukan hanya yang lolos saringan.
+        $folders = array_map(fn($t, $f) => [$t, $f], array_keys($typeFolderMap), array_values($typeFolderMap));
 
         foreach ($folders as [$typeLabel, $dir]) {
             $basePath = "backups/{$dir}";
@@ -48,10 +50,6 @@ class BackupFilesController extends Controller
             foreach (Storage::directories($basePath) as $nodeDir) {
                 $nodeName = basename($nodeDir);
                 $node = $nodes->get($nodeName);
-
-                if ($nodeId && (!$node || $node->id !== $nodeId)) {
-                    continue;
-                }
 
                 foreach (Storage::files($nodeDir) as $filePath) {
                     $filename = basename($filePath);
@@ -77,7 +75,11 @@ class BackupFilesController extends Controller
             }
         }
 
-        usort($files, fn ($a, $b) => strcmp($b['created_at'], $a['created_at']));
+        $ringkasan = DaftarBerkas::ringkas($files);
+
+        $files = array_filter($files, fn ($f) =>
+            (!$type || $f['type'] === $type) && (!$nodeId || $f['node_id'] === $nodeId));
+        $files = DaftarBerkas::saring($files, $request->query('q'), $request->query('jenis'), $request->query('urut', 'terbaru'));
 
         $total    = count($files);
         $lastPage = max(1, (int) ceil($total / $perPage));
@@ -91,6 +93,11 @@ class BackupFilesController extends Controller
                 'per_page'     => $perPage,
                 'current_page' => $page,
                 'last_page'    => $lastPage,
+            ],
+            'ringkasan' => [
+                'jenis' => $ringkasan,
+                'disk'  => $this->disk(),
+                'retensi_hari' => (int) config('backup.retention_days', 7),
             ],
         ]);
     }
@@ -124,6 +131,16 @@ class BackupFilesController extends Controller
         ]);
 
         return response()->download($resolved);
+    }
+
+    /** Kapasitas partisi tempat backup disimpan (byte). null kalau tidak terbaca. */
+    private function disk(): ?array
+    {
+        $dir   = is_dir(storage_path('app/backups')) ? storage_path('app/backups') : storage_path('app');
+        $total = @disk_total_space($dir);
+        $bebas = @disk_free_space($dir);
+
+        return $total && $bebas !== false ? ['total' => (int) $total, 'bebas' => (int) $bebas] : null;
     }
 
     private function formatBytes(int $bytes): string

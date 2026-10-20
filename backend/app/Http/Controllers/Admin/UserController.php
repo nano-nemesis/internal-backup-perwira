@@ -14,7 +14,7 @@ class UserController extends Controller
     public function index(): JsonResponse
     {
         return response()->json([
-            'data' => User::select('id', 'username', 'email', 'role', 'is_active', 'created_at')
+            'data' => User::select('id', 'username', 'email', 'role', 'is_active', 'last_login_at', 'created_at')
                 ->orderBy('created_at')
                 ->get(),
         ]);
@@ -69,6 +69,32 @@ class UserController extends Controller
 
         $user->update(['role' => $request->role]);
         return response()->json(['data' => $user, 'message' => 'Role updated']);
+    }
+
+    /** Aktifkan/nonaktifkan akun. Akun nonaktif langsung tertolak di setiap request (middleware 'active'). */
+    public function updateStatus(Request $request, string $id): JsonResponse
+    {
+        $user = User::findOrFail($id);
+        $request->validate(['is_active' => 'required|boolean']);
+        $aktif = $request->boolean('is_active');
+
+        if ($user->id === $request->user()->id) {
+            return response()->json(['message' => 'Tidak bisa menonaktifkan akun sendiri.'], 422);
+        }
+        // Sama dengan updateRole(): admin aktif terakhir yang dinonaktifkan mengunci semua orang keluar.
+        if (! $aktif && $user->role === 'admin' && $this->isLastActiveAdmin($user)) {
+            return response()->json([
+                'message' => 'Tidak bisa menonaktifkan admin aktif terakhir. Angkat admin lain terlebih dahulu.',
+            ], 422);
+        }
+
+        ActivityLog::warning('user', $aktif ? 'user.aktifkan' : 'user.nonaktifkan',
+            "Akun '{$user->username}' " . ($aktif ? 'diaktifkan' : 'dinonaktifkan') . '.', [
+            'target' => $user->username,
+        ]);
+
+        $user->update(['is_active' => $aktif]);
+        return response()->json(['data' => $user->only('id', 'username', 'is_active')]);
     }
 
     private function isLastActiveAdmin(User $user): bool

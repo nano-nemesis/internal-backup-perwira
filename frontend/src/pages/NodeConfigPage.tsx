@@ -1,9 +1,11 @@
 import { useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { Download, Upload, ShieldAlert, FileJson } from 'lucide-react'
+import { Download, FileJson, Upload, AlertTriangle } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { toast } from '../components/ui/toaster'
 import { useAuth } from '../context/AuthContext'
+import { useDeleteAllNodes, useNodes } from '../hooks/useNodes'
+import { cn } from '../lib/utils'
 import {
   downloadJson,
   NODE_TEMPLATE,
@@ -12,6 +14,16 @@ import {
   type ImportError,
   type ImportResult,
 } from '../hooks/useNodeConfig'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog'
 
 function apiMessage(err: unknown, fallback: string): string {
   const res = (err as { response?: { data?: { message?: string } } }).response?.data
@@ -23,23 +35,49 @@ function apiImportErrors(err: unknown): ImportError[] {
   return Array.isArray(res?.errors) ? (res!.errors as ImportError[]) : []
 }
 
+type Mode = 'skip' | 'update'
+type Entri = { name?: unknown; type?: unknown; host?: unknown }
+
+const TIPE: Record<string, string> = { mikrotik: 'MikroTik', database: 'Database', virtualizor_db: 'Virtualizor' }
+
 export default function NodeConfigPage() {
   const { isAdmin } = useAuth()
+  const { data: nodesData } = useNodes()
   const exportNodes = useExportNodes()
   const importNodes = useImportNodes()
+  const deleteAll = useDeleteAllNodes()
 
   const fileRef = useRef<HTMLInputElement>(null)
+  const [lengkap, setLengkap] = useState(false)
   const [fileName, setFileName] = useState('')
-  const [nodes, setNodes] = useState<unknown[] | null>(null)
-  const [mode, setMode] = useState<'skip' | 'update'>('skip')
+  const [nodes, setNodes] = useState<Entri[] | null>(null)
+  const [mode, setMode] = useState<Mode>('skip')
   const [preview, setPreview] = useState<ImportResult | null>(null)
   const [rowErrors, setRowErrors] = useState<ImportError[]>([])
+  const [seret, setSeret] = useState(false)
+  const [hapusBuka, setHapusBuka] = useState(false)
+  const [konfirmasi, setKonfirmasi] = useState('')
 
   if (!isAdmin) return <Navigate to="/dashboard" replace />
+
+  const jumlahNode = nodesData?.data.length
 
   const resetImport = () => {
     setFileName(''); setNodes(null); setPreview(null); setRowErrors([])
     if (fileRef.current) fileRef.current.value = ''
+  }
+
+  // Pratinjau (dry run) langsung jalan setelah berkas dibaca atau mode diganti:
+  // yang dilihat selalu hasil sebenarnya dari server, bukan tebakan halaman.
+  const pratinjau = async (list: Entri[], m: Mode) => {
+    setRowErrors([])
+    try {
+      setPreview(await importNodes.mutateAsync({ nodes: list, mode: m, dry_run: true }))
+    } catch (err) {
+      setPreview(null)
+      setRowErrors(apiImportErrors(err))
+      if (!apiImportErrors(err).length) toast(apiMessage(err, 'Pratinjau gagal'), 'error')
+    }
   }
 
   const handleFile = async (file: File) => {
@@ -52,32 +90,27 @@ export default function NodeConfigPage() {
         throw new Error('Tidak menemukan daftar "nodes" di dalam berkas.')
       }
       setNodes(list)
-      toast(`${list.length} node terbaca dari ${file.name}`, 'info')
+      await pratinjau(list, mode)
     } catch (e) {
       setFileName('')
       toast(
-        e instanceof SyntaxError
-          ? 'Berkas bukan JSON yang valid.'
-          : (e as Error).message || 'Gagal membaca berkas.',
+        e instanceof SyntaxError ? 'Berkas bukan JSON yang valid.' : (e as Error).message || 'Gagal membaca berkas.',
         'error',
       )
     }
   }
 
-  const run = async (dryRun: boolean) => {
+  const ubahMode = (m: Mode) => {
+    setMode(m)
+    if (nodes) pratinjau(nodes, m)
+  }
+
+  const terapkan = async () => {
     if (!nodes) return
-    setRowErrors([])
     try {
-      const res = await importNodes.mutateAsync({ nodes, mode, dry_run: dryRun })
-      if (dryRun) {
-        setPreview(res)
-      } else {
-        toast(
-          `Impor selesai — ${res.summary.create} dibuat, ${res.summary.update} diperbarui, ${res.summary.skip} dilewati`,
-          'success',
-        )
-        resetImport()
-      }
+      const res = await importNodes.mutateAsync({ nodes, mode, dry_run: false })
+      toast(`Impor selesai: ${res.summary.create} dibuat, ${res.summary.update} diperbarui, ${res.summary.skip} dilewati`, 'success')
+      resetImport()
     } catch (err) {
       setPreview(null)
       setRowErrors(apiImportErrors(err))
@@ -85,200 +118,281 @@ export default function NodeConfigPage() {
     }
   }
 
+  const hapusSemua = async () => {
+    try {
+      await deleteAll.mutateAsync()
+      toast('Semua node berhasil dihapus', 'success')
+      setHapusBuka(false)
+      setKonfirmasi('')
+    } catch (err) {
+      toast(apiMessage(err, 'Gagal menghapus semua node'), 'error')
+    }
+  }
+
+  const hasil = (e: Entri, i: number): [string, string] => {
+    const salah = rowErrors.find((r) => r.index === i)
+    if (salah) return [salah.errors.join('; '), 'text-[#B91C1C]']
+    const nama = typeof e.name === 'string' ? e.name : ''
+    if (preview?.detail?.create.includes(nama)) return ['baru', 'text-[#15803D]']
+    if (preview?.detail?.update.includes(nama)) return ['diperbarui', 'text-[#2E3AC2]']
+    if (preview?.detail?.skip.includes(nama)) return ['dilewati, sudah ada', 'text-[#475569]']
+    return ['valid', 'text-[#475569]']
+  }
+  const perubahan = preview ? preview.summary.create + preview.summary.update : 0
+
   return (
-    <div className="space-y-5 max-w-screen-lg">
-      <div>
+    <div className="space-y-5 max-w-screen-2xl">
+      <header>
         <h1 className="text-[28px] leading-tight font-extrabold text-[#0F172A]">Konfigurasi Node</h1>
         <p className="text-sm text-[#475569] mt-1">
-          Cadangkan daftar node ke berkas JSON, atau tambahkan node secara massal dari berkas.
+          Cadangkan daftar node sebagai JSON, atau tambahkan banyak node sekaligus
         </p>
-      </div>
+      </header>
 
-      {/* ── Ekspor ───────────────────────────────────────────────────────── */}
-      <div className="card p-5 md:p-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <span className="w-9 h-9 rounded-xl bg-[#EEF0FE] text-[#2E3AC2] flex items-center justify-center"><Download className="w-[18px] h-[18px]" strokeWidth={1.8} /></span>
-          <h2 className="text-lg font-bold text-[#0F172A]">Ekspor</h2>
-        </div>
-
-        <p className="text-sm text-[#475569]">
-          Berkas berisi konfigurasi target: nama, tipe, host, port, user SSH, path key,
-          nama/user database, dan interval jadwal. Riwayat backup dan berkas hasil backup
-          <strong> tidak </strong> ikut — ini konfigurasi, bukan cadangan basis data.
-        </p>
-
-        <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-5 items-start">
+        {/* ── Ekspor ── */}
+        <section className="card flex-[1_1_340px] min-w-0 p-5 md:p-6 flex flex-col gap-4">
+          <div>
+            <h2 className="text-lg font-bold">Ekspor</h2>
+            <p className="text-[13px] text-[#475569] mt-1">
+              {jumlahNode === undefined ? 'Menghitung node…' : `${jumlahNode} node siap diekspor`}
+            </p>
+          </div>
+          <fieldset className="flex flex-col gap-2.5">
+            <legend className="sr-only">Mode ekspor</legend>
+            {([
+              [false, 'Tanpa password', 'Aman disimpan atau dibagikan. Cocok jadi templat menambah node. Setelah diimpor, password tiap node harus diisi ulang.'],
+              [true, 'Lengkap', 'Password ikut, terenkripsi. Hanya bisa dipulihkan di instalasi dengan APP_KEY yang sama; saat pindah VPS salin juga APP_KEY dari .env. Perlakukan berkasnya seperti kredensial.'],
+            ] as const).map(([nilai, judul, ket]) => (
+              <label
+                key={judul}
+                className={cn(
+                  'flex gap-3 items-start rounded-[14px] p-3.5 cursor-pointer transition-colors',
+                  lengkap === nilai ? 'border-2 border-[#4255F0] bg-[#F5F6FF]' : 'border border-[#DADDE8] hover:bg-[#F8F9FC] m-px',
+                )}
+              >
+                <input
+                  type="radio"
+                  name="mode-ekspor"
+                  checked={lengkap === nilai}
+                  onChange={() => setLengkap(nilai)}
+                  className="mt-1 w-4 h-4 accent-[#4255F0]"
+                />
+                <span>
+                  <span className="block font-bold text-sm">{judul}</span>
+                  <span className="block text-[13px] text-[#475569] mt-0.5 leading-relaxed">{ket}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
           <Button
-            onClick={() =>
-              exportNodes.mutate(false, {
-                onError: (e) => toast(apiMessage(e, 'Ekspor gagal'), 'error'),
-              })
-            }
+            size="lg"
+            className="justify-center"
             loading={exportNodes.isPending}
+            onClick={() => exportNodes.mutate(lengkap, { onError: (e) => toast(apiMessage(e, 'Ekspor gagal'), 'error') })}
           >
             <Download className="w-4 h-4" />
-            Unduh tanpa password
+            Unduh JSON
           </Button>
-          <Button
-            variant="secondary"
-            onClick={() =>
-              exportNodes.mutate(true, {
-                onError: (e) => toast(apiMessage(e, 'Ekspor gagal'), 'error'),
-              })
-            }
-            loading={exportNodes.isPending}
-          >
-            <ShieldAlert className="w-4 h-4" />
-            Unduh lengkap (dengan password)
-          </Button>
-        </div>
-
-        <div className="rounded-xl bg-[#FEF3C7] px-4 py-3 text-sm text-[#78350F]">
-          <p>
-            <strong>Tanpa password</strong> — aman disimpan dan dibagikan. Cocok jadi templat
-            untuk menambah node massal. Setelah diimpor, password tiap node harus diisi ulang.
+          <p className="text-xs text-[#475569]">
+            Riwayat backup dan berkas hasil backup tidak ikut. Ini konfigurasi, bukan cadangan basis data.
           </p>
-          <p className="mt-2">
-            <strong>Lengkap</strong> — password ikut dalam bentuk <em>terenkripsi</em>, bukan teks
-            polos. Hanya bisa dipulihkan di instalasi dengan <code>APP_KEY</code> yang sama, jadi
-            saat pindah VPS salin juga <code>APP_KEY</code> dari <code>.env</code>. Perlakukan
-            berkas ini seperti kredensial.
-          </p>
-        </div>
-      </div>
+        </section>
 
-      {/* ── Impor ────────────────────────────────────────────────────────── */}
-      <div className="card p-5 md:p-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <span className="w-9 h-9 rounded-xl bg-[#EEF0FE] text-[#2E3AC2] flex items-center justify-center"><Upload className="w-[18px] h-[18px]" strokeWidth={1.8} /></span>
-          <h2 className="text-lg font-bold text-[#0F172A]">Impor</h2>
-        </div>
+        {/* ── Impor ── */}
+        <section className="card flex-[2_1_480px] min-w-0 p-5 md:p-6 flex flex-col gap-4">
+          <div className="flex justify-between items-start gap-3 flex-wrap">
+            <div>
+              <h2 className="text-lg font-bold">Impor</h2>
+              <p className="text-[13px] text-[#475569] mt-1">
+                Pratinjau dulu. Kalau ada satu entri tidak valid, tidak ada yang disimpan.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => downloadJson(NODE_TEMPLATE, 'templat-node.json')}
+              className="inline-flex items-center gap-1.5 min-h-[40px] px-2 -mx-2 rounded-lg text-sm font-semibold text-[#3442D9] hover:bg-[#EEF0FE] transition-colors"
+            >
+              <FileJson className="w-4 h-4" />
+              Unduh templat JSON
+            </button>
+          </div>
 
-        <div className="rounded-xl bg-[#F4F5FA] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-[#475569]">
-            Belum punya berkasnya? Unduh templat berisi satu contoh per tipe node, lalu
-            sunting dengan editor teks. Password boleh diisi teks polos — hapus berkasnya
-            setelah impor.
-          </p>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => downloadJson(NODE_TEMPLATE, 'templat-node.json')}
-          >
-            <FileJson className="w-4 h-4" />
-            Unduh templat JSON
-          </Button>
-        </div>
-
-        <div>
-          <label
-            htmlFor="node-config-file"
-            className="block text-sm text-[#475569] mb-2"
-          >
-            Berkas JSON hasil ekspor (atau daftar node yang Anda tulis sendiri)
-          </label>
           <input
             id="node-config-file"
             ref={fileRef}
             type="file"
             accept=".json,application/json"
+            className="sr-only"
             onChange={(e) => {
               const f = e.target.files?.[0]
               if (f) handleFile(f)
             }}
-            className="block w-full text-sm text-[#0F172A] file:mr-3 file:py-2 file:px-4
-                       file:rounded-lg file:border file:border-[#DADDE8] file:font-semibold file:text-sm
-                       file:bg-white hover:file:bg-[#F4F5FA] file:cursor-pointer
-                       border border-[#DADDE8] rounded-xl min-h-[44px] py-1.5 px-2"
           />
-          {fileName && (
-            <p className="text-xs text-[#475569] mt-2 flex items-center gap-1.5">
-              <FileJson className="w-3.5 h-3.5" />
-              {fileName} · {nodes?.length ?? 0} node
-            </p>
-          )}
-        </div>
-
-        <fieldset className="space-y-2">
-          <legend className="text-sm text-[#475569] mb-1">Kalau nama node sudah ada:</legend>
-          {([
-            ['skip', 'Lewati: node yang sudah ada tidak disentuh sama sekali'],
-            ['update', 'Perbarui: konfigurasinya ditimpa isi berkas'],
-          ] as const).map(([val, label]) => (
-            <label key={val} className="flex items-start gap-2 text-sm cursor-pointer">
-              <input
-                type="radio"
-                name="import-mode"
-                value={val}
-                checked={mode === val}
-                onChange={() => { setMode(val); setPreview(null) }}
-                className="mt-0.5 w-4 h-4 accent-[#4255F0]"
-              />
-              <span className="text-[#0F172A]">{label}</span>
-            </label>
-          ))}
-        </fieldset>
-
-        <div className="flex flex-wrap gap-3">
-          <Button
-            variant="secondary"
-            disabled={!nodes}
-            loading={importNodes.isPending && !preview}
-            onClick={() => run(true)}
-          >
-            Pratinjau
-          </Button>
-          <Button
-            disabled={!preview}
-            loading={importNodes.isPending && !!preview}
-            onClick={() => run(false)}
-          >
-            Terapkan impor
-          </Button>
-        </div>
-
-        {preview && (
-          <div className="rounded-xl bg-[#F4F5FA] px-4 py-3 text-sm space-y-1">
-            <p className="text-[#0F172A] font-medium">
-              Pratinjau, belum ada yang berubah
-            </p>
-            <p className="text-[#475569]">
-              {preview.summary.create} akan dibuat · {preview.summary.update} akan diperbarui ·{' '}
-              {preview.summary.skip} dilewati
-            </p>
-            {preview.detail && (
-              <div className="text-xs text-[#475569] pt-1 space-y-0.5">
-                {(['create', 'update', 'skip'] as const).map((k) =>
-                  preview.detail![k].length ? (
-                    <p key={k}>
-                      <span className="font-mono">{k}</span>: {preview.detail![k].join(', ')}
-                    </p>
-                  ) : null,
-                )}
-              </div>
+          <label
+            htmlFor="node-config-file"
+            onDragOver={(e) => { e.preventDefault(); setSeret(true) }}
+            onDragLeave={() => setSeret(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setSeret(false)
+              const f = e.dataTransfer.files?.[0]
+              if (f) handleFile(f)
+            }}
+            className={cn(
+              'flex items-center gap-4 border-2 border-dashed rounded-2xl p-4 md:p-5 flex-wrap cursor-pointer transition-colors',
+              seret ? 'border-[#4255F0] bg-[#F5F6FF]' : 'border-[#C9CCD8] hover:border-[#8C99F7] hover:bg-[#F8F9FC]',
             )}
-          </div>
-        )}
+          >
+            <span className="w-12 h-12 rounded-[14px] bg-[#EEF0FE] text-[#2E3AC2] flex items-center justify-center flex-shrink-0">
+              {fileName ? <FileJson className="w-6 h-6" strokeWidth={1.8} /> : <Upload className="w-6 h-6" strokeWidth={1.8} />}
+            </span>
+            <span className="flex-[1_1_200px] min-w-0">
+              {fileName ? (
+                <>
+                  <span className="block font-bold text-sm font-mono break-all">{fileName}</span>
+                  <span className="block text-[13px] text-[#475569] mt-0.5">
+                    {nodes?.length ?? 0} entri{importNodes.isPending ? ' · memeriksa…' : ''}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="block font-bold text-sm">Pilih berkas JSON</span>
+                  <span className="block text-[13px] text-[#475569] mt-0.5">atau seret ke sini · hasil ekspor, atau daftar node yang Anda tulis sendiri</span>
+                </>
+              )}
+            </span>
+            <span className="min-h-[40px] px-3.5 rounded-[10px] border border-[#DADDE8] bg-white text-[13px] font-semibold inline-flex items-center">
+              {fileName ? 'Ganti berkas' : 'Pilih berkas'}
+            </span>
+          </label>
 
-        {rowErrors.length > 0 && (
-          <div className="rounded-xl bg-[#FEE2E2] px-4 py-3 text-sm text-[#991B1B] space-y-1">
-            <p className="font-medium">
-              Tidak ada perubahan yang diterapkan. Perbaiki dulu entri berikut:
-            </p>
-            <ul className="list-disc pl-5 space-y-0.5">
-              {rowErrors.slice(0, 20).map((e) => (
-                <li key={e.index}>
-                  <span className="font-mono">#{e.index}</span>
-                  {e.name ? ` (${e.name})` : ''}: {e.errors.join('; ')}
-                </li>
+          <div className="flex items-center gap-3 flex-wrap text-[13px]">
+            <span className="font-semibold text-[#334155]">Kalau nama node sudah ada:</span>
+            <div className="flex gap-2">
+              {([['skip', 'Lewati'], ['update', 'Perbarui']] as const).map(([m, label]) => (
+                <button key={m} type="button" aria-pressed={mode === m} onClick={() => ubahMode(m)} className="chip">
+                  {label}
+                </button>
               ))}
-            </ul>
-            {rowErrors.length > 20 && (
-              <p className="text-xs">…dan {rowErrors.length - 20} entri lain.</p>
-            )}
+            </div>
+            <span className="text-[#475569]">
+              {mode === 'skip' ? 'node yang sudah ada tidak disentuh' : 'konfigurasinya ditimpa isi berkas'}
+            </span>
           </div>
-        )}
+
+          {nodes && (preview || rowErrors.length > 0) && (
+            <div className="space-y-4 animate-pudar">
+              <div className="flex gap-2 flex-wrap">
+                {preview && <span className="pill bg-[#BBF7D0] text-[#14532D]">{preview.summary.create} baru</span>}
+                {preview && <span className="pill bg-[#E0E3FF] text-[#2E3AC2]">{preview.summary.update} diperbarui</span>}
+                {preview && preview.summary.skip > 0 && <span className="pill bg-[#F1F2F7] text-[#334155]">{preview.summary.skip} dilewati</span>}
+                <span className={cn('pill', rowErrors.length ? 'bg-[#FEE2E2] text-[#991B1B]' : 'bg-[#F1F2F7] text-[#334155]')}>
+                  {rowErrors.length} tidak valid
+                </span>
+              </div>
+              <div className="overflow-x-auto border border-[#EEF0F6] rounded-[14px]">
+                <table className="w-full min-w-[520px] text-[13px]">
+                  <thead className="bg-[#FAFBFD]">
+                    <tr>
+                      <th className="th !py-2.5">#</th>
+                      <th className="th !py-2.5">Nama</th>
+                      <th className="th !py-2.5">Tipe</th>
+                      <th className="th !py-2.5">Host</th>
+                      <th className="th !py-2.5">Hasil</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {nodes.map((e, i) => {
+                      const [teks, gaya] = hasil(e, i)
+                      return (
+                        <tr key={i} className="border-t border-[#EEF0F6]">
+                          <td className="px-3 py-2.5 text-[#475569]">{i}</td>
+                          <td className="px-3 py-2.5 font-semibold">{typeof e.name === 'string' ? e.name : '—'}</td>
+                          <td className="px-3 py-2.5">{TIPE[String(e.type)] ?? String(e.type ?? '—')}</td>
+                          <td className="px-3 py-2.5 font-mono">{typeof e.host === 'string' ? e.host : '—'}</td>
+                          <td className={cn('px-3 py-2.5 font-semibold break-words', gaya)}>{teks}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex justify-end gap-2.5 flex-wrap">
+                <Button variant="secondary" onClick={resetImport}>Batal</Button>
+                <Button
+                  disabled={!preview || rowErrors.length > 0 || perubahan === 0}
+                  loading={importNodes.isPending}
+                  onClick={terapkan}
+                >
+                  {perubahan ? `Terapkan ${perubahan} perubahan` : 'Tidak ada perubahan'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </section>
       </div>
+
+      {/* ── Zona berbahaya ── */}
+      <section className="bg-white border border-[#FECACA] rounded-[20px] p-5 md:p-6 flex items-center gap-4 flex-wrap">
+        <span className="w-12 h-12 rounded-[14px] bg-[#FEF2F2] text-[#B91C1C] flex items-center justify-center flex-shrink-0">
+          <AlertTriangle className="w-6 h-6" strokeWidth={1.8} />
+        </span>
+        <div className="flex-[1_1_320px]">
+          <h2 className="text-base font-bold text-[#991B1B]">Zona berbahaya: hapus semua node</h2>
+          <p className="text-[13px] text-[#475569] mt-1 leading-relaxed">
+            Menghapus {jumlahNode ?? 'semua'} node beserta jadwal, log backup, dan kredensial SSH/DB-nya. Berkas backup di
+            disk tidak ikut terhapus. Ekspor dulu sebelum melakukan ini.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setHapusBuka(true)}
+          disabled={!jumlahNode}
+          className="min-h-[44px] px-4 rounded-[14px] border border-[#DC2626] bg-white text-[#B91C1C] text-sm font-bold hover:bg-[#FEF2F2] transition-colors disabled:opacity-40"
+        >
+          Hapus semua node
+        </button>
+      </section>
+
+      <AlertDialog
+        open={hapusBuka}
+        onOpenChange={(open) => {
+          setHapusBuka(open)
+          if (!open) setKonfirmasi('')
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus semua node?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Semua {jumlahNode} node beserta log backup dan kredensialnya terhapus permanen. Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="px-1 pb-1">
+            <label htmlFor="delete-all-confirm" className="block text-sm text-[#475569] mb-2">
+              Ketik <span className="font-mono font-semibold text-[#991B1B]">HAPUS SEMUA</span> untuk mengaktifkan tombol.
+            </label>
+            <input
+              id="delete-all-confirm"
+              autoComplete="off"
+              value={konfirmasi}
+              onChange={(e) => setKonfirmasi(e.target.value)}
+              className="w-full px-3.5 py-2 border border-[#DADDE8] rounded-xl font-mono text-sm min-h-[44px] focus:outline-none focus:border-[#4255F0] focus:ring-4 focus:ring-[#4255F0]/15"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setHapusBuka(false)}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[#DC2626] hover:bg-[#B91C1C] text-white"
+              onClick={hapusSemua}
+              disabled={deleteAll.isPending || konfirmasi !== 'HAPUS SEMUA'}
+            >
+              {deleteAll.isPending ? 'Menghapus...' : 'Hapus semua node'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

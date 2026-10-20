@@ -5,6 +5,7 @@ import { useActivityLogs } from '../hooks/useActivityLogs'
 import { useNodes } from '../hooks/useNodes'
 import { useAuth } from '../context/AuthContext'
 import { cn } from '../lib/utils'
+import { Hitung } from '../components/ui/hitung'
 import type { ActivityLogItem, LogLevel } from '../types'
 
 const KATEGORI: Record<string, string> = {
@@ -132,7 +133,7 @@ export default function LogSistemPage() {
       </div>
 
       {/* Ringkasan 24 jam — klik untuk memfilter */}
-      <div className="grid grid-cols-3 gap-3 md:gap-5">
+      <div className="grid grid-cols-3 gap-3 md:gap-5 berurutan">
         {(['error', 'warning', 'info'] as const).map((lv) => {
           const L = LEVEL[lv]
           return (
@@ -145,7 +146,7 @@ export default function LogSistemPage() {
               <p className="text-[13px] font-semibold text-[#334155] flex items-center gap-1.5 flex-wrap">
                 {L.label} <span className="font-normal text-[#475569]">24 jam</span>
               </p>
-              <p className="text-[30px] leading-none font-extrabold text-[#0F172A] mt-2">{ringkasan[lv] ?? 0}</p>
+              <p className="text-[30px] leading-none font-extrabold text-[#0F172A] mt-2"><Hitung n={ringkasan[lv] ?? 0} /></p>
             </button>
           )
         })}
@@ -192,7 +193,7 @@ export default function LogSistemPage() {
       )}
 
       {logs.length > 0 && (
-        <ul className="space-y-2">
+        <ul className="space-y-2 berurutan">
           {logs.map((log) => <BarisLog key={log.id} log={log} />)}
         </ul>
       )}
