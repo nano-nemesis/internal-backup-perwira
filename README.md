@@ -143,6 +143,9 @@ Backup dikoordinasi oleh [`BackupService`](backend/app/Services/BackupService.ph
      koneksi SSH via `proc_open` (memakai `ssh` + `sshpass`, atau private key) dan menjalankan
      `/export show-sensitive` (fallback ke `/export` polos untuk RouterOS lawas).
      Outputnya ditulis ke file `.rsc` dengan izin `0600`.
+     Kalau node menyalakan **backup biner**, ikut dijalankan `/system backup save`, berkasnya
+     ditarik lewat `scp -O` jadi `.backup` (nama sama dengan `.rsc`), lalu dihapus dari router.
+     Gagalnya `.backup` tidak menggagalkan backup — `.rsc` tetap tersimpan, sebabnya ke Log Sistem.
 
      > ⚠️ `show-sensitive` membuat file `.rsc` berisi **kredensial pelanggan plaintext**
      > (PPPoE secret, RADIUS secret, WiFi PSK). Tanpa flag ini backup tidak cukup untuk
@@ -427,6 +430,10 @@ Di MikroTik, public key di-import dan diikat ke user RouterOS tertentu.
 
    > User grup `read` sudah cukup untuk backup. Untuk eksekusi perintah remote dari UI, pakai
    > grup yang juga punya `write` (dan `policy` untuk perintah sensitif).
+   >
+   > **Backup biner (.backup)** butuh `write` (save + hapus berkas) dan `ftp` (scp):
+   > `/user group add name=backup policy=ssh,ftp,read,write,sensitive` lalu
+   > `/user set backup group=backup`. Tukarannya: kunci backup jadi bisa mengubah konfigurasi.
 
 3. **Import** public key dan ikat ke user tersebut (di terminal RouterOS):
 

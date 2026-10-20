@@ -3,6 +3,7 @@ namespace App\Services;
 
 use App\Models\ActivityLog;
 use App\Models\Node;
+use App\Support\BackupErrorSummary;
 
 class MikrotikService
 {
@@ -58,7 +59,57 @@ class MikrotikService
             throw new \RuntimeException("Gagal menyimpan file backup dari {$node->host}");
         }
 
+        if ($node->backup_binary) {
+            $this->backupBinary($node, preg_replace('/\.rsc$/', '.backup', $localPath), $now->format('Ymd-His'));
+        }
+
         return $localPath;
+    }
+
+    /**
+     * Pendamping .rsc: /system backup save, tarik lewat scp, hapus dari flash router.
+     *
+     * Gagal di sini TIDAK menggagalkan backup — .rsc sudah tersimpan dan itulah yang
+     * bisa dipulihkan ke unit pengganti (.backup terikat model + versi RouterOS).
+     * Kegagalannya dicatat warning di Log Sistem.
+     */
+    private function backupBinary(Node $node, string $localPath, string $stamp): void
+    {
+        // Nama unik per run, bukan nama tetap: kalau penghapusan di router pernah gagal,
+        // berkas lama yang tertinggal tidak bisa tertarik sebagai backup "baru".
+        $remote = "perwira-{$stamp}.backup";
+
+        try {
+            // dont-encrypt eksplisit: default enkripsi berubah antar versi RouterOS, dan
+            // berkas harus bisa di-restore tanpa password user backup.
+            $this->runSshCommand($node, "/system backup save name=perwira-{$stamp} dont-encrypt=yes");
+            try {
+                $this->scpPull($node, $remote, $localPath);
+            } finally {
+                try {
+                    $this->runSshCommand($node, "/file remove {$remote}");
+                } catch (\RuntimeException $e) {
+                    ActivityLog::warning('backup', 'mikrotik.backup-biner-sisa',
+                        "{$node->name}: berkas {$remote} gagal dihapus dari router dan masih memakan flash — hapus manual.",
+                        ['error' => $e->getMessage()], $node);
+                }
+            }
+
+            if (!is_file($localPath) || filesize($localPath) === 0) {
+                throw new \RuntimeException("Berkas {$remote} kosong setelah ditarik dari {$node->host}");
+            }
+            // Memuat seluruh konfigurasi + database user router.
+            chmod($localPath, 0600);
+        } catch (\RuntimeException $e) {
+            if (is_file($localPath)) {
+                unlink($localPath);
+            }
+            $sebab = BackupErrorSummary::sebab($e->getMessage());
+            ActivityLog::warning('backup', 'mikrotik.backup-biner-gagal',
+                "{$node->name}: .rsc tersimpan, tapi .backup gagal — "
+                . ($sebab ? "kemungkinan sebab: {$sebab}." : 'periksa policy write + ftp user router (dipakai /system backup save dan scp).'),
+                ['error' => $e->getMessage(), 'sebab' => $sebab], $node);
+        }
     }
 
     public function execute(Node $node, string $command): string
@@ -73,6 +124,28 @@ class MikrotikService
      */
     private function runSshCommand(Node $node, string $command): string
     {
+        $target = escapeshellarg($node->ssh_user) . '@' . escapeshellarg($node->host) . ' ' . escapeshellarg($command);
+
+        return $this->runAuthenticated($node, 'ssh -p', $target);
+    }
+
+    /**
+     * Tarik berkas dari router dengan autentikasi yang sama (kunci, failover password).
+     * -O = protokol SCP lama: OpenSSH >= 9.0 memakai SFTP secara default.
+     */
+    private function scpPull(Node $node, string $remote, string $localPath): void
+    {
+        // IPv6 wajib berkurung siku di sintaks scp host:path.
+        $host = str_contains($node->host, ':') ? "[{$node->host}]" : $node->host;
+        $target = escapeshellarg($node->ssh_user) . '@' . escapeshellarg($host) . ':' . escapeshellarg($remote)
+            . ' ' . escapeshellarg($localPath);
+
+        $this->runAuthenticated($node, 'scp -O -P', $target);
+    }
+
+    /** @param string $program 'ssh -p' atau 'scp -O -P' — flag port-nya beda huruf. */
+    private function runAuthenticated(Node $node, string $program, string $target): string
+    {
         $timeout = config('backup.ssh_timeout', 30);
         $host = $node->host;
         $port = $node->port ?? 22;
@@ -82,13 +155,13 @@ class MikrotikService
         // dimatikan default sejak OpenSSH 8.8 — tanpa ini kunci tidak pernah ditawarkan
         // ("no mutual signature algorithm") dan ssh jatuh ke password.
         $baseOptions = sprintf(
-            '-p %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=%d'
+            '%s %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=%d'
             . ' -o PubkeyAcceptedAlgorithms=+ssh-rsa'
             . ' -o ServerAliveInterval=15 -o ServerAliveCountMax=3',
+            $program,
             $port,
             $timeout
         );
-        $target = escapeshellarg($user) . '@' . escapeshellarg($host) . ' ' . escapeshellarg($command);
         $password = $node->ssh_password;
         $keyError = null;
 
@@ -97,9 +170,9 @@ class MikrotikService
             // kosong (worker tanpa TTY) yang bisa memicu blacklist brute-force di router.
             try {
                 return $this->runProcess(sprintf(
-                    'ssh -i %s %s -o BatchMode=yes %s',
-                    escapeshellarg($node->ssh_key_path),
+                    '%s -i %s -o BatchMode=yes %s',
                     $baseOptions,
+                    escapeshellarg($node->ssh_key_path),
                     $target
                 ), $host);
             } catch (\RuntimeException $e) {
@@ -118,7 +191,7 @@ class MikrotikService
 
         try {
             return $this->runProcess(sprintf(
-                'sshpass -p %s ssh %s -o PubkeyAuthentication=no -o PasswordAuthentication=yes %s',
+                'sshpass -p %s %s -o PubkeyAuthentication=no -o PasswordAuthentication=yes %s',
                 escapeshellarg($password ?? ''),
                 $baseOptions,
                 $target

@@ -54,6 +54,7 @@ export const NODE_TEMPLATE = {
       ssh_key_path: null,
       schedule_interval_hours: 6,
       is_active: true,
+      backup_binary: false,
     },
     {
       name: 'DB-BILLING',

@@ -29,6 +29,7 @@ class NodeController extends Controller
                 'db_user' => $node->db_user,
                 'schedule_interval_hours' => $node->schedule_interval_hours,
                 'is_active' => $node->is_active,
+                'backup_binary' => $node->backup_binary,
                 'last_backup_at' => $node->last_backup_at,
                 'latest_log' => $node->latestBackupLog ? [
                     'id' => $node->latestBackupLog->id,
@@ -89,6 +90,7 @@ class NodeController extends Controller
                 'db_user' => $node->db_user,
                 'schedule_interval_hours' => $node->schedule_interval_hours,
                 'is_active' => $node->is_active,
+                'backup_binary' => $node->backup_binary,
                 'last_backup_at' => $node->last_backup_at,
                 'schedule' => $node->load('schedule')->schedule,
             ],

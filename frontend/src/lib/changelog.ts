@@ -5,6 +5,17 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.3.0',
+    tanggal: '2026-10-20',
+    judul: 'Backup biner MikroTik (.backup)',
+    poin: [
+      'Node MikroTik bisa ikut menyimpan backup biner .backup di samping .rsc — centang "Juga simpan backup biner" di form node.',
+      'Berkas .backup muncul di Backup Files dan detail node, bisa diunduh, dan ikut dihapus retensi seperti .rsc.',
+      'Berkas sementara di flash router langsung dihapus setelah ditarik.',
+      'Butuh policy write + ftp di user router. Kalau belum ada, .rsc tetap tersimpan dan sebabnya tercatat di Log Sistem.',
+    ],
+  },
+  {
     versi: '1.2.0',
     tanggal: '2026-09-26',
     judul: 'Log Sistem',

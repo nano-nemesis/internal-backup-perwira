@@ -20,6 +20,7 @@ $kasus = [
     ['Backup terbaru di 10.10.9.5 sudah basi: [20260801.sql.gz] berumur 28 hari.', 'Virtualizor'],
     ['Tidak ada file backup ditemukan di 10.10.9.5:/var/virtualizor/backup/db.', 'kosong atau pathnya salah'],
     ['mkdir(): Permission denied', 'Folder backup'],
+    ['SSH command gagal ke 10.10.3.1 (exit code 1): not enough permissions (9)', 'policy'],
 ];
 
 $gagal = [];

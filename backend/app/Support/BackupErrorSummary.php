@@ -25,6 +25,10 @@ class BackupErrorSummary
         ['/exit code 127|command not found|not found.*sshpass|sshpass.*not found/i',
          'sshpass belum terpasang di VPS backup — pasang, atau pindah ke autentikasi SSH key'],
 
+        // RouterOS menolak perintah karena policy grup user-nya kurang.
+        ['/not enough permissions/i',
+         'User router tidak punya policy untuk perintah ini — backup biner (.backup) butuh write + ftp'],
+
         ['/permission denied|publickey|authentication failed|auth fail|password ditolak/i',
          'Autentikasi SSH ditolak perangkat — periksa user, password, atau public key yang terpasang'],
 

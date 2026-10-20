@@ -25,6 +25,7 @@ const emptyForm: NodeFormData = {
   db_user: '',
   db_password: '',
   schedule_interval_hours: 24,
+  backup_binary: false,
 }
 
 function formFromNode(node: Node): NodeFormData {
@@ -40,6 +41,7 @@ function formFromNode(node: Node): NodeFormData {
     db_user: node.db_user ?? '',
     db_password: '',
     schedule_interval_hours: node.schedule_interval_hours,
+    backup_binary: node.backup_binary ?? false,
   }
 }
 
@@ -146,6 +148,27 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
             className="sm:col-span-2"
           />
         </div>
+
+        {form.type === 'mikrotik' && (
+          <label className="flex items-start gap-3 pt-3 border-t border-[#E2E8F0] text-sm text-[#0F172A] cursor-pointer">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={form.backup_binary}
+              onChange={(e) => set('backup_binary', e.target.checked)}
+            />
+            <span>
+              <strong>Juga simpan backup biner (.backup)</strong>
+              <span className="block text-[#475569] mt-0.5">
+                Selain <code className="text-xs bg-[#F1F5F9] px-1 rounded">.rsc</code>, ambil{' '}
+                <code className="text-xs bg-[#F1F5F9] px-1 rounded">/system backup save</code> untuk
+                restore penuh ke unit yang sama. User router butuh policy{' '}
+                <strong>write</strong> + <strong>ftp</strong>; kalau belum, .rsc tetap tersimpan
+                dan kegagalannya tercatat di Log Sistem.
+              </span>
+            </span>
+          </label>
+        )}
 
         {form.type === 'database' && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-[#E2E8F0]">

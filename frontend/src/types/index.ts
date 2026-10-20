@@ -33,6 +33,7 @@ export interface Node {
   db_user?: string
   schedule_interval_hours: number
   is_active: boolean
+  backup_binary?: boolean  // MikroTik: ikut simpan .backup biner di samping .rsc
   last_backup_at?: string | null
   latest_log?: BackupLog | null
   next_run_at?: string | null
@@ -118,6 +119,7 @@ export interface NodeFormData {
   db_user: string
   db_password: string
   schedule_interval_hours: number
+  backup_binary: boolean
 }
 
 export interface NodeDetailResponse {

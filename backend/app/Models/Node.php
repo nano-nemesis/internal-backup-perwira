@@ -28,13 +28,14 @@ class Node extends Model
         'name', 'type', 'host', 'port',
         'ssh_user', 'ssh_password', 'ssh_key_path',
         'db_name', 'db_user', 'db_password',
-        'schedule_interval_hours', 'is_active', 'last_backup_at',
+        'schedule_interval_hours', 'is_active', 'last_backup_at', 'backup_binary',
     ];
 
     protected $hidden = ['ssh_password', 'db_password'];
 
     protected $casts = [
         'is_active'               => 'boolean',
+        'backup_binary'           => 'boolean',
         'last_backup_at'          => 'datetime',
         'port'                    => 'integer',
         'schedule_interval_hours' => 'integer',

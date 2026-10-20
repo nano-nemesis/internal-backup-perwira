@@ -32,7 +32,7 @@ class NodeConfigController extends Controller
     /** Kolom yang membentuk sebuah node, tanpa kredensial. */
     private const FIELDS = [
         'name', 'type', 'host', 'port', 'ssh_user', 'ssh_key_path',
-        'db_name', 'db_user', 'schedule_interval_hours', 'is_active',
+        'db_name', 'db_user', 'schedule_interval_hours', 'is_active', 'backup_binary',
     ];
 
     public function export(Request $request): JsonResponse
@@ -137,6 +137,7 @@ class NodeConfigController extends Controller
                 'db_user'                 => 'nullable|string|max:100',
                 'schedule_interval_hours' => 'nullable|integer|in:1,2,3,4,6,8,12,24',
                 'is_active'               => 'nullable|boolean',
+                'backup_binary'           => 'nullable|boolean',
                 'ssh_password_encrypted'  => 'nullable|string',
                 'db_password_encrypted'   => 'nullable|string',
                 // Teks polos (dari templat) — dienkripsi mutator model saat disimpan.
@@ -204,6 +205,7 @@ class NodeConfigController extends Controller
                 $attrs['port'] = $attrs['port'] ?? 22;
                 $attrs['schedule_interval_hours'] = $attrs['schedule_interval_hours'] ?? 24;
                 $attrs['is_active'] = $attrs['is_active'] ?? true;
+                $attrs['backup_binary'] = $attrs['backup_binary'] ?? false;
 
                 $node = $isUpdate ? Node::find($existing[$name]) : new Node();
                 $node->fill($attrs);
