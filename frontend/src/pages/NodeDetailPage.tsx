@@ -4,7 +4,6 @@ import { Play, Terminal } from 'lucide-react'
 import { useNode, useRefreshDevice, useTriggerBackup } from '../hooks/useNodes'
 import { useAuth } from '../context/AuthContext'
 import { useBackupWatcher, isRunning } from '../hooks/useBackupWatcher'
-import { BackupProgress } from '../components/nodes/BackupProgress'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { LogViewer } from '../components/logs/LogViewer'
@@ -12,6 +11,8 @@ import { BackupFileList } from '../components/nodes/BackupFileList'
 import { RemoteTerminal } from '../components/nodes/RemoteTerminal'
 import { SimulasiPanel } from '../components/nodes/SimulasiPanel'
 import { DoctorPanel, PeranBadges } from '../components/nodes/DoctorPanel'
+import { ProsesBackup } from '../components/nodes/ProsesBackup'
+import { keadaan, useManual, lepasManual } from '../lib/prosesBackup'
 import { toast } from '../components/ui/toaster'
 import { cn, formatDatetimeWIB, formatBytes, formatDuration } from '../lib/utils'
 import type { BackupStatus } from '../types'
@@ -59,9 +60,10 @@ export default function NodeDetailPage() {
   const [searchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState<Tab>((searchParams.get('tab') as Tab | null) ?? 'logs')
   const refreshDevice = useRefreshDevice()
+  const manual = useManual().find((m) => m.id === id)
 
   // Versi RouterOS dibaca langsung dari router saat halaman dibuka, kecuali baru saja
-  // dibaca (5 menit) — backup terjadwal juga memperbaruinya.
+  // dibaca (5 menit): backup terjadwal juga memperbaruinya.
   const nodeData = data?.data
   useEffect(() => {
     if (nodeData?.type !== 'mikrotik') return
@@ -73,8 +75,7 @@ export default function NodeDetailPage() {
 
   const handleBackup = async () => {
     try {
-      await trigger.mutateAsync(id!)
-      toast('Backup dimulai, statusnya diperbarui otomatis', 'info')
+      await trigger.mutateAsync({ id: id!, name: data?.data.name ?? '', logTerakhir: data?.logs?.[0]?.id ?? null })
     } catch (err: any) {
       toast(err.response?.data?.message ?? 'Gagal memulai backup', 'error')
     }
@@ -117,6 +118,16 @@ export default function NodeDetailPage() {
   const totalCek = ringkas ? ringkas.kritis + ringkas.peringatan + ringkas.info + ringkas.ok : 0
   // Riwayat terbaru di kanan, seperti garis waktu.
   const riwayat = (data.logs ?? []).slice(0, 30).reverse()
+  const proses = keadaan(node, latestLog, manual)
+  // Perkiraan durasi: median 10 backup berhasil terakhir.
+  const durasiSukses = (data.logs ?? []).filter((l) => l.status === 'success' && l.duration_seconds != null)
+    .slice(0, 10).map((l) => l.duration_seconds!).sort((a, b) => a - b)
+  const biasanya = durasiSukses.length ? durasiSukses[Math.floor(durasiSukses.length / 2)] : null
+  const PULIH = {
+    siap: { teks: 'Siap', gaya: 'bg-[#BBF7D0] text-[#14532D]', nilai: 'Utuh, cocok' },
+    perhatian: { teks: 'Perhatian', gaya: 'bg-[#FEF3C7] text-[#92400E]', nilai: 'Bisa, dengan catatan' },
+    'tidak-bisa': { teks: 'Tidak bisa', gaya: 'bg-[#DC2626] text-white', nilai: 'Tidak cocok' },
+  } as const
   const gagal = riwayat.filter((l) => l.status === 'failed').length
 
   return (
@@ -191,16 +202,30 @@ export default function NodeDetailPage() {
         </section>
       )}
 
+      {proses && (
+        <section className="card p-5 md:p-6 ring-2 ring-[#C7CCFB] relative animate-masuk">
+          {proses.fase === 'selesai' && (
+            <button
+              onClick={() => lepasManual(node.id)}
+              className="absolute top-3 right-3 min-h-[36px] px-3 rounded-[10px] text-[13px] font-semibold text-[#475569] hover:bg-[#F1F2F7]"
+            >
+              Tutup
+            </button>
+          )}
+          <ProsesBackup node={node} k={proses} biasanya={biasanya} />
+        </section>
+      )}
+
       {/* Semua kartu membaca percobaan TERAKHIR (latestLog); umur sukses terakhir
           dimunculkan terpisah justru saat itu penting: ketika percobaan terakhir tidak sukses. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 berurutan">
+      <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-5 berurutan">
         <Kartu
           judul="Backup"
           pill={latestLog ? STATUS[latestLog.status] : { teks: 'Belum ada', gaya: 'bg-[#E5E7EB] text-[#374151]' }}
           nilai={formatDatetimeWIB(latestLog?.created_at ?? node.last_backup_at)}
         >
           {isRunning(latestLog?.status) ? (
-            <BackupProgress startedAt={latestLog?.created_at} />
+            <span className="font-semibold text-[#2E3AC2]">Sedang berjalan, lihat proses di atas.</span>
           ) : (
             <>
               Percobaan terakhir. Jadwal tiap {node.schedule_interval_hours} jam
@@ -236,6 +261,24 @@ export default function NodeDetailPage() {
               : 'Doctor berjalan otomatis tiap backup berhasil.'}
           </Kartu>
         )}
+        <Kartu
+            judul="Pulih"
+            pill={node.pulih ? PULIH[node.pulih.putusan] : null}
+            nilai={node.pulih ? PULIH[node.pulih.putusan].nilai : 'Belum ada'}
+          >
+            {!node.pulih
+              ? 'Belum ada backup berhasil yang bisa dipulihkan.'
+              : node.type !== 'mikrotik'
+                ? 'Dump terbaru lengkap dan sudah diperiksa saat dibuat.'
+                : node.pulih.putusan === 'siap'
+                  ? 'Backup terbaru utuh, model dan versinya cocok dengan router sekarang.'
+                  : 'Ada catatan sebelum memulihkan.'}
+            {node.type === 'mikrotik' && (
+              <button onClick={() => setActiveTab('simulasi')} className="block mt-1 font-semibold text-[#3442D9] hover:underline">
+                Lihat simulasi restore
+              </button>
+            )}
+          </Kartu>
       </div>
 
       {riwayat.length > 1 && (
@@ -310,7 +353,7 @@ export default function NodeDetailPage() {
             <DoctorPanel nodeId={node.id} laporan={node.doctor_report} dicek={node.doctor_checked_at} />
           )}
           {activeTab === 'simulasi' && node.type === 'mikrotik' && (
-            <SimulasiPanel nodeId={node.id} files={data.backup_files ?? []} />
+            <SimulasiPanel nodeId={node.id} files={data.backup_files ?? []} jejak={data.simulasi_terakhir} />
           )}
         </div>
       </section>

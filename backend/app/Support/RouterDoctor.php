@@ -6,7 +6,7 @@ namespace App\Support;
  * Doctor MikroTik: membandingkan konfigurasi router dengan standar Perwira (keamanan, sistem,
  * lisensi CHR, PPPoE, VPN/IP publik). Peran router dideteksi otomatis dari konfigurasinya.
  *
- * Murni — tidak menyentuh router. Data diambil sekali lewat script() (perintah baca saja,
+ * Murni, tidak menyentuh router. Data diambil sekali lewat script() (perintah baca saja,
  * satu sesi SSH), diurai parse(), lalu dinilai periksa(). Tesnya: php tests/router-doctor.php
  */
 final class RouterDoctor
@@ -84,7 +84,7 @@ final class RouterDoctor
                 continue;
             }
             if ($bagian === 'kv') {
-                // "print count-only" di dalam [] ikut mencetak angkanya di baris sendiri — dilewati.
+                // "print count-only" di dalam [] ikut mencetak angkanya di baris sendiri, dilewati.
                 if (preg_match('/^([\w-]+)=(.*)$/', trim($baris), $m)) {
                     $kv[$m[1]] = trim($m[2]);
                 }
@@ -130,9 +130,11 @@ final class RouterDoctor
 
     /**
      * @param array<string, string> $terbaru versi terbaru per kanal, mis. ['a7.long-term' => '7.23.8']
+     * @param array|null $standar standar Perwira (DoctorStandar); null = bawaan
      */
-    public static function periksa(array $data, array $terbaru = []): array
+    public static function periksa(array $data, array $terbaru = [], ?array $standar = null): array
     {
+        $s = DoctorStandar::rapikan($standar);
         $kv = $data['kv'];
         $d = $data['daftar'];
         $nyala = fn (string $k) => ($kv[$k] ?? '') === 'true';
@@ -155,26 +157,36 @@ final class RouterDoctor
         $terpapar = $k['publik'] && !$k['drop'];
 
         // Urutan = prioritas di antara status yang sama: akar masalah (lisensi, firewall) lebih dulu.
+        $noc = $s['noc'] ? implode(',', $s['noc']) : self::alamatNoc($layanan);
         $cek = array_values(array_filter([
-            $k['chr'] ? self::lisensi($kv) : null,
-            self::firewallInput($k, $kv, $d, $publik, $layanan),
+            $k['chr'] ? self::lisensi($kv, $s['lisensi_min']) : null,
+            self::firewallInput($k, $kv, $d, $publik, $noc),
             self::dnsTerbuka($kv, $k, $input, $publik),
-            self::aksesManajemen($layanan, $k),
-            self::layananPolos($layanan, $terpapar),
+            self::aksesManajemen($layanan, $k, $s['layanan_dibatasi'], $noc),
+            self::layananPolos($layanan, $terpapar, $s['layanan_mati']),
             self::bandwidthServer($kv, $k, $terpapar),
             self::proxyTerbuka($kv, $terpapar),
             $nyala('snmp') ? self::snmp($aktif('snmpc')) : null,
             self::macDanNeighbor($kv, $k),
             self::vpn($kv),
-            self::versi($kv, $k, $terbaru),
-            self::ntp($kv, $k),
-            self::sumberDaya($kv),
+            self::versi($kv, $k, $terbaru, $s['kanal']),
+            self::ntp($kv, $k, $s['ntp']),
+            self::sumberDaya($kv, $s['cpu_maks'], $s['ram_min'], $s['disk_min']),
             self::ruteDefault($kv),
             $k['pppoe'] ? self::mss($aktif('profile')) : null,
             $k['pppoe'] ? self::satuSesi($aktif('pppoe')) : null,
-            $nyala('radius-ppp') ? self::radius($kv) : null,
+            $nyala('radius-ppp') ? self::radius($kv, $s['interim']) : null,
             (int) ($kv['fasttrack'] ?? 0) > 0 ? self::fasttrack($kv) : null,
         ]));
+        // Standar: pemeriksaan yang dimatikan dibuang; tingkat temuan bisa dipaksa (mis. versi jadi info).
+        $cek = array_values(array_filter($cek, fn ($c) => DoctorStandar::aktif($s, $c['id'])));
+        foreach ($cek as &$c) {
+            $tingkat = $s['cek'][$c['id']]['tingkat'] ?? 'otomatis';
+            if ($c['status'] !== 'ok' && $tingkat !== 'otomatis') {
+                $c['status'] = $tingkat;
+            }
+        }
+        unset($c);
         usort($cek, fn ($a, $b) => self::URUTAN[$a['status']] <=> self::URUTAN[$b['status']]);
 
         $ringkasan = array_fill_keys(array_keys(self::URUTAN), 0);
@@ -196,39 +208,47 @@ final class RouterDoctor
 
     // ─── Keamanan ────────────────────────────────────────────────────────────
 
-    private static function layananPolos(array $layanan, bool $terpapar): array
+    private static function layananPolos(array $layanan, bool $terpapar, array $wajibMati): ?array
     {
-        $judul = 'Telnet, FTP, dan www (HTTP) dimatikan';
-        $nyala = array_values(array_intersect(['telnet', 'ftp', 'www'], array_keys($layanan)));
+        if (!$wajibMati) {
+            return null;
+        }
+        $judul = DoctorStandar::namaLayanan($wajibMati) . ' dimatikan';
+        $nyala = array_values(array_intersect($wajibMati, array_keys($layanan)));
         if (!$nyala) {
-            return self::item('layanan-polos', 'Keamanan', 'ok', $judul, 'Ketiganya mati.');
+            return self::item('layanan-polos', 'Keamanan', 'ok', $judul, count($wajibMati) > 1 ? 'Semuanya mati.' : 'Sudah mati.');
         }
         $tanpaBatas = array_filter($nyala, fn ($n) => ($layanan[$n]['address'] ?? '') === '');
+        $polos = array_intersect($nyala, ['telnet', 'ftp', 'www']);
 
         return self::item('layanan-polos', 'Keamanan', $terpapar && $tanpaBatas ? 'kritis' : 'peringatan', $judul,
-            'Masih aktif: ' . implode(', ', $nyala) . '. Protokol ini mengirim password tanpa enkripsi'
-            . ($terpapar && $tanpaBatas ? ' dan bisa dijangkau dari internet.' : '.'),
+            'Masih aktif: ' . implode(', ', $nyala) . '. Standar Perwira mewajibkan layanan ini mati'
+            . ($polos ? ' (' . implode(', ', $polos) . ' mengirim password tanpa enkripsi)' : '')
+            . ($terpapar && $tanpaBatas ? ', dan saat ini bisa dijangkau dari internet.' : '.'),
             implode("\n", array_map(fn ($n) => "/ip service set [find name={$n}] disabled=yes", $nyala)));
     }
 
-    private static function aksesManajemen(array $layanan, array $k): array
+    private static function aksesManajemen(array $layanan, array $k, array $dibatasi, string $noc): ?array
     {
-        $judul = 'Winbox, SSH, dan API dibatasi alamat NOC';
-        $terbuka = array_values(array_filter(['winbox', 'ssh', 'api', 'api-ssl', 'www-ssl'],
+        if (!$dibatasi) {
+            return null;
+        }
+        $judul = $dibatasi === DoctorStandar::BAWAAN['layanan_dibatasi']
+            ? 'Winbox, SSH, dan API dibatasi alamat NOC'
+            : DoctorStandar::namaLayanan($dibatasi) . ' dibatasi alamat NOC';
+        $terbuka = array_values(array_filter($dibatasi,
             fn ($n) => isset($layanan[$n]) && ($layanan[$n]['address'] ?? '') === ''));
         if (!$terbuka || !$k['publik']) {
             return self::item('akses-manajemen', 'Keamanan', 'ok', $judul,
                 $terbuka ? 'Tidak ada IP publik, jadi layanan tanpa batas alamat hanya terjangkau dari jaringan dalam.' : 'Semua layanan manajemen yang aktif sudah punya batas address.');
         }
-        $noc = self::alamatNoc($layanan);
-
         return self::item('akses-manajemen', 'Keamanan', $k['drop'] ? 'info' : 'kritis', $judul,
             'Tanpa batas address: ' . implode(', ', $terbuka) . '. '
-            . ($k['drop'] ? 'Saat ini dilindungi aturan drop di firewall; batas address jadi lapis kedua.' : 'Router ber-IP publik tanpa firewall input — siapa pun di internet bisa mencoba login.'),
+            . ($k['drop'] ? 'Saat ini dilindungi aturan drop di firewall; batas address jadi lapis kedua.' : 'Router ber-IP publik tanpa firewall input: siapa pun di internet bisa mencoba login.'),
             implode("\n", array_map(fn ($n) => "/ip service set [find name={$n}] address={$noc}", $terbuka)));
     }
 
-    private static function firewallInput(array $k, array $kv, array $d, array $publik, array $layanan): ?array
+    private static function firewallInput(array $k, array $kv, array $d, array $publik, string $noc): ?array
     {
         if (!$k['publik']) {
             return null;
@@ -238,9 +258,8 @@ final class RouterDoctor
             return self::item('firewall-input', 'Keamanan', 'ok', $judul, 'Ada aturan drop menyeluruh di chain input.');
         }
 
-        $noc = self::alamatNoc($layanan);
         $baris = [
-            '# Jalankan dalam Safe Mode (Ctrl+X) — kalau koneksi Anda terputus, perubahan dibatalkan otomatis.',
+            '# Jalankan dalam Safe Mode (Ctrl+X): kalau koneksi Anda terputus, perubahan dibatalkan otomatis.',
             '# Layanan lain yang memang dipakai dari internet (BGP tcp 179, API aplikasi, dll.) WAJIB ditambah accept sebelum baris drop.',
         ];
         foreach (explode(',', $noc) as $a) {
@@ -270,7 +289,7 @@ final class RouterDoctor
         }
 
         return self::item('firewall-input', 'Keamanan', 'kritis', $judul,
-            'Router punya IP publik (' . implode(', ', array_column($publik, 'address')) . ') tetapi chain input tidak punya aturan drop menyeluruh — '
+            'Router punya IP publik (' . implode(', ', array_column($publik, 'address')) . ') tetapi chain input tidak punya aturan drop menyeluruh: '
             . 'semua layanan router terbuka ke internet. Perbaikan di bawah disusun dari layanan VPN yang aktif di router ini.',
             implode("\n", $baris));
     }
@@ -286,7 +305,7 @@ final class RouterDoctor
             && preg_match('/(^|,)53(,|$)/', $r['dst-port'] ?? ''));
         if ($k['drop'] || $port53) {
             return self::item('dns-terbuka', 'Keamanan', 'ok', $judul,
-                $k['drop'] ? 'Melayani DNS, port 53 dari internet tertutup oleh drop menyeluruh.' : 'Melayani DNS, port 53 dari internet ditutup aturan drop khusus — pastikan semua interface WAN tercakup.');
+                $k['drop'] ? 'Melayani DNS, port 53 dari internet tertutup oleh drop menyeluruh.' : 'Melayani DNS, port 53 dari internet ditutup aturan drop khusus. Pastikan semua interface WAN tercakup.');
         }
         $wan = $publik[0]['interface'] ?? '<interface-WAN>';
 
@@ -365,7 +384,7 @@ final class RouterDoctor
     {
         if (($kv['pptp'] ?? '') === 'true') {
             return self::item('vpn', 'VPN', 'peringatan', 'Server VPN memakai protokol yang aman',
-                'PPTP server aktif. Enkripsinya (MPPE/MS-CHAPv2) sudah bisa dibobol — pindahkan klien ke L2TP/IPsec, SSTP, atau WireGuard.',
+                'PPTP server aktif. Enkripsinya (MPPE/MS-CHAPv2) sudah bisa dibobol; pindahkan klien ke L2TP/IPsec, SSTP, atau WireGuard.',
                 '/interface pptp-server server set enabled=no');
         }
         if (($kv['l2tp'] ?? '') === 'true' && ($kv['l2tp-ipsec'] ?? '') === 'no') {
@@ -378,14 +397,20 @@ final class RouterDoctor
 
     // ─── Sistem ──────────────────────────────────────────────────────────────
 
-    private static function versi(array $kv, array $k, array $terbaru): ?array
+    private static function versi(array $kv, array $k, array $terbaru, string $kanalStandar = 'ikuti'): ?array
     {
         if (!preg_match('/^(\S+)\s*\(([\w-]+)\)/', $kv['version'] ?? '', $m)) {
             return null;
         }
         [, $v, $kanal] = $m;
-        $baru = $terbaru[($k['mayor'] >= 7 ? 'a7.' : '6.') . $kanal] ?? null;
         $judul = 'RouterOS versi terbaru di kanalnya';
+        if ($kanalStandar !== 'ikuti' && $kanal !== $kanalStandar && in_array($kanal, ['long-term', 'stable', 'testing', 'development'], true)) {
+            return self::item('versi', 'Sistem', 'peringatan', $judul,
+                "Terpasang {$v} di kanal {$kanal}; standar Perwira memakai kanal {$kanalStandar}. "
+                . 'Ganti kanal lalu periksa pembaruan; pindah ke versi yang lebih lama butuh /system package downgrade.',
+                "/system package update set channel={$kanalStandar}\n/system package update check-for-updates");
+        }
+        $baru = $terbaru[($k['mayor'] >= 7 ? 'a7.' : '6.') . $kanal] ?? null;
         if (!$baru) {
             return self::item('versi', 'Sistem', 'info', $judul, "Terpasang {$v} ({$kanal}); versi terbaru tidak bisa dicek dari server MikroTik.");
         }
@@ -395,11 +420,11 @@ final class RouterDoctor
         }
 
         return self::item('versi', 'Sistem', 'peringatan', $judul,
-            "Terpasang {$v}, terbaru di kanal {$kanal}: {$baru}. Pembaruan biasanya memuat perbaikan keamanan.{$catatanV6} Pasang di luar jam sibuk — router akan reboot.",
+            "Terpasang {$v}, terbaru di kanal {$kanal}: {$baru}. Pembaruan biasanya memuat perbaikan keamanan.{$catatanV6} Pasang di luar jam sibuk karena router akan reboot.",
             "/system package update set channel={$kanal}\n/system package update install");
     }
 
-    private static function ntp(array $kv, array $k): array
+    private static function ntp(array $kv, array $k, array $server): array
     {
         $judul = 'Jam router disinkronkan NTP';
         if (($kv['ntp'] ?? '') === 'true') {
@@ -408,12 +433,11 @@ final class RouterDoctor
 
         return self::item('ntp', 'Sistem', 'peringatan', $judul,
             'NTP client mati: jam meleset membuat log, jadwal script, dan validasi sertifikat (SSTP) salah.',
-            $k['mayor'] >= 7
-                ? '/system ntp client set enabled=yes servers=id.pool.ntp.org,time.google.com'
-                : '/system ntp client set enabled=yes server-dns-names=id.pool.ntp.org,time.google.com');
+            ($k['mayor'] >= 7 ? '/system ntp client set enabled=yes servers=' : '/system ntp client set enabled=yes server-dns-names=')
+            . implode(',', $server ?: DoctorStandar::BAWAAN['ntp']));
     }
 
-    private static function sumberDaya(array $kv): ?array
+    private static function sumberDaya(array $kv, int $cpuMaks = 80, int $ramMin = 10, int $diskMin = 10): ?array
     {
         if (!is_numeric($kv['cpu'] ?? null)) {
             return null;
@@ -423,9 +447,9 @@ final class RouterDoctor
         $ram = $persen('mem-free', 'mem-total');
         $disk = $persen('hdd-free', 'hdd-total');
         $masalah = array_filter([
-            (int) $kv['cpu'] >= 80 ? "CPU {$kv['cpu']}%" : null,
-            $ram !== null && $ram < 10 ? "RAM bebas {$ram}%" : null,
-            $disk !== null && $disk < 10 ? "disk bebas {$disk}%" : null,
+            (int) $kv['cpu'] >= $cpuMaks ? "CPU {$kv['cpu']}% (batas {$cpuMaks}%)" : null,
+            $ram !== null && $ram < $ramMin ? "RAM bebas {$ram}% (minimal {$ramMin}%)" : null,
+            $disk !== null && $disk < $diskMin ? "disk bebas {$disk}% (minimal {$diskMin}%)" : null,
         ]);
         $detail = "CPU {$kv['cpu']}%, RAM bebas " . ($ram ?? '?') . '%, disk bebas ' . ($disk ?? '?') . '%.';
 
@@ -442,20 +466,27 @@ final class RouterDoctor
         return (int) $kv['default-route'] > 0
             ? self::item('rute-default', 'Sistem', 'ok', 'Ada rute default yang aktif', 'Rute 0.0.0.0/0 aktif.')
             : self::item('rute-default', 'Sistem', 'info', 'Ada rute default yang aktif',
-                'Tidak ada rute 0.0.0.0/0 yang aktif — router tidak bisa ke internet (cek pembaruan, NTP, DNS). Abaikan kalau memang disengaja.');
+                'Tidak ada rute 0.0.0.0/0 yang aktif: router tidak bisa ke internet (cek pembaruan, NTP, DNS). Abaikan kalau memang disengaja.');
     }
 
     // ─── CHR ─────────────────────────────────────────────────────────────────
 
-    private static function lisensi(array $kv): array
+    private static function lisensi(array $kv, string $minimal = 'p1'): array
     {
         $level = $kv['license'] ?? '?';
-        $judul = 'Lisensi CHR berbayar (P1 ke atas)';
+        $judul = $minimal === 'p1' ? 'Lisensi CHR berbayar (P1 ke atas)' : 'Lisensi CHR minimal ' . strtoupper($minimal);
+        $urutan = DoctorStandar::LISENSI;
+        // Berbayar tapi di bawah minimal standar (mis. P1 saat standar P10): perhatian, bukan kritis.
+        if (isset($urutan[$level]) && $level !== 'free' && $urutan[$level] < $urutan[$minimal]) {
+            return self::item('lisensi', 'CHR', 'peringatan', $judul,
+                'Lisensi ' . strtoupper($level) . ', standar Perwira minimal ' . strtoupper($minimal) . '.',
+                "/system license renew account=<akun-mikrotik> password=<password> level={$minimal}");
+        }
 
         return match ($level) {
             'free' => self::item('lisensi', 'CHR', 'kritis', $judul,
-                'Lisensi free membatasi upload 1 Mbps per interface — pelanggan di belakang CHR ini praktis tidak bisa dipakai.',
-                '/system license renew account=<akun-mikrotik> password=<password> level=p1'),
+                'Lisensi free membatasi upload 1 Mbps per interface: pelanggan di belakang CHR ini praktis tidak bisa dipakai.',
+                "/system license renew account=<akun-mikrotik> password=<password> level={$minimal}"),
             'p1' => self::item('lisensi', 'CHR', 'ok', $judul, 'Lisensi P1 (batas 1 Gbps per interface).'),
             'p10' => self::item('lisensi', 'CHR', 'ok', $judul, 'Lisensi P10 (batas 10 Gbps per interface).'),
             'unlimited', 'p-unlimited' => self::item('lisensi', 'CHR', 'ok', $judul, 'Lisensi unlimited.'),
@@ -474,7 +505,7 @@ final class RouterDoctor
         }
 
         return self::item('mss', 'PPPoE', 'peringatan', $judul,
-            'change-tcp-mss=no di profil: ' . implode(', ', $tanpa) . '. MTU PPPoE lebih kecil dari Ethernet — tanpa MSS clamping sebagian situs (HTTPS, aplikasi) menggantung saat dibuka.',
+            'change-tcp-mss=no di profil: ' . implode(', ', $tanpa) . '. MTU PPPoE lebih kecil dari Ethernet; tanpa MSS clamping sebagian situs (HTTPS, aplikasi) menggantung saat dibuka.',
             implode("\n", array_map(fn ($n) => "/ppp profile set [find name=\"{$n}\"] change-tcp-mss=yes", $tanpa)));
     }
 
@@ -492,18 +523,18 @@ final class RouterDoctor
             '/interface pppoe-server server set [find] one-session-per-host=yes');
     }
 
-    private static function radius(array $kv): array
+    private static function radius(array $kv, string $interim = '5m'): array
     {
         $judul = 'PPP RADIUS lengkap';
         if ((int) ($kv['radius'] ?? 0) === 0) {
             return self::item('radius', 'PPPoE', 'kritis', $judul,
-                'use-radius=yes tetapi tidak ada server RADIUS — pelanggan yang tidak punya secret lokal gagal login.',
+                'use-radius=yes tetapi tidak ada server RADIUS: pelanggan yang tidak punya secret lokal gagal login.',
                 '/radius add service=ppp address=<IP-RADIUS> secret=<secret>');
         }
         if (in_array($kv['interim'] ?? '', ['00:00:00', '0s'], true)) {
             return self::item('radius', 'PPPoE', 'info', $judul,
                 'interim-update=0: RADIUS hanya tahu sesi mulai/selesai, pemakaian & status online tidak diperbarui berkala.',
-                '/ppp aaa set interim-update=5m');
+                "/ppp aaa set interim-update={$interim}");
         }
 
         return self::item('radius', 'PPPoE', 'ok', $judul, 'RADIUS terpasang dan interim-update aktif.');
@@ -562,7 +593,7 @@ final class RouterDoctor
         return array_values(array_filter($filter, fn ($r) => isset($chain[$r['chain'] ?? ''])));
     }
 
-    /** Alamat NOC diambil dari batas address SSH router itu sendiri — standar yang sudah dipakai di sana. */
+    /** Alamat NOC diambil dari batas address SSH router itu sendiri, standar yang sudah dipakai di sana. */
     private static function alamatNoc(array $layanan): string
     {
         $ssh = $layanan['ssh']['address'] ?? '';

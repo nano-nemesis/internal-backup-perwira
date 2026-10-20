@@ -68,7 +68,7 @@ class AuthController extends Controller
                 'username' => (string) $request->input('username'),
             ]);
             return response()->json([
-                'message' => "Too many login attempts. Please try again in {$seconds} seconds.",
+                'message' => 'Terlalu banyak percobaan gagal. Coba lagi dalam ' . (int) ceil($seconds / 60) . " menit ({$seconds} detik).",
             ], 429);
         }
 
@@ -88,14 +88,19 @@ class AuthController extends Controller
                 'username' => (string) $request->username,
                 'sebab'    => $user ? 'password salah' : 'username tidak ada',
             ]);
-            return response()->json(['message' => 'Invalid credentials'], 401);
+            return response()->json([
+                'message' => $sisa > 0
+                    ? "Username atau password salah. Sisa {$sisa} percobaan sebelum dikunci 5 menit."
+                    : 'Username atau password salah. Login dari alamat IP ini dikunci 5 menit.',
+                'sisa' => $sisa,
+            ], 401);
         }
 
         if (!$user->is_active) {
             ActivityLog::warning('auth', 'login.nonaktif', "Login ditolak untuk '{$user->username}': akun sedang dinonaktifkan.", [
                 'username' => $user->username,
             ]);
-            return response()->json(['message' => 'Account is deactivated'], 403);
+            return response()->json(['message' => 'Akun ini sedang dinonaktifkan. Hubungi admin.'], 403);
         }
 
         RateLimiter::clear($key);

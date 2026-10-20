@@ -42,7 +42,7 @@ class Setting extends Model
                 return decrypt($row->value);
             } catch (\Throwable $e) {
                 // Umumnya karena APP_KEY dirotasi. Jangan menebak nilai lama.
-                Log::warning("Setting [{$key}] tidak bisa didekripsi — APP_KEY berubah?");
+                Log::warning("Setting [{$key}] tidak bisa didekripsi: APP_KEY berubah?");
                 return null;
             }
         }) ?? $default;

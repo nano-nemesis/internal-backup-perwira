@@ -156,8 +156,8 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
               value={form.backup_binary ? 'backup' : 'rsc'}
               onChange={(e) => set('backup_binary', e.target.value === 'backup')}
               options={[
-                { value: 'rsc', label: '.rsc — export teks (bisa dipulihkan ke perangkat lain)' },
-                { value: 'backup', label: '.backup — biner (restore penuh ke unit yang sama)' },
+                { value: 'rsc', label: '.rsc: export teks (bisa dipulihkan ke perangkat lain)' },
+                { value: 'backup', label: '.backup: biner (restore penuh ke unit yang sama)' },
               ]}
             />
             <p className="text-xs text-[#475569] mt-1.5">
@@ -173,7 +173,7 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-[#EEF0F6]">
             {directMysql && (
               <div className="sm:col-span-3 p-4 rounded-xl bg-[#EEF0FE] text-sm text-[#1E2A78]">
-                <strong>MySQL langsung</strong> — SSH User kosong, jadi VPS backup menjalankan{' '}
+                <strong>MySQL langsung</strong>: SSH User kosong, jadi VPS backup menjalankan{' '}
                 <code className="text-xs bg-white px-1 rounded">mysqldump</code> langsung ke{' '}
                 {form.host || 'host'}:{form.port}. Port biasanya 3306, dan user MySQL harus
                 diizinkan dari IP VPS backup.
@@ -203,7 +203,7 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
         {form.type === 'virtualizor_db' && (
           <div className="grid grid-cols-1 gap-4 pt-3 border-t border-[#EEF0F6]">
             <div className="p-4 rounded-xl bg-[#EEF0FE] text-sm text-[#1E2A78]">
-              <strong>Virtualizor DB Backup</strong> — Sistem akan pull file{' '}
+              <strong>Virtualizor DB Backup</strong>: Sistem akan pull file{' '}
               <code className="text-xs bg-white px-1 rounded">.sql.gz</code> terbaru
               dari node Virtualizor via SCP. Pastikan SSH user memiliki akses baca ke
               direktori backup.

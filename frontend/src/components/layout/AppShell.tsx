@@ -3,13 +3,14 @@ import { useState } from 'react'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
 import BottomNav from './BottomNav'
+import { BackupBerjalan } from '../nodes/BackupBerjalan'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { YangBaru, belumTerlihat } from '../YangBaru'
 
 export default function AppShell() {
   // Awalnya terbuka di desktop, tertutup di HP. Kalau selalu false, tombol hamburger
   // di desktop tidak terlihat berefek apa-apa karena sidebar dipaksa tampil lewat
-  // kelas md: — itu sebabnya tombolnya terasa 'tidak berfungsi'.
+  // kelas md:, itu sebabnya tombolnya terasa 'tidak berfungsi'.
   const [sidebarOpen, setSidebarOpen] = useState(
     () => typeof window !== 'undefined' && window.innerWidth >= 768,
   )
@@ -33,7 +34,7 @@ export default function AppShell() {
         <Topbar onToggleSidebar={() => setSidebarOpen((v) => !v)} />
         {/* pb di HP: ruang untuk navigasi bawah (56px + padding) supaya baris terakhir tidak tertutup. */}
         <main className="flex-1 overflow-y-auto px-4 pt-2 pb-[calc(6rem+env(safe-area-inset-bottom))] md:px-6 md:pb-6">
-          {/* key={pathname}: tanpa ini, state error bertahan setelah pindah halaman —
+          {/* key={pathname}: tanpa ini, state error bertahan setelah pindah halaman,
               teknisi klik menu lain tapi tetap terjebak di layar error. */}
           <ErrorBoundary key={location.pathname}>
             {/* Ganti halaman dengan sedikit gerak naik, bukan berkedip. */}
@@ -44,6 +45,7 @@ export default function AppShell() {
         </main>
       </div>
       <BottomNav onLainnya={() => setSidebarOpen(true)} />
+      <BackupBerjalan />
       <YangBaru open={baru} onClose={() => setBaru(false)} />
     </div>
   )

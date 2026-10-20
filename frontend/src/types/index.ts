@@ -45,12 +45,17 @@ export interface Node {
   latest_log?: BackupLog | null
   next_run_at?: string | null
   schedule?: NodeSchedule | null
+  /** Lampu Pulih: backup berhasil terakhir bisa dipulihkan ke perangkat sekarang? null = belum ada. */
+  pulih?: { putusan: 'siap' | 'perhatian' | 'tidak-bisa'; berkas: string } | null
+  created_at?: string | null
 }
 
 export interface BackupLog {
   id: string
   node_id?: string
   status: BackupStatus
+  /** Tahap yang sedang berjalan (ambil, simpan, salin, dump, kompres, cari, periksa, doctor). */
+  tahap?: string | null
   file_path?: string | null
   file_size?: number | null
   file_size_formatted?: string
@@ -139,10 +144,22 @@ export interface NodeFormData {
   backup_binary: boolean
 }
 
+export type HasilTelegram = 'terkirim' | 'dimatikan' | 'jeda' | 'belum-diatur' | 'gagal'
+
 export interface NodeDetailResponse {
   data: Node
   logs: BackupLog[]
   backup_files: BackupFile[]
+  /** Jejak simulasi gangguan terakhir (MikroTik). */
+  simulasi_terakhir?: {
+    waktu: string
+    selesai: string | null
+    error: string
+    log_sistem: { level: string; aksi: string } | null
+    sebab: string | null
+    telegram: HasilTelegram | null
+    pulih: { waktu: string; telegram: HasilTelegram | null } | null
+  } | null
 }
 
 export interface NodesResponse {

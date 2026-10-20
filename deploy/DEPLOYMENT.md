@@ -1,6 +1,6 @@
-# Deployment Guide — internal-backup-perwira
+# Deployment Guide, internal-backup-perwira
 
-## Cara cepat — skrip otomatis
+## Cara cepat, skrip otomatis
 
 Untuk VPS Ubuntu baru, seluruh panduan di bawah sudah dibungkus jadi satu skrip yang
 menanyakan hal-hal berisiko sebelum menjalankannya:
@@ -13,12 +13,12 @@ cd /var/www/internal-backup-perwira
 sudo bash deploy/vps-setup.sh
 ```
 
-Skrip ini **aman dijalankan berulang** — dipakai juga untuk memperbarui
+Skrip ini **aman dijalankan berulang**: dipakai juga untuk memperbarui
 (`git pull` lalu jalankan lagi). Yang dijaga khusus:
 
 - **`APP_KEY` tidak pernah diganti** kalau sudah ada. Menggantinya membuat semua
   password SSH/DB node yang tersimpan tidak bisa didekripsi.
-- **Password database tidak dirotasi** pada jalan ulang — dibaca kembali dari `.env`.
+- **Password database tidak dirotasi** pada jalan ulang, dibaca kembali dari `.env`.
 - `.env` lama dicadangkan sebelum disunting.
 - `SANCTUM_STATEFUL_DOMAINS`, `SESSION_DOMAIN`, dan `APP_URL` diarahkan ke IP VPS.
   Tanpa itu login **tidak akan pernah berhasil** lewat `http://IP_VPS`: Sanctum hanya
@@ -27,7 +27,7 @@ Skrip ini **aman dijalankan berulang** — dipakai juga untuk memperbarui
 - Kalau ada `backup-api.service` sisa deploy lama (`artisan serve`), ditawarkan untuk
   dimatikan dan dihapus.
 
-Bagian di bawah adalah rujukan manual — berguna untuk memahami atau memperbaiki
+Bagian di bawah adalah rujukan manual, berguna untuk memahami atau memperbaiki
 langkah tertentu kalau skripnya berhenti di tengah.
 
 ---
@@ -115,7 +115,7 @@ php8.3 artisan migrate
 # Seed admin user (development only)
 php8.3 artisan db:seed
 
-# Storage symlink — TIDAK diperlukan oleh aplikasi ini.
+# Storage symlink: TIDAK diperlukan oleh aplikasi ini.
 # Berkas backup diunduh lewat /api/backup-files/download dan
 # /api/nodes/{id}/download/{file}, bukan lewat /storage, dan deploy/nginx.conf
 # memang tidak lagi melayani /storage. Jalankan hanya kalau Anda menambahkan
@@ -166,10 +166,10 @@ Laravel dijalankan oleh **php-fpm**, bukan `artisan serve`.
 
 > `artisan serve` adalah server pengembangan bawaan PHP: ia melayani **satu request pada
 > satu waktu**. Satu unduhan backup besar akan membekukan seluruh API selama unduhan
-> berlangsung — dashboard mati dan backup manual tidak bisa dipicu. Jangan dipakai di VPS.
+> berlangsung, dashboard mati dan backup manual tidak bisa dipicu. Jangan dipakai di VPS.
 
 ```bash
-# Pool default Ubuntu sudah berjalan sebagai www-data — sama dengan pemilik storage/
+# Pool default Ubuntu sudah berjalan sebagai www-data, sama dengan pemilik storage/
 # dan dengan queue worker, jadi tidak ada yang perlu diubah soal izin berkas.
 sudo systemctl enable --now php8.3-fpm
 
@@ -212,7 +212,7 @@ php8.3 artisan config:cache
 php8.3 artisan route:cache
 ```
 
-> Ulangi kedua perintah itu **setiap kali `.env` diubah** — kalau tidak, perubahan `.env`
+> Ulangi kedua perintah itu **setiap kali `.env` diubah**: kalau tidak, perubahan `.env`
 > tidak terbaca. Batalkan dengan `artisan config:clear && artisan route:clear`.
 
 ---

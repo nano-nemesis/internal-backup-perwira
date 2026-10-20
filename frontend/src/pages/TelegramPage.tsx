@@ -237,7 +237,7 @@ export default function TelegramPage() {
             <div className="self-start max-w-[92%] bg-white rounded-[16px_16px_16px_4px] px-3.5 py-3 shadow-[0_1px_1px_rgba(15,23,42,0.08)] animate-masuk">
               <p className="font-extrabold">❌ Backup Gagal</p>
               <p className="mt-1.5">📦 Node: <code className={kode}>RMT-SG-03</code> · mikrotik<br />🖥 Host: <code className={kode}>198.51.100.31</code></p>
-              <p className="mt-2"><b>💡 Kemungkinan sebab:</b><br />Perangkat tidak menjawab — kemungkinan mati, sibuk, atau terhalang firewall</p>
+              <p className="mt-2"><b>💡 Kemungkinan sebab:</b><br />Perangkat tidak menjawab: kemungkinan mati, sibuk, atau terhalang firewall</p>
               <p className="mt-2 text-[#475569]">📅 Sukses terakhir: 20 Oct 2026 01:02 WIB<br /><i>/node RMT-SG-03 untuk detail</i></p>
               <p className="mt-1 text-right text-[11px] text-[#64748B]">{jam}</p>
             </div>

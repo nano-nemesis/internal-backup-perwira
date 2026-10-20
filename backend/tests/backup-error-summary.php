@@ -14,7 +14,7 @@ $kasus = [
     ['SSH command gagal ke 10.0.0.7 (exit code 5): password ditolak (sshpass exit 5)', 'Autentikasi SSH'],
     ['ssh: Could not resolve hostname rb-x: Name or service not known', 'tidak terjangkau'],
     ["Output /export kosong dari 10.10.0.1. Pastikan user SSH memiliki policy 'read' di MikroTik.", 'policy'],
-    ["Dump dari 10.0.0.9 tidak lengkap — penanda '-- Dump completed' tidak ditemukan.", 'terputus'],
+    ["Dump dari 10.0.0.9 tidak lengkap: penanda '-- Dump completed' tidak ditemukan.", 'terputus'],
     ["mysqldump: Got error: 1049: Unknown database 'billingx'", 'tidak ditemukan'],
     ["mysqldump: Got error: 1045: Access denied for user 'backup'@'localhost' (using password: YES)", 'Kredensial MySQL'],
     ['Backup terbaru di 10.10.9.5 sudah basi: [20260801.sql.gz] berumur 28 hari.', 'Virtualizor'],
@@ -38,4 +38,4 @@ foreach (['', '   ', 'sesuatu yang sama sekali baru dan tak dikenal'] as $x) {
 }
 
 if ($gagal) { fwrite(STDERR, implode("\n", $gagal) . "\n"); exit(1); }
-printf("OK — %d pesan error dikenali, dan error asing tetap null\n", count($kasus));
+printf("OK: %d pesan error dikenali, dan error asing tetap null\n", count($kasus));

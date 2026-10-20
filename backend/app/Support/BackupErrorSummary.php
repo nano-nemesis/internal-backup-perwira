@@ -15,61 +15,61 @@ namespace App\Support;
  */
 class BackupErrorSummary
 {
-    /** [pola, sebab singkat] — dicek berurutan, yang pertama cocok dipakai. */
+    /** [pola, sebab singkat], dicek berurutan, yang pertama cocok dipakai. */
     private const POLA = [
         // Didahulukan: pesannya memuat "Permission denied" juga, tapi sebabnya
         // sama sekali berbeda dari penolakan autentikasi SSH.
         ['/mkdir\(\)|failed to open stream.*permission/i',
-         'Folder backup tidak bisa dibuat di VPS — periksa kepemilikan storage/app/backups'],
+         'Folder backup tidak bisa dibuat di VPS. Periksa kepemilikan storage/app/backups'],
 
         ['/exit code 127|command not found|not found.*sshpass|sshpass.*not found/i',
-         'sshpass belum terpasang di VPS backup — pasang, atau pindah ke autentikasi SSH key'],
+         'sshpass belum terpasang di VPS backup. Pasang, atau pindah ke autentikasi SSH key'],
 
         // RouterOS menolak perintah karena policy grup user-nya kurang.
         ['/not enough permissions/i',
-         'User router tidak punya policy untuk perintah ini — backup biner (.backup) butuh write + policy + ftp'],
+         'User router tidak punya policy untuk perintah ini. Backup biner (.backup) butuh write + policy + ftp'],
 
         ['/permission denied|publickey|authentication failed|auth fail|password ditolak/i',
-         'Autentikasi SSH ditolak perangkat — periksa user, password, atau public key yang terpasang'],
+         'Autentikasi SSH ditolak perangkat. Periksa user, password, atau public key yang terpasang'],
 
         ['/connection timed out|operation timed out|timed out/i',
-         'Perangkat tidak menjawab — kemungkinan mati, sibuk, atau terhalang firewall'],
+         'Perangkat tidak menjawab: kemungkinan mati, sibuk, atau terhalang firewall'],
 
         ['/connection closed by|connection reset by|kex_exchange_identification/i',
-         'Router memutus koneksi SSH sebelum login — periksa /ip service ssh (address=), firewall input, atau blacklist brute-force'],
+         'Router memutus koneksi SSH sebelum login. Periksa /ip service ssh (address=), firewall input, atau blacklist brute-force'],
 
         ['/connection refused/i',
-         'Koneksi ditolak — layanan SSH mati atau portnya berbeda'],
+         'Koneksi ditolak: layanan SSH mati atau portnya berbeda'],
 
         ['/no route to host|network is unreachable|could not resolve|name or service not known/i',
-         'Perangkat tidak terjangkau dari VPS backup — periksa jaringan atau alamat host'],
+         'Perangkat tidak terjangkau dari VPS backup. Periksa jaringan atau alamat host'],
 
         ['/output \/export kosong|policy .?read/i',
          'User MikroTik belum punya policy `read`, sehingga /export tidak menghasilkan apa pun'],
 
         ['/tidak lengkap|-- Dump completed/i',
-         'Dump terputus di tengah jalan — hasilnya tidak utuh, jadi sengaja ditolak'],
+         'Dump terputus di tengah jalan. Hasilnya tidak utuh, jadi sengaja ditolak'],
 
         ['/unknown database/i',
          'Nama database tidak ditemukan di server target'],
 
         ['/access denied for user|using password/i',
-         'Kredensial MySQL ditolak — periksa user, password, dan grant-nya'],
+         'Kredensial MySQL ditolak. Periksa user, password, dan grant-nya'],
 
         ['/mysqldump: not found|mysqldump.*command not found/i',
          'mysqldump belum terpasang di server target (paket mysql-client)'],
 
         ['/sudah basi|berumur \d+ hari/i',
-         'Virtualizor berhenti membuat dump baru — periksa cron backup di node tersebut'],
+         'Virtualizor berhenti membuat dump baru. Periksa cron backup di node tersebut'],
 
         ['/tidak ada file backup ditemukan/i',
          'Direktori backup Virtualizor kosong atau pathnya salah'],
 
         ['/bukan sql dump yang valid/i',
-         'Keluaran bukan SQL dump — biasanya kredensial atau nama database salah'],
+         'Keluaran bukan SQL dump. Biasanya kredensial atau nama database salah'],
 
         ['/gagal membuka proses|gagal menyimpan file|gagal membuat file/i',
-         'VPS backup gagal menulis berkas — periksa ruang disk dan izin folder backup'],
+         'VPS backup gagal menulis berkas. Periksa ruang disk dan izin folder backup'],
 
     ];
 

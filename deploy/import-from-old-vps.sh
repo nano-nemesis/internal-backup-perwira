@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# import-from-old-vps.sh — tarik daftar node dari instalasi LAMA ke instalasi ini.
+# import-from-old-vps.sh, tarik daftar node dari instalasi LAMA ke instalasi ini.
 #
 # Dijalankan di VPS BARU, dari dalam repo:
 #
@@ -19,7 +19,7 @@ OLD_DIR=${2:-/var/www/internal-backup-perwira/backend}
 cd "$(dirname "$0")/../backend"
 
 echo "==> Membaca node dari $OLD:$OLD_DIR"
-# Instalasi lama bisa jadi masih Laravel 10 — kode ini sengaja hanya memakai
+# Instalasi lama bisa jadi masih Laravel 10, kode ini sengaja hanya memakai
 # DB::table + decrypt(), yang ada di kedua versi.
 if ! JSON=$(ssh "$OLD" "cd $(printf %q "$OLD_DIR") && php" <<'PHP'
 <?php
@@ -30,7 +30,7 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 $dec = function ($v, $label) {
     if (! $v) return null;
     try { return decrypt($v); } catch (Throwable $e) {
-        fwrite(STDERR, "    ! $label: gagal didekripsi, dikosongkan — isi ulang lewat UI\n");
+        fwrite(STDERR, "    ! $label: gagal didekripsi, dikosongkan, isi ulang lewat UI\n");
         return null;
     }
 };
@@ -86,7 +86,7 @@ foreach ($data['errors'] ?? [] as $e) echo "      ✗ " . ($e['name'] ?? "#{$e['
 if (getenv('DRY') === '1') foreach ($rows as $r) {
     if ($r['ssh_key_path']) {
         $ada = is_file($r['ssh_key_path']) ? 'ada, tapi pastikan public key-nya terpasang di target' : 'TIDAK ADA di VPS ini';
-        echo "      ! {$r['name']}: ssh_key_path {$r['ssh_key_path']} — $ada\n";
+        echo "      ! {$r['name']}: ssh_key_path {$r['ssh_key_path']}, $ada\n";
     }
 }
 exit($res->status() === 200 ? 0 : 1);

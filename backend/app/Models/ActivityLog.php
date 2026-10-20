@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Log;
 /**
  * Log aktivitas yang tampil di halaman Log Sistem.
  *
- * Pakai ActivityLog::catat() — bukan create() — supaya user, IP, dan salinan ke
+ * Pakai ActivityLog::catat(): bukan create(): supaya user, IP, dan salinan ke
  * laravel.log terisi otomatis, dan supaya gagal menulis log TIDAK PERNAH
  * menggagalkan pekerjaan yang sedang dicatat (backup tetap jalan walau DB log error).
  */

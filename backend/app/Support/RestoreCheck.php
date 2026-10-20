@@ -4,7 +4,7 @@ namespace App\Support;
 
 /**
  * Simulasi restore: menilai apakah berkas backup MikroTik bisa dipulihkan ke perangkat
- * yang terpasang sekarang, TANPA menyentuh router — hanya header berkas + versi/model
+ * yang terpasang sekarang, TANPA menyentuh router, hanya header berkas + versi/model
  * yang tercatat. Hasilnya juga memuat langkah restore (runbook) untuk berkas itu.
  * Tesnya: php tests/restore-check.php
  */
@@ -59,12 +59,12 @@ final class RestoreCheck
 
         return match (true) {
             $magic === self::MAGIC_POLOS && $panjang === $ukuran => self::item('ok', $judul,
-                "Header backup RouterOS valid dan panjang tercatatnya cocok ({$ukuran} byte) — berkas utuh."),
+                "Header backup RouterOS valid dan panjang tercatatnya cocok ({$ukuran} byte): berkas utuh."),
             $magic === self::MAGIC_POLOS => self::item('gagal', $judul,
-                "Header menyebut {$panjang} byte tapi berkasnya {$ukuran} byte — berkas terpotong atau rusak."),
+                "Header menyebut {$panjang} byte tapi berkasnya {$ukuran} byte: berkas terpotong atau rusak."),
             in_array($magic, self::MAGIC_TERENKRIPSI, true) => self::item('peringatan', $judul,
                 'Berkas terenkripsi: restore butuh password saat backup dibuat, dan keutuhannya tak bisa dicek tanpa password.'),
-            default => self::item('gagal', $judul, 'Bukan berkas backup RouterOS (header tidak dikenali) — kemungkinan rusak.'),
+            default => self::item('gagal', $judul, 'Bukan berkas backup RouterOS (header tidak dikenali): kemungkinan rusak.'),
         };
     }
 
@@ -79,7 +79,7 @@ final class RestoreCheck
             ? self::item('ok', 'Integritas berkas',
                 'Header export RouterOS terbaca. Export yang terputus di tengah sudah ditolak saat backup, jadi isinya lengkap.')
             : self::item('peringatan', 'Integritas berkas',
-                'Header "by RouterOS" tidak ditemukan — pastikan ini hasil /export yang utuh.');
+                'Header "by RouterOS" tidak ditemukan. Pastikan ini hasil /export yang utuh.');
 
         return [$item, $v[1] ?? null, $m[1] ?? null];
     }
@@ -91,15 +91,15 @@ final class RestoreCheck
             return self::item('peringatan', $judul, 'Model saat backup tidak tercatat (berkas dibuat sebelum fitur ini).');
         }
         if (!$sekarang) {
-            return self::item('peringatan', $judul, "Backup dari {$backup}; model perangkat sekarang belum terbaca — klik \"Cek sekarang\".");
+            return self::item('peringatan', $judul, "Backup dari {$backup}; model perangkat sekarang belum terbaca. Tekan \"Cek sekarang\".");
         }
         if (strcasecmp($backup, $sekarang) === 0) {
             return self::item('ok', $judul, "Sama: {$sekarang}.");
         }
 
         return $biner
-            ? self::item('gagal', $judul, ".backup dari {$backup} tidak bisa dipakai di {$sekarang} — backup biner hanya untuk model yang sama. Pakai .rsc.")
-            : self::item('peringatan', $judul, "Backup dari {$backup}, perangkat sekarang {$sekarang}: nama interface/port bisa beda — sunting berkasnya sebelum import.");
+            ? self::item('gagal', $judul, ".backup dari {$backup} tidak bisa dipakai di {$sekarang}: backup biner hanya untuk model yang sama. Pakai .rsc.")
+            : self::item('peringatan', $judul, "Backup dari {$backup}, perangkat sekarang {$sekarang}: nama interface/port bisa beda; sunting berkasnya sebelum import.");
     }
 
     private static function cocokVersi(bool $biner, ?string $backup, ?string $sekarang): array
@@ -110,7 +110,7 @@ final class RestoreCheck
         }
         $b = self::versi($backup);
         if (!$sekarang) {
-            return self::item('peringatan', $judul, "Backup dari RouterOS {$b}; versi perangkat sekarang belum terbaca — klik \"Cek sekarang\".");
+            return self::item('peringatan', $judul, "Backup dari RouterOS {$b}; versi perangkat sekarang belum terbaca. Tekan \"Cek sekarang\".");
         }
         $s = self::versi($sekarang);
         if ($b === $s) {
@@ -124,7 +124,7 @@ final class RestoreCheck
                 : self::item('peringatan', $judul, "Backup dari RouterOS {$b}, router sekarang {$s}. Paling aman samakan dulu ke {$b}, baru restore.");
         }
         if ((int) $b !== (int) $s) {
-            return self::item('peringatan', $judul, "Export dari RouterOS {$b}, router sekarang {$s}: beda versi mayor, sintaks beberapa menu berubah — sebagian baris bisa gagal di-import.");
+            return self::item('peringatan', $judul, "Export dari RouterOS {$b}, router sekarang {$s}: beda versi mayor. Sintaks beberapa menu berubah, jadi sebagian baris bisa gagal di-import.");
         }
 
         return $lebihBaru
@@ -140,9 +140,9 @@ final class RestoreCheck
         return [
             "Siapkan unit {$model} dengan RouterOS {$versi}. Cek dengan: /system resource print",
             "Unggah {$nama} ke router: Winbox → Files (seret berkas), atau scp -O {$nama} admin@IP-ROUTER:",
-            "Jalankan: /system backup load name={$nama} password=\"\" — router akan reboot.",
+            "Jalankan: /system backup load name={$nama} password=\"\" (router akan reboot).",
             'Setelah menyala, cek: /interface print, /ip address print, /ppp active print, /log print',
-            'Unit pengganti beda fisik? MAC lama ikut terpulihkan — pastikan unit lama mati, atau jalankan /interface ethernet reset-mac-address [find]',
+            'Unit pengganti beda fisik? MAC lama ikut terpulihkan. Pastikan unit lama mati, atau jalankan /interface ethernet reset-mac-address [find]',
             'Yang TIDAK ikut .backup: isi Files (halaman hotspot, berkas sertifikat), database User Manager & Dude, lisensi. Pulihkan terpisah bila dipakai.',
         ];
     }
@@ -151,7 +151,7 @@ final class RestoreCheck
     {
         return [
             "Siapkan router (boleh unit atau model lain), unggah {$nama} lewat Winbox → Files atau scp -O.",
-            "Paling bersih — reset lalu jalankan otomatis: /system reset-configuration no-defaults=yes skip-backup=yes run-after-reset={$nama}",
+            "Cara paling bersih adalah reset lalu jalankan otomatis: /system reset-configuration no-defaults=yes skip-backup=yes run-after-reset={$nama}",
             "Atau di router yang sudah kosong: /import file-name={$nama} verbose=yes (verbose menunjukkan baris yang gagal).",
             'Model berbeda? Sunting nama interface (ether/sfp) di berkas sebelum import.',
             'Yang TIDAK ikut .rsc: password user router (buat ulang user admin), sertifikat, isi Files (halaman hotspot), User Manager & Dude.',

@@ -18,7 +18,7 @@ class NodeController extends Controller
 {
     public function index(): JsonResponse
     {
-        $nodes = Node::with(['latestBackupLog', 'schedule'])->get()->map(function (Node $node) {
+        $nodes = Node::with(['latestBackupLog', 'latestSuccessLog', 'schedule'])->get()->map(function (Node $node) {
             return [
                 'id' => $node->id,
                 'name' => $node->name,
@@ -41,12 +41,15 @@ class NodeController extends Controller
                 'latest_log' => $node->latestBackupLog ? [
                     'id' => $node->latestBackupLog->id,
                     'status' => $node->latestBackupLog->status,
+                    'tahap' => $node->latestBackupLog->tahap,
                     'file_size' => $node->latestBackupLog->file_size,
                     'file_size_formatted' => $node->latestBackupLog->file_size_formatted,
                     'duration_seconds' => $node->latestBackupLog->duration_seconds,
                     'created_at' => $node->latestBackupLog->created_at,
                 ] : null,
                 'next_run_at' => $node->schedule?->next_run_at,
+                'pulih' => $this->pulih($node),
+                'created_at' => $node->created_at,
             ];
         });
 
@@ -72,6 +75,7 @@ class NodeController extends Controller
             ->map(fn (BackupLog $log) => [
                 'id' => $log->id,
                 'status' => $log->status,
+                'tahap' => $log->tahap,
                 'file_path' => $log->file_path ? basename($log->file_path) : null,
                 'file_size' => $log->file_size,
                 'file_size_formatted' => $log->file_size_formatted,
@@ -106,8 +110,10 @@ class NodeController extends Controller
                 'doctor_checked_at' => $node->doctor_checked_at,
                 'last_backup_at' => $node->last_backup_at,
                 'schedule' => $node->load('schedule')->schedule,
+                'pulih' => $this->pulih($node->load('latestSuccessLog')),
             ],
             'logs' => $logs,
+            'simulasi_terakhir' => $node->type === 'mikrotik' ? $this->simulasiTerakhir($node) : null,
             'backup_files' => $backupFiles,
         ]);
     }
@@ -134,7 +140,7 @@ class NodeController extends Controller
             return response()->json(['message' => 'Remote execute is only available for MikroTik nodes'], 422);
         }
 
-        // Pembatas karakter di bawah TIDAK menahan injeksi shell — itu sudah ditutup
+        // Pembatas karakter di bawah TIDAK menahan injeksi shell, itu sudah ditutup
         // escapeshellarg() di MikrotikService. Ia cuma mempersempit permukaan input.
         $request->validate([
             'command' => [
@@ -216,7 +222,7 @@ class NodeController extends Controller
         }
     }
 
-    /** Antrekan doctor untuk semua MikroTik aktif — berjalan berurutan di antrean backup. */
+    /** Antrekan doctor untuk semua MikroTik aktif, berjalan berurutan di antrean backup. */
     public function doctorAll(): JsonResponse
     {
         $ids = Node::where('type', 'mikrotik')->where('is_active', true)->pluck('id');
@@ -237,7 +243,7 @@ class NodeController extends Controller
         return response()->json(['message' => "Doctor diantrekan untuk {$ids->count()} router"]);
     }
 
-    /** Simulasi restore satu berkas — hanya membaca header berkas, router tidak disentuh. */
+    /** Simulasi restore satu berkas, hanya membaca header berkas, router tidak disentuh. */
     public function restoreCheck(string $id, string $filename): JsonResponse
     {
         $node = Node::findOrFail($id);
@@ -265,7 +271,7 @@ class NodeController extends Controller
 
         BackupJob::dispatch($node->id, $request->user()->username, $data['skenario'])->onQueue('backup');
         ActivityLog::warning('backup', 'backup.simulasi',
-            "Simulasi gangguan '{$data['skenario']}' untuk {$node->name} dimasukkan ke antrean — notifikasi Telegram akan terkirim.",
+            "Simulasi gangguan '{$data['skenario']}' untuk {$node->name} dimasukkan ke antrean, notifikasi Telegram akan terkirim.",
             ['skenario' => $data['skenario']], $node);
 
         return response()->json(['message' => 'Simulasi dimasukkan ke antrean']);
@@ -275,6 +281,60 @@ class NodeController extends Controller
      * basename() membuang komponen direktori; realpath() lalu memastikan hasilnya tetap
      * di dalam direktori backup. null = tidak ada / di luar batas.
      */
+    /**
+     * Lampu "Pulih": apakah backup berhasil terakhir bisa dipulihkan ke perangkat yang terpasang
+     * sekarang. MikroTik dinilai RestoreCheck (baca header berkas, maks 4 KB); dump database dan
+     * Virtualizor sudah diperiksa kelengkapannya saat backup, jadi berkas yang ada = siap.
+     *
+     * @return array{putusan: string, berkas: string}|null null = belum ada backup berhasil
+     */
+    private function pulih(Node $node): ?array
+    {
+        $log = $node->latestSuccessLog;
+        if (! $log || ! is_file($log->file_path)) {
+            return null;
+        }
+        $berkas = basename($log->file_path);
+        if ($node->type !== 'mikrotik' || ! preg_match('/\.(rsc|backup)$/', $berkas)) {
+            return ['putusan' => 'siap', 'berkas' => $berkas];
+        }
+
+        return ['putusan' => RestoreCheck::periksa(
+            $log->file_path,
+            ['version' => $node->routeros_version, 'model' => $node->routeros_model],
+            ['version' => $log->routeros_version, 'model' => $log->routeros_model],
+        )['putusan'], 'berkas' => $berkas];
+    }
+
+    /**
+     * Jejak simulasi gangguan terakhir: backup gagal bertanda [SIMULASI], hasil kiriman Telegram
+     * dan catatan Log Sistem-nya, lalu backup berhasil pertama sesudahnya (pulih).
+     */
+    private function simulasiTerakhir(Node $node): ?array
+    {
+        $sim = BackupLog::where('node_id', $node->id)->where('error_message', 'like', '[SIMULASI]%')
+            ->orderByDesc('created_at')->first();
+        if (! $sim) {
+            return null;
+        }
+        $catatan = fn (string $aksi, $sejak) => ActivityLog::where('node_id', $node->id)->where('aksi', $aksi)
+            ->whereBetween('created_at', [$sejak, $sejak->copy()->addMinutes(10)])->orderBy('created_at')->first();
+        $gagal = $catatan('backup.gagal', $sim->created_at);
+        $pulih = BackupLog::where('node_id', $node->id)->where('status', 'success')
+            ->where('created_at', '>', $sim->created_at)->orderBy('created_at')->first();
+        $berhasil = $pulih ? $catatan('backup.berhasil', $pulih->created_at) : null;
+
+        return [
+            'waktu' => $sim->created_at,
+            'selesai' => $sim->finished_at,
+            'error' => $sim->error_message,
+            'log_sistem' => $gagal ? ['level' => $gagal->level, 'aksi' => $gagal->aksi] : null,
+            'sebab' => $gagal?->konteks['sebab'] ?? null,
+            'telegram' => $gagal?->konteks['telegram'] ?? null,
+            'pulih' => $pulih ? ['waktu' => $pulih->created_at, 'telegram' => $berhasil?->konteks['telegram'] ?? null] : null,
+        ];
+    }
+
     private function resolveBackupFile(Node $node, string $filename): ?string
     {
         $safeName = basename($filename);

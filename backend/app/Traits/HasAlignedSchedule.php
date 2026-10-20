@@ -17,7 +17,7 @@ trait HasAlignedSchedule
         // config('app.timezone') = 'Asia/Jakarta', jadi Eloquent menulis Carbon apa
         // adanya menurut timezone instance-nya, lalu MEMBACANYA kembali sebagai WIB.
         // Mengonversi ke UTC lebih dulu membuat angka UTC tersimpan tapi ditafsirkan
-        // sebagai WIB — jadwal meleset persis sebesar offset (backup jalan 17:00 WIB,
+        // sebagai WIB, jadwal meleset persis sebesar offset (backup jalan 17:00 WIB,
         // bukan 00:00 WIB). Biarkan Laravel yang mengurus konversinya.
         $now = Carbon::now(config('app.timezone'));
         $midnight = $now->copy()->startOfDay();

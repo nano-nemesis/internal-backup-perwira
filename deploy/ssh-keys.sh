@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# ssh-keys.sh — siapkan SSH keypair untuk tiap kategori node.
+# ssh-keys.sh, siapkan SSH keypair untuk tiap kategori node.
 #
 #   sudo bash deploy/ssh-keys.sh
 #
@@ -14,7 +14,7 @@
 #     7.12; RouterOS 6.x menolaknya dengan "unable to load key file (wrong
 #     format?)". RSA jalan di ROS 6 maupun 7, jadi kategori mikrotik pakai RSA.
 #  2. Batas ledakan. Kalau key MikroTik bocor, server database tidak ikut
-#     terbuka — dan sebaliknya.
+#     terbuka, dan sebaliknya.
 #  3. Rotasi bisa per kategori tanpa menyentuh perangkat kategori lain.
 #
 set -Eeuo pipefail
@@ -33,7 +33,7 @@ APP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 KEY_DIR="$APP_DIR/backend/storage/app/ssh"
 [[ -d "$APP_DIR/backend" ]] || die "struktur repo tidak dikenali di $APP_DIR"
 
-# User yang menjalankan queue worker — dialah yang membaca private key saat backup.
+# User yang menjalankan queue worker, dialah yang membaca private key saat backup.
 RUN_USER=www-data
 id "$RUN_USER" >/dev/null 2>&1 || die "user $RUN_USER tidak ada"
 
@@ -54,7 +54,7 @@ for entry in "${CATS[@]}"; do
 
   if [[ -f "$priv" ]]; then
     actual=$(ssh-keygen -l -f "$priv" 2>/dev/null | awk '{print $NF}' | tr -d '()' || echo '?')
-    ok "[$cat] $label — sudah ada, TIDAK diubah ($file, tipe ${actual:-?})"
+    ok "[$cat] $label, sudah ada, TIDAK diubah ($file, tipe ${actual:-?})"
     if [[ $cat == mikrotik && ${actual^^} == ED25519 ]]; then
       warn "Key MikroTik ini bertipe ED25519. RouterOS 6.x dan 7.0–7.11 TIDAK bisa"
       warn "mengimpornya. Kalau armada Anda memuat ROS 6, buat key RSA terpisah:"
@@ -68,7 +68,7 @@ for entry in "${CATS[@]}"; do
       ed25519) ssh-keygen -q -t ed25519  -N '' -C "perwira-backup-$cat" -f "$priv" ;;
       *) die "tipe key tidak dikenal: $type" ;;
     esac
-    ok "[$cat] $label — key baru dibuat ($file, tipe $type)"
+    ok "[$cat] $label, key baru dibuat ($file, tipe $type)"
   fi
 
   chown "$RUN_USER":"$RUN_USER" "$priv" "$priv.pub"
@@ -80,7 +80,7 @@ mk_pub="$KEY_DIR/id_mikrotik.pub"
 db_pub="$KEY_DIR/id_database.pub"
 vz_pub="$KEY_DIR/id_virtualizor.pub"
 
-head2 "1. MikroTik — pasang public key"
+head2 "1. MikroTik, pasang public key"
 say "Di aplikasi, isi SSH Key Path node MikroTik dengan:"
 printf '\n      %s%s%s\n\n' "$B" "$KEY_DIR/id_mikrotik" "$N"
 say "Salin public key ke router, lalu impor dan ikat ke user RouterOS:"
@@ -96,7 +96,7 @@ EOF
 say "Grup 'read' sudah cukup untuk /export. Tambahkan 'write' hanya kalau"
 say "terminal remote di UI mau dipakai."
 
-head2 "2. Server database — pasang public key"
+head2 "2. Server database, pasang public key"
 say "SSH Key Path node database:"
 printf '\n      %s%s%s\n\n' "$B" "$KEY_DIR/id_database" "$N"
 cat <<EOF
@@ -109,7 +109,7 @@ cat <<EOF
 
 EOF
 
-head2 "3. Node Virtualizor — pasang public key"
+head2 "3. Node Virtualizor, pasang public key"
 say "SSH Key Path node virtualizor_db:"
 printf '\n      %s%s%s\n\n' "$B" "$KEY_DIR/id_virtualizor" "$N"
 cat <<EOF

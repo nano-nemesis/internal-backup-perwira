@@ -4,7 +4,7 @@
  * PATCH: Node.php model
  *
  * Tambahkan helper isVirtualizorDb() dan update type hint comment.
- * Perubahan sangat minimal — hanya tambah method helper.
+ * Perubahan sangat minimal, hanya tambah method helper.
  *
  * File: backend/app/Models/Node.php
  */
@@ -48,9 +48,9 @@ class Node extends Model
 
     /**
      * Valid node types:
-     *   'mikrotik'       — MikroTik CHR/RouterOS, backup via SSH /export
-     *   'database'       — MySQL/MariaDB server, backup via SSH mysqldump
-     *   'virtualizor_db' — Virtualizor panel DB backup, pull via SCP dari /var/virtualizor/backup/db
+     *   'mikrotik': MikroTik CHR/RouterOS, backup via SSH /export
+     *   'database': MySQL/MariaDB server, backup via SSH mysqldump
+     *   'virtualizor_db': Virtualizor panel DB backup, pull via SCP dari /var/virtualizor/backup/db
      *                      Note: field db_name digunakan sebagai override path backup dir
      */
     protected static function boot(): void
@@ -99,7 +99,7 @@ class Node extends Model
         return $this->type === 'database';
     }
 
-    /** Node ini adalah Virtualizor panel — backup dir via db_name field (opsional) */
+    /** Node ini adalah Virtualizor panel, backup dir via db_name field (opsional) */
     public function isVirtualizorDb(): bool
     {
         return $this->type === 'virtualizor_db';
@@ -120,5 +120,12 @@ class Node extends Model
     public function latestBackupLog(): HasOne
     {
         return $this->hasOne(BackupLog::class, 'node_id')->latestOfMany('created_at');
+    }
+
+    /** Backup berhasil terakhir yang punya berkas: dasar penilaian "siap dipulihkan". */
+    public function latestSuccessLog(): HasOne
+    {
+        return $this->hasOne(BackupLog::class, 'node_id')->ofMany(['created_at' => 'max'],
+            fn ($q) => $q->where('status', 'success')->whereNotNull('file_path'));
     }
 }

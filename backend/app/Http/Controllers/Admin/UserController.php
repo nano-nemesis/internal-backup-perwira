@@ -58,8 +58,8 @@ class UserController extends Controller
         // akun sendiri, tapi jalur ini belum dijaga.
         if ($user->role === 'admin' && $request->role !== 'admin' && $this->isLastActiveAdmin($user)) {
             return response()->json([
-                'message' => 'Tidak bisa menurunkan admin aktif terakhir — '
-                    . 'angkat admin lain terlebih dahulu.',
+                'message' => 'Tidak bisa menurunkan admin aktif terakhir. '
+                    . 'Angkat admin lain terlebih dahulu.',
             ], 422);
         }
 

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from '../components/ui/toaster'
 import type { BackupStatus } from '../types'
+import { adaManual, sedangDipantau } from '../lib/prosesBackup'
 
 interface Watchable {
   id: string
@@ -14,14 +15,14 @@ export const isRunning = (s: BackupStatus | undefined | null) =>
   s === 'running' || s === 'pending'
 
 /**
- * Interval polling untuk query node: dipercepat selama ada backup berjalan,
- * supaya perubahan status terlihat hampir seketika, lalu kembali tenang.
+ * Interval polling untuk query node: dipercepat selama ada backup berjalan (atau backup
+ * manual yang masih menunggu worker), supaya tahap demi tahap terlihat tanpa memuat ulang.
  */
 export const pollInterval = (nodes: Watchable[] | undefined) =>
-  nodes?.some((n) => isRunning(n.latest_log?.status)) ? 3_000 : 30_000
+  adaManual() || nodes?.some((n) => isRunning(n.latest_log?.status)) ? 2_000 : 30_000
 
 /**
- * Memberi tahu saat sebuah backup SELESAI — berhasil maupun gagal.
+ * Memberi tahu saat sebuah backup SELESAI, berhasil maupun gagal.
  *
  * Tanpa ini, pengguna menekan "Backup Now" lalu tidak tahu apa-apa sampai
  * pengambilan data berikutnya; backup berjalan di queue, bukan di dalam request.
@@ -44,14 +45,16 @@ export function useBackupWatcher(nodes: Watchable[] | undefined) {
         if (!isRunning(before) || isRunning(status)) continue
 
         const name = nodes.find((n) => n.id === id)?.name ?? id
+        // Backup manual dari peramban ini sudah ditampilkan panel proses; toast hanya menggandakan.
+        const diam = sedangDipantau(id)
         if (status === 'success') {
-          toast(`Backup "${name}" berhasil`, 'success')
-          // Backup sukses menghasilkan berkas baru — segarkan daftarnya supaya
+          if (!diam) toast(`Backup "${name}" berhasil`, 'success')
+          // Backup sukses menghasilkan berkas baru, segarkan daftarnya supaya
           // muncul tanpa perlu memuat ulang halaman.
           qc.invalidateQueries({ queryKey: ['backup-files'] })
           qc.invalidateQueries({ queryKey: ['node', id] })
         } else if (status === 'failed') {
-          toast(`Backup "${name}" GAGAL — buka detail node untuk pesan errornya`, 'error')
+          if (!diam) toast(`Backup "${name}" GAGAL, buka detail node untuk pesan errornya`, 'error')
           qc.invalidateQueries({ queryKey: ['node', id] })
         }
       }

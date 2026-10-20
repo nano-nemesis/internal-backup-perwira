@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 import { useNodes, useRunDoctorAll } from '../hooks/useNodes'
 import { useAuth } from '../context/AuthContext'
 import { Button } from '../components/ui/button'
@@ -6,6 +6,19 @@ import { toast } from '../components/ui/toaster'
 import { PeranBadges, hitungDoctor } from '../components/nodes/DoctorPanel'
 import { cn, formatDatetimeWIB } from '../lib/utils'
 import { Hitung } from '../components/ui/hitung'
+
+/** Tab di atas menu Doctor: hasil pemeriksaan dan standar yang dipakai menilainya. */
+export function DoctorTabs() {
+  const kelas = ({ isActive }: { isActive: boolean }) =>
+    cn('px-4 min-h-[40px] rounded-full text-sm font-semibold flex items-center transition-colors',
+      isActive ? 'bg-white text-[#0F172A] shadow-[0_1px_3px_rgba(15,23,42,0.12)]' : 'text-[#475569] hover:text-[#0F172A]')
+  return (
+    <nav aria-label="Bagian Doctor" className="inline-flex gap-1 p-1 rounded-full bg-[#E8EAF2]">
+      <NavLink to="/doctor" end className={kelas}>Hasil</NavLink>
+      <NavLink to="/doctor/standar" className={kelas}>Standar</NavLink>
+    </nav>
+  )
+}
 
 export default function DoctorPage() {
   const { data, isLoading } = useNodes()
@@ -42,12 +55,14 @@ export default function DoctorPage() {
 
   return (
     <div className="space-y-5 max-w-screen-2xl">
+      <DoctorTabs />
       <div className="flex items-end justify-between gap-4 flex-wrap">
         <div className="max-w-3xl">
           <h1 className="text-[28px] leading-tight font-extrabold text-[#0F172A]">Doctor</h1>
           <p className="text-sm text-[#475569] mt-1">
-            Kesehatan konfigurasi router MikroTik terhadap standar Perwira: keamanan, lisensi CHR,
-            PPPoE, VPN/IP publik, dan sistem. Diperbarui otomatis setiap backup.
+            Kesehatan konfigurasi router MikroTik terhadap{' '}
+            <Link to="/doctor/standar" className="font-semibold text-[#3442D9] hover:underline">standar Perwira</Link>: keamanan,
+            lisensi CHR, PPPoE, VPN/IP publik, dan sistem. Diperbarui otomatis setiap backup.
           </p>
         </div>
         {isOperator && (
@@ -121,7 +136,7 @@ export default function DoctorPage() {
                 {r && r.peringatan > 0 && <span className="pill bg-[#FEF3C7] text-[#92400E]">{r.peringatan} perhatian</span>}
                 {r && !r.kritis && !r.peringatan && <span className="pill bg-[#BBF7D0] text-[#14532D]">sesuai</span>}
                 <span className="text-xs text-[#475569] w-36 text-right hidden lg:inline">
-                  {n.doctor_checked_at ? formatDatetimeWIB(n.doctor_checked_at) : '—'}
+                  {n.doctor_checked_at ? formatDatetimeWIB(n.doctor_checked_at) : '-'}
                 </span>
               </div>
             </Link>

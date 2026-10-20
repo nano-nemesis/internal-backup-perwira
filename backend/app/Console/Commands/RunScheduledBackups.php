@@ -24,7 +24,7 @@ class RunScheduledBackups extends Command
         foreach ($nodes as $node) {
             $schedule = NodeSchedule::where('node_id', $node->id)->first();
 
-            // Node baru — buat jadwal pertama kali, jangan dispatch langsung
+            // Node baru, buat jadwal pertama kali, jangan dispatch langsung
             if (!$schedule) {
                 $nextRun = $this->getNextAlignedSlot($node->schedule_interval_hours);
                 NodeSchedule::create([

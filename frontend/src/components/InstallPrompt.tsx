@@ -7,7 +7,7 @@ import { Download, X, Share } from 'lucide-react'
  * Dua jalur, karena peramban memperlakukannya berbeda:
  *
  *  - Android/Chrome/Edge memancarkan `beforeinstallprompt`. Peristiwa itu HANYA
- *    muncul kalau aplikasi memang bisa dipasang — artinya harus HTTPS. Lewat
+ *    muncul kalau aplikasi memang bisa dipasang, artinya harus HTTPS. Lewat
  *    http://IP ia tidak akan pernah muncul, dan spanduk ini diam. Begitu TLS
  *    dipasang, tombolnya muncul sendiri tanpa perlu mengubah kode.
  *  - iOS Safari tidak mendukung peristiwa itu sama sekali, tetapi Add to Home
@@ -78,7 +78,7 @@ export function InstallPrompt() {
     try {
       return !!localStorage.getItem(KUNCI_TUTUP)
     } catch {
-      return false // mode private / penyimpanan diblokir — anggap belum pernah ditutup
+      return false // mode private / penyimpanan diblokir, anggap belum pernah ditutup
     }
   })
 

@@ -9,7 +9,8 @@ use Illuminate\Support\Facades\Http;
 
 class MikrotikService
 {
-    public function backup(Node $node): string
+    /** @param ?\Closure(string): void $tahap dipanggil setiap pindah tahap, untuk tampilan realtime */
+    public function backup(Node $node, ?\Closure $tahap = null): string
     {
         $now = \Carbon\Carbon::now('Asia/Jakarta');
         $timestamp = $now->format('Y-m-d-H.i') . 'WIB';
@@ -17,7 +18,7 @@ class MikrotikService
         $filename = "backup-{$nodeName}-{$timestamp}.rsc";
 
         // basename(): pertahanan berlapis kalau ada nama node lama yang tersimpan
-        // sebelum validasi karakter dipasang — '../../etc' jadi 'etc', bukan
+        // sebelum validasi karakter dipasang: '../../etc' jadi 'etc', bukan
         // menulis di luar direktori backup. Nama normal tidak berubah.
         $safeName = basename($node->name);
         $localDir = storage_path("app/backups/mikrotik/{$safeName}");
@@ -28,21 +29,22 @@ class MikrotikService
 
         if ($node->backup_binary) {
             $binaryPath = preg_replace('/\.rsc$/', '.backup', $localPath);
-            $this->backupBinary($node, $binaryPath, $now->format('Ymd-His'));
+            $this->backupBinary($node, $binaryPath, $now->format('Ymd-His'), $tahap);
             return $binaryPath;
         }
 
         // '/export' polos MENYAMARKAN secret (PPPoE/RADIUS/PSK) di RouterOS v7,
         // sehingga backup-nya tidak cukup untuk memulihkan layanan pelanggan. Flag ini
-        // membuat file .rsc berisi KREDENSIAL PELANGGAN PLAINTEXT — file ditulis 0600.
-        // RouterOS 6 tidak mengenal flag-nya (dan /export-nya sudah memuat secret —
+        // membuat file .rsc berisi KREDENSIAL PELANGGAN PLAINTEXT, file ditulis 0600.
+        // RouterOS 6 tidak mengenal flag-nya (dan /export-nya sudah memuat secret,
         // diverifikasi di 6.49.21), jadi ada fallback ke /export polos.
+        $tahap?->__invoke('ambil');
         try {
             $content = $this->runSshCommand($node, '/export show-sensitive');
         } catch (\RuntimeException $e) {
             // RouterOS menolak perintah = exit code 1 (normal di v6: flag-nya belum ada,
             // v6 memang menampilkan secret). Error SSH (255) / sshpass (5,6) dilempar
-            // langsung — mengulang hanya menggandakan percobaan login yang gagal.
+            // langsung, mengulang hanya menggandakan percobaan login yang gagal.
             if (!str_contains($e->getMessage(), '(exit code 1)')) {
                 throw $e;
             }
@@ -60,7 +62,7 @@ class MikrotikService
         }
 
         file_put_contents($localPath, $content);
-        // Isinya kredensial pelanggan — jangan biarkan bisa dibaca user lain di host backup.
+        // Isinya kredensial pelanggan, jangan biarkan bisa dibaca user lain di host backup.
         chmod($localPath, 0600);
 
         if (!file_exists($localPath) || filesize($localPath) === 0) {
@@ -73,10 +75,10 @@ class MikrotikService
     /**
      * Backup biner: /system backup save, tarik lewat scp, hapus dari flash router.
      *
-     * Hanya bisa dipulihkan ke unit dengan model + versi RouterOS yang sama — untuk
+     * Hanya bisa dipulihkan ke unit dengan model + versi RouterOS yang sama, untuk
      * pindah perangkat pakai .rsc. Butuh policy write + policy + ftp di user router.
      */
-    private function backupBinary(Node $node, string $localPath, string $stamp): void
+    private function backupBinary(Node $node, string $localPath, string $stamp, ?\Closure $tahap = null): void
     {
         // Nama unik per run, bukan nama tetap: kalau penghapusan di router pernah gagal,
         // berkas lama yang tertinggal tidak bisa tertarik sebagai backup "baru".
@@ -85,15 +87,17 @@ class MikrotikService
         try {
             // dont-encrypt eksplisit: default enkripsi berubah antar versi RouterOS, dan
             // berkas harus bisa di-restore tanpa password user backup.
+            $tahap?->__invoke('simpan');
             $this->runRouterCommand($node, "/system backup save name=perwira-{$stamp} dont-encrypt=yes");
             try {
+                $tahap?->__invoke('salin');
                 $this->scpPull($node, $remote, $localPath);
             } finally {
                 try {
                     $this->runRouterCommand($node, "/file remove {$remote}");
                 } catch (\RuntimeException $e) {
                     ActivityLog::warning('backup', 'mikrotik.backup-biner-sisa',
-                        "{$node->name}: berkas {$remote} gagal dihapus dari router dan masih memakan flash — hapus manual.",
+                        "{$node->name}: berkas {$remote} gagal dihapus dari router dan masih memakan flash. Hapus manual.",
                         ['error' => $e->getMessage()], $node);
                 }
             }
@@ -114,7 +118,7 @@ class MikrotikService
 
     /**
      * RouterOS keluar dengan exit 0 walau perintahnya ditolak ("Failed to save ...",
-     * "not enough permissions (9)") — tanpa membaca output, kegagalan lolos sebagai sukses.
+     * "not enough permissions (9)"): tanpa membaca output, kegagalan lolos sebagai sukses.
      */
     private function runRouterCommand(Node $node, string $command): string
     {
@@ -165,6 +169,7 @@ class MikrotikService
             $laporan = RouterDoctor::periksa(
                 RouterDoctor::parse($this->runSshCommand($node, RouterDoctor::script())),
                 $this->versiTerbaru(),
+                \App\Support\DoctorStandar::tersimpan(),
             );
         } catch (\RuntimeException $e) {
             $node->update(['doctor_report' => ['galat' => $e->getMessage()], 'doctor_checked_at' => now()]);
@@ -241,7 +246,7 @@ class MikrotikService
         $this->runAuthenticated($node, 'scp -O -P', $target);
     }
 
-    /** @param string $program 'ssh -p' atau 'scp -O -P' — flag port-nya beda huruf. */
+    /** @param string $program 'ssh -p' atau 'scp -O -P', flag port-nya beda huruf. */
     private function runAuthenticated(Node $node, string $program, string $target): string
     {
         $timeout = config('backup.ssh_timeout', 30);
@@ -250,7 +255,7 @@ class MikrotikService
         $user = $node->ssh_user;
 
         // RouterOS 6.x hanya bisa tanda tangan kunci RSA dengan ssh-rsa (SHA-1), yang
-        // dimatikan default sejak OpenSSH 8.8 — tanpa ini kunci tidak pernah ditawarkan
+        // dimatikan default sejak OpenSSH 8.8, tanpa ini kunci tidak pernah ditawarkan
         // ("no mutual signature algorithm") dan ssh jatuh ke password.
         $baseOptions = sprintf(
             '%s %d -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=%d'
@@ -264,7 +269,7 @@ class MikrotikService
         $keyError = null;
 
         if ($node->ssh_key_path && file_exists($node->ssh_key_path)) {
-            // BatchMode=yes: kalau kunci ditolak, ssh berhenti — bukan mengirim password
+            // BatchMode=yes: kalau kunci ditolak, ssh berhenti, bukan mengirim password
             // kosong (worker tanpa TTY) yang bisa memicu blacklist brute-force di router.
             try {
                 return $this->runProcess(sprintf(
@@ -331,10 +336,10 @@ class MikrotikService
         // Exit code diperiksa sendiri, TIDAK digabung dengan cek output kosong.
         // Kalau digabung, koneksi yang putus di tengah /export (router reboot, blip
         // jaringan) menyisakan output parsial + exit code gagal, lalu lolos sebagai
-        // backup "sukses" — file .rsc terpotong yang baru ketahuan saat restore.
+        // backup "sukses", file .rsc terpotong yang baru ketahuan saat restore.
         if ($exitCode !== 0) {
             // Buang derau "Permanently added ... known hosts" (akibat UserKnownHostsFile=/dev/null)
-            // di sini, BUKAN lewat LogLevel=ERROR — itu ikut menyembunyikan pesan penting
+            // di sini, BUKAN lewat LogLevel=ERROR, itu ikut menyembunyikan pesan penting
             // seperti "Connection closed by ..." sehingga error-nya kosong.
             $error = trim(preg_replace('/^Warning: Permanently added .*$\R?/m', '', $error));
             $pesan = match (true) {

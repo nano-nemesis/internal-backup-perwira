@@ -51,7 +51,7 @@ export function Toaster() {
   if (items.length === 0) return null
 
   return (
-    <div className="fixed left-4 right-4 bottom-[calc(6rem+env(safe-area-inset-bottom))] md:left-auto md:bottom-4 z-50 flex flex-col gap-2 md:max-w-sm">
+    <div className="fixed left-4 right-4 top-[calc(4.25rem+env(safe-area-inset-top))] md:left-auto md:right-6 md:top-6 z-50 flex flex-col gap-2 md:max-w-sm">
       {items.map((t) => (
         <div
           key={t.id}

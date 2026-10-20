@@ -13,7 +13,7 @@ class BackupLog extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'node_id', 'status', 'file_path', 'file_size',
+        'node_id', 'status', 'tahap', 'file_path', 'file_size',
         'duration_seconds', 'error_message',
         'started_at', 'finished_at', 'created_at',
         'routeros_version', 'routeros_model',

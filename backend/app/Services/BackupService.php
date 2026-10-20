@@ -25,7 +25,7 @@ class BackupService
             $pemicu !== null => "manual oleh {$pemicu}",
             default => 'terjadwal',
         };
-        ActivityLog::info('backup', 'backup.mulai', "Backup {$node->name} ({$node->type}, {$node->host}) dimulai — {$cara}.", [
+        ActivityLog::info('backup', 'backup.mulai', "Backup {$node->name} ({$node->type}, {$node->host}) dimulai ({$cara}).", [
             'pemicu' => $pemicu ?? 'jadwal',
             'host'   => "{$node->host}:" . ($node->port ?? 22),
             'user'   => $node->ssh_user,
@@ -39,27 +39,31 @@ class BackupService
         ]);
 
         $startTime = microtime(true);
+        // Tahap ditulis ke log supaya halaman bisa menampilkan proses backup secara langsung.
+        $tahap = fn (string $t) => $log->update(['tahap' => $t]);
 
         try {
             $filePath = match ($node->type) {
-                'mikrotik'       => $this->mikrotik->backup($node),
-                'database'       => $this->database->backup($node),
-                'virtualizor_db' => $this->virtualizor->backup($node),
+                'mikrotik'       => $this->mikrotik->backup($node, $tahap),
+                'database'       => $this->database->backup($node, $tahap),
+                'virtualizor_db' => $this->virtualizor->backup($node, $tahap),
                 default          => throw new \RuntimeException("Unknown node type: {$node->type}"),
             };
 
             // Node simulasi adalah salinan ber-host palsu; sukses di sini berarti targetnya
             // ternyata menjawab, dan $node->update() di bawah akan menyimpan host palsu itu.
             if ($simulasi) {
-                throw new \RuntimeException("Target simulasi {$node->host} ternyata menjawab — simulasi dibatalkan.");
+                throw new \RuntimeException("Target simulasi {$node->host} ternyata menjawab, simulasi dibatalkan.");
             }
 
             $duration = (int) (microtime(true) - $startTime);
+            $tahap('periksa');
             $fileSize = file_exists($filePath) ? filesize($filePath) : 0;
 
-            // Versi + model saat backup dibuat — syarat menilai apakah .backup bisa
+            // Versi + model saat backup dibuat, syarat menilai apakah .backup bisa
             // di-restore nanti. Gagal membacanya tidak menggagalkan backup yang sudah jadi.
             if ($node->type === 'mikrotik') {
+                $tahap('doctor');
                 try {
                     $this->mikrotik->refreshDeviceInfo($node);
                 } catch (\RuntimeException) {
@@ -73,6 +77,7 @@ class BackupService
 
             $log->update([
                 'status' => 'success',
+                'tahap' => null,
                 'file_path' => $filePath,
                 'file_size' => $fileSize,
                 'duration_seconds' => $duration,
@@ -83,19 +88,19 @@ class BackupService
 
             $node->update(['last_backup_at' => now()]);
 
+            $telegram = $this->telegram->notifySuccess($node, $log->fresh());
             ActivityLog::info('backup', 'backup.berhasil',
                 "Backup {$node->name} berhasil: " . basename($filePath) . ' (' . $log->fresh()->file_size_formatted . ", {$duration} detik).",
-                ['file' => basename($filePath), 'ukuran_byte' => $fileSize, 'durasi_detik' => $duration, 'pemicu' => $pemicu ?? 'jadwal'],
+                ['file' => basename($filePath), 'ukuran_byte' => $fileSize, 'durasi_detik' => $duration, 'pemicu' => $pemicu ?? 'jadwal', 'telegram' => $telegram],
                 $node,
             );
-
-            $this->telegram->notifySuccess($node, $log->fresh());
             $this->cleanOldBackups($node);
 
         } catch (\Exception $e) {
             $duration = (int) (microtime(true) - $startTime);
             $error = ($simulasi ? '[SIMULASI] ' : '') . $e->getMessage();
 
+            // tahap sengaja tidak dikosongkan: menunjukkan di tahap mana backup gagal.
             $log->update([
                 'status' => 'failed',
                 'error_message' => $error,
@@ -106,13 +111,14 @@ class BackupService
             // Pesan dibuka dengan SEBAB yang bisa ditindaklanjuti; error mentah tetap
             // disimpan utuh di konteks untuk penelusuran.
             $sebab = BackupErrorSummary::sebab($error);
+            // Dikirim dulu supaya hasilnya (terkirim/dimatikan/jeda/gagal) ikut tercatat di Log Sistem.
+            $telegram = $this->telegram->notifyFailure($node, $error);
             ActivityLog::error('backup', 'backup.gagal',
                 "Backup {$node->name} ({$node->host}) gagal setelah {$duration} detik. "
-                . ($sebab ? "Kemungkinan sebab: {$sebab}." : 'Sebab tidak dikenali otomatis — lihat error mentah di detail.'),
-                ['error' => $error, 'sebab' => $sebab, 'durasi_detik' => $duration, 'pemicu' => $pemicu ?? 'jadwal'],
+                . ($sebab ? "Kemungkinan sebab: {$sebab}." : 'Sebab tidak dikenali otomatis, lihat error mentah di detail.'),
+                ['error' => $error, 'sebab' => $sebab, 'durasi_detik' => $duration, 'pemicu' => $pemicu ?? 'jadwal', 'telegram' => $telegram],
                 $node,
             );
-            $this->telegram->notifyFailure($node, $error);
         }
 
         return $log->fresh();
@@ -121,7 +127,7 @@ class BackupService
     /**
      * Gangguan SUNGGUHAN ke target palsu: alur gagal yang sama persis dengan aslinya
      * (backup_logs, Log Sistem, Telegram, status node) teruji tanpa menyentuh router.
-     * Status node merah sampai backup asli berikutnya berhasil — itu juga menguji pesan
+     * Status node merah sampai backup asli berikutnya berhasil, itu juga menguji pesan
      * pemulihan Telegram.
      */
     public function simulate(Node $node, string $skenario, string $pemicu): BackupLog
@@ -156,7 +162,7 @@ class BackupService
         $cutoff = now()->subDays($retentionDays)->timestamp;
         $basePath = config('backup.storage_path');
 
-        // basename(): fungsi ini unlink() isi direktori — nama node yang mengandung
+        // basename(): fungsi ini unlink() isi direktori, nama node yang mengandung
         // '..' akan menghapus berkas di luar direktori backup.
         $safeName = basename($node->name);
 

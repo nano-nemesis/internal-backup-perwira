@@ -50,7 +50,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         // Error tak tertangani (HTTP 500, crash command/worker) ikut masuk Log Sistem.
-        // Validasi/404/403/sesi habis tidak sampai ke sini — Laravel tidak me-report-nya.
+        // Validasi/404/403/sesi habis tidak sampai ke sini: Laravel tidak me-report-nya.
         // Pelaporan bawaan ke laravel.log tetap berjalan (callback tidak menghentikannya).
         $exceptions->report(function (\Throwable $e) {
             $req = app()->runningInConsole() ? null : request();

@@ -7,18 +7,22 @@ import { NodeForm } from '../components/nodes/NodeForm'
 import { useNodes } from '../hooks/useNodes'
 import { useAuth } from '../context/AuthContext'
 import type { Node } from '../types'
+import { basi } from '../lib/utils'
 
 type Saring = 'semua' | 'masalah' | 'mikrotik' | 'database' | 'virtualizor_db'
 type Urut = 'mendesak' | 'nama' | 'terbaru' | 'terlama'
 
 const bermasalah = (n: Node) =>
-  n.latest_log?.status === 'failed' || !!n.doctor?.galat || (n.doctor?.ringkasan?.kritis ?? 0) > 0
+  n.latest_log?.status === 'failed' || basi(n) || !!n.doctor?.galat || (n.doctor?.ringkasan?.kritis ?? 0) > 0
+  || n.pulih?.putusan === 'tidak-bisa'
 
-/** Makin besar makin mendesak: backup gagal, router tak terjangkau, temuan kritis, belum pernah backup. */
+/** Makin besar makin mendesak: backup gagal, basi, router tak terjangkau, temuan kritis, belum pernah backup. */
 const bobot = (n: Node) =>
   (!n.is_active ? -1e9 : 0)
   + (n.latest_log?.status === 'failed' ? 1e6 : 0)
+  + (basi(n) ? 5e5 : 0)
   + (n.doctor?.galat ? 1e5 : 0)
+  + (n.pulih?.putusan === 'tidak-bisa' ? 5e4 : 0)
   + (n.doctor?.ringkasan?.kritis ?? 0) * 1e3
   + (!n.latest_log ? 500 : 0)
   + (n.doctor?.ringkasan?.peringatan ?? 0)
@@ -37,7 +41,7 @@ export default function DevicesPage() {
   const { data, isLoading, isError, fetchStatus, refetch } = useNodes()
   // fetchStatus 'paused' = React Query menganggap browser offline dan MENUNDA request.
   // Dalam keadaan itu isError tetap false selamanya, jadi cek isError saja masih
-  // menampilkan "0 node" ke teknisi yang sinyalnya putus — persis kebohongan yang
+  // menampilkan "0 node" ke teknisi yang sinyalnya putus, persis kebohongan yang
   // mau ditutup di sini.
   const loadFailed = isError || fetchStatus === 'paused'
   const [showForm, setShowForm] = useState(false)

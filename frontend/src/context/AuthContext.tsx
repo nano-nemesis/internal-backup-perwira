@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false))
   }, [])
 
-  // PWA di HP jarang dimuat ulang — dibuka lagi dari latar belakang saja. Sentuh
+  // PWA di HP jarang dimuat ulang, dibuka lagi dari latar belakang saja. Sentuh
   // /me saat kembali aktif supaya sesi (sliding, lihat SESSION_LIFETIME) diperpanjang.
   const masuk = user !== null
   useEffect(() => {

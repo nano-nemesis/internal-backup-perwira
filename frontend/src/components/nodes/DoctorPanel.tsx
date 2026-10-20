@@ -14,7 +14,7 @@ export const STATUS_DOCTOR: Record<DoctorStatus, { label: string; pill: string }
 const bobot = (n: Node) =>
   n.doctor?.galat ? 1e6 : (n.doctor?.ringkasan?.kritis ?? 0) * 1000 + (n.doctor?.ringkasan?.peringatan ?? 0)
 
-/** Dipakai halaman Doctor dan kartu di Dashboard — satu sumber supaya angkanya tak bisa beda. */
+/** Dipakai halaman Doctor dan kartu di Dashboard, satu sumber supaya angkanya tak bisa beda. */
 export function hitungDoctor(semua: Node[]) {
   const urut = semua.filter((n) => n.type === 'mikrotik').sort((a, b) => bobot(b) - bobot(a))
   return {

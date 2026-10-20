@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Http;
 /**
  * Pengaturan bot Telegram lewat UI, menimpa nilai .env.
  *
- * Token bot TIDAK PERNAH dikirim balik ke browser — hanya petunjuk bertopeng.
+ * Token bot TIDAK PERNAH dikirim balik ke browser, hanya petunjuk bertopeng.
  * Token adalah kredensial penuh atas bot itu; mengirimkannya ke halaman admin
  * berarti ia ikut tersimpan di riwayat jaringan dan cache peramban.
  */
@@ -114,7 +114,7 @@ class TelegramSettingsController extends Controller
 
         if ($res->successful()) {
             ActivityLog::info('pengaturan', 'telegram.tes', 'Pesan uji Telegram terkirim.');
-            return response()->json(['message' => 'Pesan uji terkirim — cek grup Telegram Anda.']);
+            return response()->json(['message' => 'Pesan uji terkirim, cek grup Telegram Anda.']);
         }
 
         // Teruskan alasan dari Telegram apa adanya; itu yang paling menjelaskan.

@@ -10,7 +10,7 @@ interface BackupFileListProps {
 
 export function BackupFileList({ files, nodeId }: BackupFileListProps) {
   // Isi berkasnya memuat kredensial pelanggan dalam teks polos, jadi unduhan
-  // dibatasi operator ke atas — sama seperti penjagaan di sisi API. Viewer tetap
+  // dibatasi operator ke atas, sama seperti penjagaan di sisi API. Viewer tetap
   // melihat daftar dan ukurannya; yang disembunyikan hanya tombolnya.
   const { isOperator } = useAuth()
 

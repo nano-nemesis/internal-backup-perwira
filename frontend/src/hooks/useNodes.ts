@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/axios'
 import type { DoctorReport, NodesResponse, NodeDetailResponse, NodeFormData, RestoreCheckResult, SkenarioGangguan } from '../types'
 import { pollInterval } from './useBackupWatcher'
+import { catatManual } from '../lib/prosesBackup'
 
 export function useNodes() {
   return useQuery<NodesResponse>({
@@ -19,20 +20,27 @@ export function useNode(id: string) {
   return useQuery<NodeDetailResponse>({
     queryKey: ['node', id],
     queryFn: () => api.get(`/nodes/${id}`).then((r) => r.data),
+    // Detail node menaruh riwayat di `logs`, bukan `latest_log`; tanpa ini polling
+    // tetap 30 detik walau backup sedang berjalan.
     refetchInterval: (q) =>
-      pollInterval(q.state.data ? [q.state.data.data] : undefined),
+      pollInterval(q.state.data ? [{ ...q.state.data.data, latest_log: q.state.data.logs?.[0] ?? null }] : undefined),
     refetchIntervalInBackground: true,
     enabled: !!id,
   })
 }
 
+/**
+ * Backup manual. `logTerakhir` = ID log terbaru saat tombol ditekan; log yang muncul
+ * sesudahnya dianggap milik backup ini (lihat lib/prosesBackup).
+ */
 export function useTriggerBackup() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (nodeId: string) => api.post(`/nodes/${nodeId}/backup`),
-    onSuccess: (_, nodeId) => {
+    mutationFn: (n: { id: string; name: string; logTerakhir: string | null }) => api.post(`/nodes/${n.id}/backup`),
+    onSuccess: (_, n) => {
+      catatManual({ id: n.id, name: n.name }, n.logTerakhir)
       qc.invalidateQueries({ queryKey: ['nodes'] })
-      qc.invalidateQueries({ queryKey: ['node', nodeId] })
+      qc.invalidateQueries({ queryKey: ['node', n.id] })
     },
   })
 }

@@ -51,4 +51,4 @@ array_map('unlink', glob("{$dir}/*"));
 rmdir($dir);
 
 if ($gagal) { fwrite(STDERR, implode("\n", $gagal) . "\n"); exit(1); }
-echo 'OK — ' . count($kasus) . " skenario restore dinilai benar\n";
+echo 'OK: ' . count($kasus) . " skenario restore dinilai benar\n";

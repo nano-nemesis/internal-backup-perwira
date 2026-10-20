@@ -35,7 +35,7 @@ export function downloadJson(data: unknown, filename: string) {
   URL.revokeObjectURL(url)
 }
 
-/** Contoh berkas impor — satu entri per tipe node. */
+/** Contoh berkas impor, satu entri per tipe node. */
 export const NODE_TEMPLATE = {
   format: 'internal-backup-perwira/nodes',
   version: 1,

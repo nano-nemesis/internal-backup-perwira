@@ -1,4 +1,4 @@
-# Environment files — NEVER commit
+# Environment files: NEVER commit
 .env
 .env.*
 !.env.example

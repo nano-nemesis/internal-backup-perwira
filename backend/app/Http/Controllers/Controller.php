@@ -17,7 +17,7 @@ class Controller extends BaseController
      * uncompromised() memeriksa ke basis data password bocor lewat k-anonymity:
      * hanya 5 karakter awal hash SHA-1 yang dikirim, passwordnya tidak pernah
      * meninggalkan server. Kalau server tidak punya internet, pemeriksaan itu
-     * GAGAL TERBUKA — password tetap diterima, jadi pembuatan akun tidak ikut mati.
+     * GAGAL TERBUKA, password tetap diterima, jadi pembuatan akun tidak ikut mati.
      */
     protected static function aturanPassword(): Password
     {

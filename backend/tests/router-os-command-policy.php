@@ -40,4 +40,4 @@ if ($gagal) {
     fwrite(STDERR, implode("\n", $gagal) . "\n");
     exit(1);
 }
-printf("OK — %d ditolak, %d lolos, sesuai harapan\n", count($harusDitolak), count($harusLolos));
+printf("OK: %d ditolak, %d lolos, sesuai harapan\n", count($harusDitolak), count($harusLolos));

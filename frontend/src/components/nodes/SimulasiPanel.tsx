@@ -2,10 +2,10 @@ import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useRestoreCheck, useSimulateFailure } from '../../hooks/useNodes'
 import { useAuth } from '../../context/AuthContext'
-import type { BackupFile, CekStatus, RestoreCheckResult, SkenarioGangguan } from '../../types'
+import type { BackupFile, CekStatus, HasilTelegram, NodeDetailResponse, RestoreCheckResult, SkenarioGangguan } from '../../types'
 import { Button } from '../ui/button'
 import { toast } from '../ui/toaster'
-import { formatDatetimeWIB } from '../../lib/utils'
+import { cn, formatDatetimeWIB } from '../../lib/utils'
 
 const STATUS: Record<CekStatus, { label: string; kelas: string }> = {
   ok: { label: 'OK', kelas: 'bg-[#BBF7D0] text-[#14532D]' },
@@ -24,7 +24,64 @@ const GANGGUAN: { skenario: SkenarioGangguan; label: string; catatan: string }[]
   { skenario: 'login-ditolak', label: 'Login SSH ditolak', catatan: 'instan' },
 ]
 
-export function SimulasiPanel({ nodeId, files }: { nodeId: string; files: BackupFile[] }) {
+const jam = (iso: string, detik = false) =>
+  new Date(iso).toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', ...(detik && { second: '2-digit' }) })
+
+const TELEGRAM: Record<HasilTelegram, [string, boolean]> = {
+  terkirim: ['Telegram terkirim ke grup', true],
+  dimatikan: ['Telegram tidak dikirim: notifikasi gagal dimatikan', false],
+  jeda: ['Telegram ditahan jeda notifikasi', false],
+  'belum-diatur': ['Telegram belum diatur', false],
+  gagal: ['Telegram gagal terkirim, lihat Log Sistem', false],
+}
+
+/** Jejak simulasi gangguan terakhir: apa yang benar-benar terjadi, langkah demi langkah. */
+function Jejak({ j }: { j: NonNullable<NodeDetailResponse['simulasi_terakhir']> }) {
+  const [tg, tgOk] = j.telegram ? TELEGRAM[j.telegram] : ['Hasil kiriman Telegram tidak tercatat (simulasi lama)', false]
+  const langkah: { judul: string; ket: string; ok: boolean | null }[] = [
+    { judul: 'Backup gagal sungguhan', ket: `${jam(j.waktu, true)} · ${j.error.replace('[SIMULASI] ', '')}`, ok: true },
+    { judul: tg, ket: j.sebab ? `Sebab dikenali: ${j.sebab}` : 'Sebab tidak dikenali otomatis', ok: tgOk },
+    j.log_sistem
+      ? { judul: 'Tercatat di Log Sistem', ket: `${j.log_sistem.aksi}, level ${j.log_sistem.level}`, ok: true }
+      : { judul: 'Tidak ditemukan di Log Sistem', ket: 'Catatannya mungkin sudah dipangkas', ok: false },
+    j.pulih
+      ? {
+          judul: `Pulih ${jam(j.pulih.waktu)}${j.pulih.telegram === 'terkirim' ? ', pesan pemulihan terkirim' : ''}`,
+          ket: 'Backup asli berikutnya berhasil',
+          ok: true,
+        }
+      : { judul: 'Menunggu backup berikutnya berhasil', ket: 'Status node merah sampai saat itu', ok: null },
+  ]
+  return (
+    <div className="rounded-2xl bg-[#F8F9FC] p-4 md:p-5">
+      <h4 className="text-[15px] font-bold text-[#0F172A] mb-3">Simulasi terakhir, {formatDatetimeWIB(j.waktu)}</h4>
+      <ol className="relative">
+        {langkah.map((l, i) => (
+          <li key={i} className="relative flex gap-3 pb-4 last:pb-0">
+            {i < langkah.length - 1 && <span aria-hidden="true" className="absolute left-[9px] top-6 bottom-0 w-0.5 bg-[#E2E4EC]" />}
+            <span
+              aria-hidden="true"
+              className={cn(
+                'relative mt-0.5 w-5 h-5 rounded-full flex-shrink-0 border-[3px]',
+                l.ok === null ? 'border-[#C9CCD8] bg-white' : l.ok ? 'border-[#BBF7D0] bg-[#16A34A]' : 'border-[#FEF3C7] bg-[#D97706]',
+              )}
+            />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-[#0F172A]">{l.judul}</p>
+              <p className="text-[13px] text-[#475569] break-words">{l.ket}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
+
+export function SimulasiPanel({ nodeId, files, jejak }: {
+  nodeId: string
+  files: BackupFile[]
+  jejak?: NodeDetailResponse['simulasi_terakhir']
+}) {
   const { isOperator } = useAuth()
   const restore = useRestoreCheck()
   const gangguan = useSimulateFailure()
@@ -153,6 +210,7 @@ export function SimulasiPanel({ nodeId, files }: { nodeId: string; files: Backup
               </Button>
             ))}
           </div>
+          {jejak && <Jejak j={jejak} />}
         </section>
       )}
     </div>

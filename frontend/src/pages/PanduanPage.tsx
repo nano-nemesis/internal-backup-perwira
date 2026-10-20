@@ -233,6 +233,11 @@ export default function PanduanPage() {
                 <strong>Backup sekarang</strong> di halaman detail node; itu tidak mengubah jadwal rutinnya.
               </p>
               <p>
+                Setelah tombol itu ditekan, prosesnya tampil langsung tahap demi tahap (antre, mengambil konfigurasi,
+                menyalin, memeriksa berkas, membaca versi dan Doctor) beserta lama berjalannya. Di halaman lain, panel
+                kecil di pojok kanan atas mengikuti sampai backup selesai. Tidak perlu memuat ulang halaman.
+              </p>
+              <p>
                 Berkas yang lebih tua dari masa retensi (bawaannya 7 hari) dihapus otomatis{' '}
                 <em>setelah backup berikutnya berhasil</em>. Kalau backup terus gagal, berkas lama tidak ikut terhapus.
               </p>
@@ -242,13 +247,18 @@ export default function PanduanPage() {
               <p>
                 Status backup di Dashboard dan di menu <strong>Perangkat</strong> selalu bicara tentang{' '}
                 <em>percobaan terakhir</em>, bukan sukses terakhir. Di tabel Perangkat, kolom <strong>Backup</strong>{' '}
-                berisi <strong>Sehat</strong> atau <strong>Gagal</strong>; kalau gagal, baris kecil di bawahnya
-                menunjukkan kapan terakhir sukses. Kolom <strong>Konfigurasi</strong> adalah ringkasan Doctor untuk
-                MikroTik.
+                berisi <strong>Sehat</strong>, <strong>Gagal</strong>, atau <strong>Basi</strong>; kalau gagal, baris
+                kecil di bawahnya menunjukkan kapan terakhir sukses. <strong>Basi</strong> berarti backup berhasil
+                terakhir lebih tua dari dua kali jadwalnya, tanda penjadwal macet. Kolom <strong>Konfigurasi</strong>{' '}
+                adalah ringkasan Doctor untuk MikroTik, dan <strong>Pulih</strong> menilai apakah backup berhasil
+                terakhir bisa dipulihkan ke perangkat yang terpasang sekarang (berkas utuh, model dan versi cocok).
               </p>
               <p>
-                Pakai kotak cari (nama atau IP), saringan <strong>Bermasalah</strong> (backup gagal, router tak
-                terjangkau, atau ada temuan kritis), dan urutan <strong>Paling mendesak</strong> untuk menemukan router
+                Aksi yang jarang dipakai (nonaktifkan, hapus node) ada di tombol <strong>⋯</strong> di ujung baris.
+              </p>
+              <p>
+                Pakai kotak cari (nama atau IP), saringan <strong>Bermasalah</strong> (backup gagal atau basi, router
+                tak terjangkau, temuan kritis, atau backup yang tidak bisa dipulihkan), dan urutan <strong>Paling mendesak</strong> untuk menemukan router
                 yang perlu ditangani lebih dulu. Pilihan ini ikut tersimpan di alamat halaman, jadi tetap sama saat Anda
                 kembali dari detail node.
               </p>
@@ -328,6 +338,18 @@ add chain=input in-interface=ether1-uplink action=drop`}</Kode>
                 </li>
                 <li>Kalau <K>use-radius=yes</K>: server RADIUS ada, dan <K>interim-update</K> diisi (mis. 5m).</li>
               </Daftar>
+              <H3>Mengatur standarnya</H3>
+              <p>
+                Tab <strong>Standar</strong> di menu Doctor berisi aturan yang dipakai untuk menilai: alamat NOC, layanan
+                yang wajib mati atau wajib dibatasi alamat NOC, lisensi CHR minimal, kanal RouterOS, server NTP, batas
+                CPU/RAM/disk, dan interim update RADIUS. Setiap pemeriksaan bisa dimatikan atau dipaksa tingkatnya
+                (kritis, perhatian, info). Hanya admin yang bisa mengubahnya; standar baru berlaku pada pemeriksaan
+                berikutnya, dan tombol <strong>Periksa semua sekarang</strong> muncul setelah disimpan.
+              </p>
+              <p>
+                Di tab yang sama ada <strong>Skrip dasar router baru</strong>: konfigurasi awal yang sudah memenuhi
+                standar, siap disalin saat memasang CHR atau router baru.
+              </p>
               <p>
                 Kalau notifikasi <strong>Doctor menemukan kritis baru</strong> di menu Bot Telegram aktif, temuan yang
                 baru menjadi kritis sejak pemeriksaan sebelumnya dikirim ke grup. Router yang baru pertama kali diperiksa
@@ -357,6 +379,11 @@ add chain=input in-interface=ether1-uplink action=drop`}</Kode>
                   Gunanya membuktikan alarm benar-benar berbunyi saat dibutuhkan.
                 </li>
               </Daftar>
+              <p>
+                Di bawah tombol simulasi gangguan tampil <strong>jejak simulasi terakhir</strong>: kapan backup gagal,
+                apakah Telegram benar terkirim (atau dimatikan, ditahan jeda), apakah tercatat di Log Sistem, dan kapan
+                node pulih. Semuanya dibaca dari catatan yang sebenarnya, bukan perkiraan.
+              </p>
             </Section>
 
             <Section id="terminal" title="Terminal MikroTik">
@@ -421,6 +448,10 @@ add chain=input in-interface=ether1-uplink action=drop`}</Kode>
                 Akun yang tidak dipakai lagi <strong>dinonaktifkan</strong> dulu; sesinya langsung terputus. Tombol hapus
                 baru muncul untuk akun yang sudah nonaktif. Akun sendiri tidak bisa diubah peran atau statusnya, tetapi
                 password-nya tetap bisa direset. Password minimal 12 karakter, berisi huruf dan angka.
+              </p>
+              <p>
+                Login yang gagal memberi tahu sisa percobaan. Setelah 5 kali gagal, login dari alamat IP yang sama dikunci
+                5 menit.
               </p>
               <Note>
                 Admin aktif terakhir tidak bisa diturunkan perannya maupun dinonaktifkan. Kalau bisa, tidak ada lagi yang

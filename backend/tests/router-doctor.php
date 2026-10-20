@@ -1,5 +1,6 @@
 <?php
 /** Cek mandiri: php tests/router-doctor.php */
+require __DIR__ . '/../app/Support/DoctorStandar.php';
 require __DIR__ . '/../app/Support/RouterDoctor.php';
 
 use App\Support\RouterDoctor as D;
@@ -207,7 +208,7 @@ if (!str_contains($perbaikan($b, 'mss'), 'paket-10M')) $gagal[] = 'chrPppoe: pro
 if (!str_contains($perbaikan($b, 'akses-manajemen'), 'address=10.0.0.0/8')) {
     $gagal[] = 'chrPppoe: batas address dari SSH ROS 6 tidak terbaca';
 }
-if ($b['cek'][0]['status'] !== 'kritis') $gagal[] = 'chrPppoe: urutan — yang kritis harus di atas';
+if ($b['cek'][0]['status'] !== 'kritis') $gagal[] = 'chrPppoe: urutan salah, yang kritis harus di atas';
 if ($b['utama'] !== 'Lisensi CHR berbayar (P1 ke atas)') $gagal[] = 'chrPppoe: masalah utama harus lisensi free, dapat ' . $b['utama'];
 
 // 3. Router sehat
@@ -242,5 +243,39 @@ if ($ids(D::kritisBaru($c, $b)) !== $kritisB) $gagal[] = 'kritisBaru: sehat → 
 if (D::kritisBaru($b, $c) !== []) $gagal[] = 'kritisBaru: membaik tidak boleh dilaporkan';
 if (!$kritisB) $gagal[] = 'kritisBaru: profil chrPppoe seharusnya punya temuan kritis';
 
+// 7. Standar Perwira yang diatur admin (DoctorStandar).
+use App\Support\DoctorStandar as S;
+$st = fn (array $ubah) => D::periksa(D::parse($chrIpPublik), $terbaru, $ubah);
+$adaCek = fn (array $l, string $id) => in_array($id, array_column($l['cek'], 'id'), true);
+if ($a !== $st([])) $gagal[] = 'standar: standar kosong harus sama dengan bawaan';
+if ($adaCek($st(['cek' => ['ntp' => ['aktif' => false]]]), 'ntp')) $gagal[] = 'standar: cek yang dimatikan masih muncul';
+$harap('standar-tingkat', $st(['cek' => ['versi' => ['tingkat' => 'info'], 'firewall-input' => ['tingkat' => 'peringatan']]]),
+    ['versi' => 'info', 'firewall-input' => 'peringatan', 'lisensi' => 'ok']);
+// Layanan tambahan wajib mati: winbox aktif tanpa batas → ditemukan.
+$harap('standar-layanan', $st(['layanan_mati' => ['telnet', 'ftp', 'www', 'winbox']]), ['layanan-polos' => 'kritis']);
+$e3 = $st(['noc' => ['10.10.0.0/24', 'bukan-ip', '10.20.0.1']]);
+if (!str_contains($perbaikan($e3, 'firewall-input'), 'list=NOC address=10.10.0.0/24')
+    || !str_contains($perbaikan($e3, 'akses-manajemen'), 'address=10.10.0.0/24,10.20.0.1')
+    || str_contains($perbaikan($e3, 'firewall-input'), 'bukan-ip')) $gagal[] = 'standar: alamat NOC tidak dipakai di perbaikan';
+$harap('standar-lisensi', $st(['lisensi_min' => 'p10']), ['lisensi' => 'peringatan']);
+$harap('standar-kanal', $st(['kanal' => 'stable']), ['versi' => 'peringatan']);
+if (!str_contains($perbaikan($st(['kanal' => 'stable']), 'versi'), 'channel=stable')) $gagal[] = 'standar: perbaikan kanal salah';
+// chrPppoe: CPU 91%, RAM bebas 7% → perhatian dengan bawaan, lolos kalau batasnya dilonggarkan.
+$harap('standar-longgar', D::periksa(D::parse($chrPppoe), $terbaru, ['cpu_maks' => 95, 'ram_min' => 5]), ['sumber-daya' => 'ok']);
+$harap('standar-ketat', $st(['ram_min' => 50]), ['sumber-daya' => 'ok']);
+if (S::rapikan(['ram_min' => 90, 'disk_min' => 0])['ram_min'] !== 50 || S::rapikan(['disk_min' => 0])['disk_min'] !== 1) $gagal[] = 'standar: batas RAM/disk tidak dijaga';
+if (!str_contains($perbaikan($st(['ntp' => ['ntp.perwira.id']]), 'ntp'), 'servers=ntp.perwira.id')) $gagal[] = 'standar: server NTP tidak dipakai';
+// rapikan(): nilai asing dibuang, batas dijaga.
+$r = S::rapikan(['kanal' => 'beta', 'cpu_maks' => 500, 'layanan_mati' => ['telnet', 'ssh2'], 'cek' => ['tidak-ada' => [], 'ntp' => ['tingkat' => 'heboh']], 'lain' => 1]);
+if ($r['kanal'] !== 'ikuti' || $r['cpu_maks'] !== 100 || $r['layanan_mati'] !== ['telnet'] || isset($r['cek']['tidak-ada'])
+    || $r['cek']['ntp'] !== ['aktif' => true, 'tingkat' => 'otomatis'] || isset($r['lain'])) $gagal[] = 'standar: rapikan ' . json_encode($r);
+// Skrip dasar: bagian yang dimatikan tidak ikut, NOC terisi.
+$sk = S::skripDasar(S::rapikan(['noc' => ['10.10.0.0/24'], 'cek' => ['proxy' => ['aktif' => false]]]));
+foreach (['list=NOC address=10.10.0.0/24', '[find name=telnet] disabled=yes', '[find name=winbox] address=10.10.0.0/24', 'in-interface-list=WAN action=drop', 'servers=id.pool.ntp.org'] as $w) {
+    if (!str_contains($sk, $w)) $gagal[] = "standar: skrip dasar tanpa '{$w}'";
+}
+if (str_contains($sk, '/ip socks')) $gagal[] = 'standar: skrip dasar memuat proxy yang dimatikan';
+if (str_contains($sk, "\u{2014}")) $gagal[] = 'standar: skrip dasar memuat em dash';
+
 if ($gagal) { fwrite(STDERR, implode("\n", $gagal) . "\n"); exit(1); }
-echo "OK — 3 profil router dinilai sesuai standar\n";
+echo "OK: 3 profil router dinilai sesuai standar\n";

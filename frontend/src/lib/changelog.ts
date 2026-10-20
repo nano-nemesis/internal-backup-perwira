@@ -5,6 +5,18 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.9.0',
+    tanggal: '2026-10-21',
+    judul: 'Standar Doctor, proses backup langsung, lampu Pulih',
+    poin: [
+      'Doctor punya tab Standar: atur alamat NOC, layanan yang wajib mati atau dibatasi, lisensi CHR minimal, kanal RouterOS, NTP, batas sumber daya, serta nyalakan/matikan dan atur tingkat tiap pemeriksaan. Lengkap dengan skrip dasar untuk router baru.',
+      'Backup sekarang tampil langsung tahap demi tahap, dengan panel kecil yang mengikuti ke halaman lain. Tidak perlu memuat ulang.',
+      'Lampu Pulih di Perangkat, Dashboard, dan detail node: apakah backup terakhir bisa dipulihkan ke perangkat sekarang.',
+      'Status Basi untuk backup yang lewat dua kali jadwalnya, menu ⋯ per baris, dan jejak simulasi gangguan terakhir.',
+      'Login yang gagal memberi tahu sisa percobaan. Semua teks memakai tanda baca biasa, tanpa em dash.',
+    ],
+  },
+  {
     versi: '1.8.0',
     tanggal: '2026-10-21',
     judul: 'Cari, urutkan, dan halaman yang sesuai mockup',
@@ -42,7 +54,7 @@ export const CHANGELOG: Rilis[] = [
     tanggal: '2026-10-20',
     judul: 'Doctor: standar router MikroTik Perwira',
     poin: [
-      'Menu baru Doctor: memeriksa setiap MikroTik terhadap standar keamanan, lisensi CHR, PPPoE, VPN/IP publik, dan sistem — lengkap dengan perintah perbaikannya.',
+      'Menu baru Doctor: memeriksa setiap MikroTik terhadap standar keamanan, lisensi CHR, PPPoE, VPN/IP publik, dan sistem, lengkap dengan perintah perbaikannya.',
       'Peran router dideteksi otomatis (CHR, IP Publik, Server VPN, PPPoE Server); laporan diperbarui setiap backup, atau lewat Periksa sekarang / Periksa semua.',
       'Ringkasan doctor tampil di Dashboard, dan tiap node punya tab Doctor.',
       'Doctor hanya membaca konfigurasi; router tidak diubah.',
@@ -83,7 +95,7 @@ export const CHANGELOG: Rilis[] = [
     tanggal: '2026-10-20',
     judul: 'Backup biner MikroTik (.backup)',
     poin: [
-      'Node MikroTik bisa ikut menyimpan backup biner .backup di samping .rsc — centang "Juga simpan backup biner" di form node.',
+      'Node MikroTik bisa ikut menyimpan backup biner .backup di samping .rsc, centang "Juga simpan backup biner" di form node.',
       'Berkas .backup muncul di Backup Files dan detail node, bisa diunduh, dan ikut dihapus retensi seperti .rsc.',
       'Berkas sementara di flash router langsung dihapus setelah ditarik.',
       'Butuh policy write + ftp di user router. Kalau belum ada, .rsc tetap tersimpan dan sebabnya tercatat di Log Sistem.',

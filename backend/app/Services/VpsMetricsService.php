@@ -84,7 +84,7 @@ class VpsMetricsService
      * Ukur partisi tempat backup benar-benar disimpan, bukan '/'.
      *
      * Di VPS, direktori backup lazim berada di volume terpisah yang di-mount. Mengukur
-     * '/' membuat dashboard melaporkan disk lega sementara partisi backup penuh — dan
+     * '/' membuat dashboard melaporkan disk lega sementara partisi backup penuh, dan
      * backup mulai gagal tanpa ada tanda apa pun di grafik.
      *
      * disk_total_space()/disk_free_space() bawaan PHP menggantikan shell_exec + parsing

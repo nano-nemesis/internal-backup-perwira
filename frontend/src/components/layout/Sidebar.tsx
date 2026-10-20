@@ -111,7 +111,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         'md:relative md:z-auto md:inset-auto md:my-4 md:ml-4 md:rounded-[22px] md:pt-0 md:pb-0 md:pl-0',
         // HP: laci yang menggeser masuk/keluar.
         open ? 'translate-x-0' : '-translate-x-full',
-        // Desktop: benar-benar dilipat (lebar 0), bukan sekadar digeser — kalau hanya
+        // Desktop: benar-benar dilipat (lebar 0), bukan sekadar digeser, kalau hanya
         // digeser, ia tetap memakan ruang layout dan tombolnya tampak tidak berfungsi.
         open ? 'md:w-[248px]' : 'md:w-0 md:ml-0 md:overflow-hidden',
       )}

@@ -7,7 +7,7 @@ use Spatie\Ssh\Ssh;
 use Symfony\Component\Process\Process;
 
 /**
- * DatabaseBackupService — Backup MySQL/MariaDB via SSH stdout
+ * DatabaseBackupService: Backup MySQL/MariaDB via SSH stdout
  *
  * Permission yang dibutuhkan di target server:
  *
@@ -24,7 +24,7 @@ use Symfony\Component\Process\Process;
  *    SHOW VIEW dan TRIGGER bukan opsional:
  *      - tanpa SHOW VIEW, dump GAGAL kalau database punya view;
  *      - tanpa TRIGGER, dump SELESAI dan lolos pemeriksaan '-- Dump completed',
- *        tapi trigger-nya hilang tanpa satu pun pesan di stderr — backup yang
+ *        tapi trigger-nya hilang tanpa satu pun pesan di stderr, backup yang
  *        terlihat utuh padahal tidak.
  *    LOCK TABLES tidak diperlukan (--single-transaction --lock-tables=false), dan
  *    EVENT juga tidak (mysqldump tidak menyertakan event tanpa --events).
@@ -38,12 +38,13 @@ use Symfony\Component\Process\Process;
  *   Kalau ssh_user kosong: mysqldump lokal langsung ke MySQL target (lihat dumpDirect()).
  *
  * Mengapa tidak pipe ke gzip via SSH?
- *   Output binary dari gzip tidak bisa di-capture via SSH stdout sebagai string — file akan corrupt.
+ *   Output binary dari gzip tidak bisa di-capture via SSH stdout sebagai string, file akan corrupt.
  *   Solusi: capture SQL (text) lalu compress di VPS backup menggunakan PHP native gzip.
  */
 class DatabaseBackupService
 {
-    public function backup(Node $node): string
+    /** @param ?\Closure(string): void $tahap dipanggil setiap pindah tahap, untuk tampilan realtime */
+    public function backup(Node $node, ?\Closure $tahap = null): string
     {
         $now = \Carbon\Carbon::now('Asia/Jakarta');
         $timestamp = $now->format('Y-m-d-H.i') . 'WIB';
@@ -51,7 +52,7 @@ class DatabaseBackupService
         $filename = "backup-{$nodeName}-{$timestamp}.sql.gz";
 
         // basename(): pertahanan berlapis kalau ada nama node lama yang tersimpan
-        // sebelum validasi karakter dipasang — '../../etc' jadi 'etc', bukan
+        // sebelum validasi karakter dipasang: '../../etc' jadi 'etc', bukan
         // menulis di luar direktori backup. Nama normal tidak berubah.
         $safeName = basename($node->name);
         $localDir = storage_path("app/backups/database/{$safeName}");
@@ -65,6 +66,7 @@ class DatabaseBackupService
         // untuk membaca metadata tablespace, dan menulis error ke stderr walau dump-nya
         // tetap jadi. Kita tidak memerlukan metadata itu, jadi lebih baik tidak menuntut
         // grant global demi sesuatu yang tidak dipakai. Diuji di MySQL 8.4 & MariaDB 11.
+        $tahap?->__invoke('dump');
         $process = $node->ssh_user
             ? $this->dumpViaSsh($node)
             : $this->dumpDirect($node);
@@ -101,12 +103,13 @@ class DatabaseBackupService
         // Tanpa cek ini, dump yang terpotong di tengah INSERT tetap lolos jadi backup.
         if (!str_contains($content, '-- Dump completed')) {
             throw new \RuntimeException(
-                "Dump dari {$node->host} tidak lengkap — penanda '-- Dump completed' tidak ditemukan. "
+                "Dump dari {$node->host} tidak lengkap: penanda '-- Dump completed' tidak ditemukan. "
                 . "Kemungkinan koneksi terputus atau mysqldump dihentikan di tengah jalan."
             );
         }
 
-        // Compress menggunakan PHP native gzip — tidak butuh binary gzip di VPS
+        $tahap?->__invoke('kompres');
+        // Compress menggunakan PHP native gzip, tidak butuh binary gzip di VPS
         $gz = gzopen($localPath, 'wb9');
         if ($gz === false) {
             throw new \RuntimeException("Gagal membuka file gzip untuk ditulis: {$localPath}");
@@ -125,10 +128,10 @@ class DatabaseBackupService
 
     private function dumpViaSsh(Node $node): Process
     {
-        // Plain SQL output — no pipe to gzip so stdout stays as text, safe to capture
+        // Plain SQL output, no pipe to gzip so stdout stays as text, safe to capture
         // $node->db_password already decrypted by the model accessor
         // escapeshellarg(), bukan addslashes(): di dalam kutip tunggal shell, \' TIDAK
-        // mengescape apa pun — ia menutup kutipnya. Password/nama DB berisi kutip tunggal
+        // mengescape apa pun, ia menutup kutipnya. Password/nama DB berisi kutip tunggal
         // bisa keluar dari kutip dan menyuntikkan perintah ke server target.
         $dbPass = $node->db_password
             ? ' -p' . escapeshellarg($node->db_password)

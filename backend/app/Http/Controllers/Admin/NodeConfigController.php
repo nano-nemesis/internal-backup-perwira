@@ -17,7 +17,7 @@ use Illuminate\Validation\Rule;
  * Ekspor / impor konfigurasi node sebagai JSON.
  *
  * JSON, bukan YAML: json_encode ada di inti PHP sementara YAML menuntut dependensi
- * baru (symfony/yaml) atau ekstensi php-yaml yang harus ikut dipasang di VPS —
+ * baru (symfony/yaml) atau ekstensi php-yaml yang harus ikut dipasang di VPS,
  * tidak sepadan hanya untuk format ekspor. Frontend juga sudah berbicara JSON.
  *
  * Yang TIDAK ikut diekspor: id, last_backup_at, riwayat backup. Berkas ini adalah
@@ -39,7 +39,7 @@ class NodeConfigController extends Controller
     {
         $withCredentials = $request->boolean('include_credentials');
 
-        // Mode lengkap membagikan blob terenkripsi seluruh node sekaligus — admin saja.
+        // Mode lengkap membagikan blob terenkripsi seluruh node sekaligus, admin saja.
         if ($withCredentials && $request->user()->role !== 'admin') {
             return response()->json([
                 'message' => 'Ekspor beserta kredensial hanya untuk admin.',
@@ -140,7 +140,7 @@ class NodeConfigController extends Controller
                 'backup_binary'           => 'nullable|boolean',
                 'ssh_password_encrypted'  => 'nullable|string',
                 'db_password_encrypted'   => 'nullable|string',
-                // Teks polos (dari templat) — dienkripsi mutator model saat disimpan.
+                // Teks polos (dari templat): dienkripsi mutator model saat disimpan.
                 'ssh_password'            => 'nullable|string|max:255',
                 'db_password'             => 'nullable|string|max:255',
             ];
@@ -180,7 +180,7 @@ class NodeConfigController extends Controller
 
         if ($dryRun) {
             return response()->json([
-                'message' => 'Pratinjau — belum ada perubahan yang diterapkan.',
+                'message' => 'Pratinjau, belum ada perubahan yang diterapkan.',
                 'dry_run' => true,
                 'summary' => $this->summary($plan, false),
                 'detail'  => $plan,

@@ -55,15 +55,24 @@ export function formatLogTime(dateString: string | null | undefined): string {
   }
 }
 
+/**
+ * Backup basi: node aktif yang backup berhasil terakhirnya lebih tua dari dua kali jadwalnya
+ * (penjadwal macet, atau gagal terus). Node yang belum pernah berhasil tidak dihitung di sini.
+ */
+export function basi(n: { is_active: boolean; last_backup_at?: string | null; schedule_interval_hours: number }): boolean {
+  if (!n.is_active || !n.last_backup_at) return false
+  return Date.now() - Date.parse(n.last_backup_at) > 2 * n.schedule_interval_hours * 3_600_000
+}
+
 const WIB = 'Asia/Jakarta'
 const tanggalWIB = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: WIB }) // YYYY-MM-DD
 const jamWIB = (d: Date) => d.toLocaleTimeString('en-GB', { timeZone: WIB, hour: '2-digit', minute: '2-digit' })
 
 /** "Hari ini 19:40", "Kemarin 09:12", "3 hari lalu", lalu "12 Sep 2026". Hitungan hari menurut kalender WIB. */
 export function kapan(iso: string | null | undefined): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
+  if (Number.isNaN(d.getTime())) return '-'
   const hari = Math.round((Date.parse(tanggalWIB(new Date())) - Date.parse(tanggalWIB(d))) / 86_400_000)
   if (hari <= 0) return `Hari ini ${jamWIB(d)}`
   if (hari === 1) return `Kemarin ${jamWIB(d)}`
@@ -73,7 +82,7 @@ export function kapan(iso: string | null | undefined): string {
 
 /** "baru saja", "5 menit lalu", "18 jam lalu", "3 hari lalu". */
 export function lalu(iso: string | null | undefined): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   const detik = (Date.now() - Date.parse(iso)) / 1000
   if (!(detik >= 60)) return 'baru saja'
   if (detik < 3600) return `${Math.floor(detik / 60)} menit lalu`

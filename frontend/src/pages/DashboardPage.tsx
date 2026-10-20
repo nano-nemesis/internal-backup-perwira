@@ -1,5 +1,5 @@
 import React, { useState, type ReactNode } from 'react'
-import { Archive, XCircle, HelpCircle, Stethoscope, ChevronRight, type LucideIcon } from 'lucide-react'
+import { Archive, XCircle, Clock, Stethoscope, ChevronRight, type LucideIcon } from 'lucide-react'
 import { VpsWidget } from '../components/dashboard/VpsWidget'
 import { VpsMetricsChart } from '../components/charts/VpsMetricsChart'
 import { NodeTable } from '../components/nodes/NodeTable'
@@ -8,7 +8,7 @@ import { useNodes } from '../hooks/useNodes'
 import { Link } from 'react-router-dom'
 import { hitungDoctor } from '../components/nodes/DoctorPanel'
 import type { Node } from '../types'
-import { cn } from '../lib/utils'
+import { basi, cn } from '../lib/utils'
 import { Hitung } from '../components/ui/hitung'
 
 const tanggal = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
@@ -75,7 +75,7 @@ export default function DashboardPage() {
   const { data, isLoading, isError, fetchStatus, refetch } = useNodes()
   // fetchStatus 'paused' = React Query menganggap browser offline dan MENUNDA request.
   // Dalam keadaan itu isError tetap false selamanya, jadi cek isError saja masih
-  // menampilkan "0 node" ke teknisi yang sinyalnya putus — persis kebohongan yang
+  // menampilkan "0 node" ke teknisi yang sinyalnya putus, persis kebohongan yang
   // mau ditutup di sini.
   const loadFailed = isError || fetchStatus === 'paused'
   const [editingNode, setEditingNode] = useState<Node | null>(null)
@@ -86,9 +86,12 @@ export default function DashboardPage() {
 
   const tanpaKritis = doctor.urut.length - doctor.kritis - doctor.belum
   const persen = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0)
+  const semua = data?.data ?? []
+  const jumlahBasi = semua.filter(basi).length
   const lampu = [
     { label: 'Backup berhasil', nilai: stats.success, total: stats.total, warna: '#4255F0' },
     { label: 'Tanpa temuan kritis', nilai: Math.max(tanpaKritis, 0), total: doctor.urut.length, warna: '#F97316' },
+    { label: 'Siap dipulihkan', nilai: semua.filter((n) => n.pulih?.putusan === 'siap').length, total: stats.total, warna: '#A5B4FC' },
   ]
 
   return (
@@ -119,28 +122,31 @@ export default function DashboardPage() {
             hero
             icon={Archive}
             judul="Backup berhasil"
-            nilai={data ? <><Hitung n={stats.success} /> / <Hitung n={stats.total} /></> : '—'}
-            ket="node, percobaan terakhir"
+            nilai={data ? <><Hitung n={stats.success} /> / <Hitung n={stats.total} /></> : '…'}
+            ket={stats.unknown ? `node · ${stats.unknown} belum pernah dibackup` : 'node, percobaan terakhir'}
             pill={data && stats.total ? { teks: `${persen(stats.success, stats.total)}% sehat`, gaya: 'bg-[#BBF7D0] text-[#14532D]' } : undefined}
           />
           <Angka
             icon={XCircle}
             judul="Backup gagal"
-            nilai={data ? <Hitung n={stats.failed} /> : '—'}
+            nilai={data ? <Hitung n={stats.failed} /> : '…'}
             ket="node, percobaan terakhir"
             pill={stats.failed ? { teks: 'perlu dicek', gaya: 'bg-[#DC2626] text-white' } : { teks: 'aman', gaya: 'bg-[#BBF7D0] text-[#14532D]' }}
           />
-          <Angka
-            icon={HelpCircle}
-            judul="Belum ada hasil"
-            nilai={data ? <Hitung n={stats.unknown} /> : '—'}
-            ket="node belum pernah dibackup"
-          />
+          <Link to="/devices?saring=masalah" className="rounded-[20px] angkat focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4255F0]">
+            <Angka
+              icon={Clock}
+              judul="Backup basi"
+              nilai={data ? <Hitung n={jumlahBasi} /> : '…'}
+              ket="node, sukses terakhir lewat 2× jadwalnya"
+              pill={jumlahBasi ? { teks: 'perlu dicek', gaya: 'bg-[#FEF3C7] text-[#92400E]' } : { teks: 'tepat waktu', gaya: 'bg-[#BBF7D0] text-[#14532D]' }}
+            />
+          </Link>
           <Link to="/doctor" className="rounded-[20px] angkat focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4255F0]">
             <Angka
               icon={Stethoscope}
               judul="Doctor kritis"
-              nilai={data ? <Hitung n={doctor.kritis} /> : '—'}
+              nilai={data ? <Hitung n={doctor.kritis} /> : '…'}
               ket={`dari ${doctor.urut.length} MikroTik`}
               pill={doctor.kritis ? { teks: 'lihat temuan', gaya: 'bg-[#FEE2E2] text-[#991B1B]' } : undefined}
             />
@@ -150,12 +156,12 @@ export default function DashboardPage() {
         <section className="card p-5 md:p-6 flex flex-col gap-5">
           <div>
             <h2 className="text-lg font-bold">Kesehatan armada</h2>
-            <p className="text-[13px] text-[#475569] mt-1">Backup dan konfigurasi tiap router</p>
+            <p className="text-[13px] text-[#475569] mt-1">Backup, konfigurasi, dan kesiapan pulih tiap router</p>
           </div>
           <div className="flex items-center gap-5 flex-wrap">
             <Cincin data={lampu} />
             <div className="flex flex-col gap-1.5">
-              <span className="text-[34px] leading-none font-extrabold">{data ? <Hitung n={stats.total} /> : '—'}</span>
+              <span className="text-[34px] leading-none font-extrabold">{data ? <Hitung n={stats.total} /> : '…'}</span>
               <span className="text-[13px] text-[#475569]">node dipantau</span>
               <span className="pill self-start bg-[#E0E3FF] text-[#2E3AC2]">{doctor.urut.length} MikroTik</span>
             </div>

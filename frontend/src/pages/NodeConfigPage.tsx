@@ -308,9 +308,9 @@ export default function NodeConfigPage() {
                       return (
                         <tr key={i} className="border-t border-[#EEF0F6]">
                           <td className="px-3 py-2.5 text-[#475569]">{i}</td>
-                          <td className="px-3 py-2.5 font-semibold">{typeof e.name === 'string' ? e.name : '—'}</td>
-                          <td className="px-3 py-2.5">{TIPE[String(e.type)] ?? String(e.type ?? '—')}</td>
-                          <td className="px-3 py-2.5 font-mono">{typeof e.host === 'string' ? e.host : '—'}</td>
+                          <td className="px-3 py-2.5 font-semibold">{typeof e.name === 'string' ? e.name : '-'}</td>
+                          <td className="px-3 py-2.5">{TIPE[String(e.type)] ?? String(e.type ?? '-')}</td>
+                          <td className="px-3 py-2.5 font-mono">{typeof e.host === 'string' ? e.host : '-'}</td>
                           <td className={cn('px-3 py-2.5 font-semibold break-words', gaya)}>{teks}</td>
                         </tr>
                       )

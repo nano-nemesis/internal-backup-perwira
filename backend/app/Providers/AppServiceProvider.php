@@ -23,17 +23,17 @@ class AppServiceProvider extends ServiceProvider
         // worker berjalan sebagai www-data dan kemudian gagal membuat subfolder node
         // di dalamnya: "mkdir(): Permission denied".
         //
-        // Tiap service sudah membuat direktorinya sendiri saat backup pertama berjalan —
+        // Tiap service sudah membuat direktorinya sendiri saat backup pertama berjalan,
         // sebagai www-data, jadi kepemilikannya otomatis benar.
 
         // Pemeriksaan `which sshpass` dihapus dari sini: boot() jalan di SETIAP request
         // dan SETIAP perintah artisan, jadi itu memunculkan subproses per request plus
         // banjir warning di log. Kalau sshpass memang tidak ada, SSH keluar dengan exit
-        // code 127 dan MikrotikService melempar error berisi stderr-nya — jelas dan
+        // code 127 dan MikrotikService melempar error berisi stderr-nya, jelas dan
         // tepat di titik pemakaian.
 
         // Limiter 'api' dipakai grup middleware api (throttleApi()). Dulu didefinisikan
-        // di RouteServiceProvider, yang tidak ada lagi di Laravel 11+ — tanpa ini SETIAP
+        // di RouteServiceProvider, yang tidak ada lagi di Laravel 11+, tanpa ini SETIAP
         // request /api gagal 500 "Rate limiter [api] is not defined".
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());

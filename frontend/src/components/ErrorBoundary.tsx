@@ -11,7 +11,7 @@ interface State {
 /**
  * Menahan crash render supaya tidak memutihkan seluruh halaman.
  *
- * Harus class component — React tidak menyediakan padanan hook untuk
+ * Harus class component: React tidak menyediakan padanan hook untuk
  * getDerivedStateFromError/componentDidCatch.
  *
  * Dipasang dua lapis: di dalam AppShell (sidebar tetap hidup, teknisi masih bisa
@@ -26,7 +26,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    // Biarkan tetap masuk console — ini satu-satunya jejak untuk mendiagnosa.
+    // Biarkan tetap masuk console, ini satu-satunya jejak untuk mendiagnosa.
     console.error('ErrorBoundary menangkap crash render:', error, info.componentStack)
   }
 

@@ -89,7 +89,7 @@ export default function AdminPage() {
       await updateRole.mutateAsync({ id: user.id, role })
       toast('Peran diperbarui', 'success')
     } catch (err) {
-      // Server mengirim alasan konkret di sini — mis. penolakan menurunkan admin
+      // Server mengirim alasan konkret di sini, mis. penolakan menurunkan admin
       // aktif terakhir. `catch` kosong menggantinya jadi pesan generik yang bikin
       // admin menyangka fiturnya rusak.
       toast(apiMessage(err, 'Gagal mengubah peran'), 'error')

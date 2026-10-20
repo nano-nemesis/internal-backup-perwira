@@ -125,7 +125,7 @@ class BackupFilesController extends Controller
             abort(404, 'File not found');
         }
 
-        // Berkas .rsc/.sql memuat kredensial pelanggan — siapa mengunduh apa wajib tercatat.
+        // Berkas .rsc/.sql memuat kredensial pelanggan, siapa mengunduh apa wajib tercatat.
         \App\Models\ActivityLog::info('berkas', 'unduh', 'Berkas backup ' . basename($resolved) . ' diunduh.', [
             'path' => $path,
         ]);

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# vps-setup.sh — pasang / perbarui internal-backup-perwira di VPS Ubuntu.
+# vps-setup.sh, pasang / perbarui internal-backup-perwira di VPS Ubuntu.
 #
 # Dijalankan DARI DALAM repo yang sudah di-clone:
 #
@@ -11,7 +11,7 @@
 #   sudo bash deploy/vps-setup.sh
 #
 # Aman dijalankan berulang: setiap langkah memeriksa keadaan dulu, dan hal yang
-# berisiko selalu ditanyakan. Akses lewat http://IP_VPS — tanpa domain, tanpa TLS.
+# berisiko selalu ditanyakan. Akses lewat http://IP_VPS, tanpa domain, tanpa TLS.
 #
 set -Eeuo pipefail
 
@@ -71,7 +71,7 @@ PHP_BIN=/usr/bin/php${PHP_VER}
 FPM_SOCK=/run/php/php${PHP_VER}-fpm.sock
 FPM_SVC=php${PHP_VER}-fpm
 
-# IP untuk akses — menentukan konfigurasi sesi/Sanctum, jadi harus benar.
+# IP untuk akses, menentukan konfigurasi sesi/Sanctum, jadi harus benar.
 DETECTED_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}' || true)
 [[ -n ${DETECTED_IP:-} ]] || DETECTED_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || true)
 say "Aplikasi akan diakses lewat http://IP_VPS (tanpa domain, tanpa TLS)."
@@ -108,14 +108,14 @@ else
   ok "Semua paket sistem sudah ada"
 fi
 
-# sshpass dipakai backup MikroTik berbasis password — tanpa itu SSH keluar 127.
+# sshpass dipakai backup MikroTik berbasis password, tanpa itu SSH keluar 127.
 command -v sshpass >/dev/null || warn "sshpass tidak ada: backup MikroTik via password akan gagal"
 
 # Node 18+ (Ubuntu 22.04 bawaannya 12, terlalu tua untuk Vite 5)
 NODE_MAJOR=$(node -v 2>/dev/null | sed -n 's/^v\([0-9]*\).*/\1/p' || true)
 NODE_MAJOR=${NODE_MAJOR:-0}
 if (( NODE_MAJOR < 18 )); then
-  say "Node.js terpasang: ${NODE_MAJOR:-tidak ada} — butuh 18+"
+  say "Node.js terpasang: ${NODE_MAJOR:-tidak ada}, butuh 18+"
   if ask_yn "Pasang Node.js 18 dari NodeSource?"; then
     curl -fsSL https://deb.nodesource.com/setup_18.x | bash - >/dev/null
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nodejs
@@ -146,7 +146,7 @@ ENV_FILE="$APP_DIR/backend/.env"
 DB_NAME=internal_backup_perwira
 DB_USER=backup_user
 DB_PASS=""
-# Jangan pernah merotasi password DB pada jalan ulang — ambil dari .env kalau ada.
+# Jangan pernah merotasi password DB pada jalan ulang, ambil dari .env kalau ada.
 if [[ -f $ENV_FILE ]]; then
   DB_NAME=$(grep -E '^DB_DATABASE=' "$ENV_FILE" | cut -d= -f2- || echo "$DB_NAME")
   DB_USER=$(grep -E '^DB_USERNAME=' "$ENV_FILE" | cut -d= -f2- || echo "$DB_USER")
@@ -214,7 +214,7 @@ set_env SANCTUM_STATEFUL_DOMAINS "${VPS_IP},localhost,127.0.0.1"
 # browser tidak akan pernah mengirim cookie sesinya ke http://IP_VPS.
 set_env SESSION_DOMAIN null
 set_env SESSION_SECURE_COOKIE false   # tanpa TLS; ubah ke true kalau nanti pakai HTTPS
-set_env SESSION_LIFETIME 43200        # 30 hari, sliding — PWA di HP tidak minta login tiap dibuka
+set_env SESSION_LIFETIME 43200        # 30 hari, sliding: PWA di HP tidak minta login tiap dibuka
 ok "APP_URL, Sanctum, dan cookie sesi diarahkan ke ${VPS_IP}"
 
 chown www-data:www-data "$ENV_FILE"; chmod 640 "$ENV_FILE"
@@ -237,7 +237,7 @@ if [[ -z $CURRENT_KEY ]]; then
   "$PHP_BIN" artisan key:generate --force --no-interaction >/dev/null
   ok "APP_KEY dibuat"
 else
-  ok "APP_KEY sudah ada — TIDAK diubah"
+  ok "APP_KEY sudah ada: TIDAK diubah"
   say "${Y}Mengganti APP_KEY membuat semua password SSH/DB node tersimpan tidak bisa didekripsi.${N}"
 fi
 
@@ -245,13 +245,13 @@ if ask_yn "Jalankan migrasi database sekarang?"; then
   "$PHP_BIN" artisan migrate --force --no-interaction
   ok "Migrasi selesai"
 else
-  warn "Migrasi dilewati — aplikasi tidak akan jalan sampai ini dijalankan"
+  warn "Migrasi dilewati, aplikasi tidak akan jalan sampai ini dijalankan"
 fi
 
 # chown SETELAH composer install dan migrate: keduanya berjalan sebagai ROOT dan
 # menulis ke bootstrap/cache (packages.php, services.php) serta storage/logs.
 # Kalau di-chown lebih dulu, berkas-berkas itu tertinggal milik root dan www-data
-# gagal menulisinya — termasuk gagal membuat folder node di storage/app/backups
+# gagal menulisinya, termasuk gagal membuat folder node di storage/app/backups
 # dengan pesan "mkdir(): Permission denied".
 chown -R www-data:www-data storage bootstrap/cache
 chmod -R 775 storage bootstrap/cache
@@ -276,7 +276,7 @@ POOL=/etc/php/${PHP_VER}/fpm/pool.d/www.conf
 CUR_CHILDREN=$(awk -F= '/^pm.max_children/{gsub(/ /,"",$2); print $2}' "$POOL" | head -1)
 say "pm.max_children sekarang: ${CUR_CHILDREN:-tidak diset}"
 say "nginx.conf mematikan fastcgi_buffering supaya unduhan backup besar tidak"
-say "ditulis dulu ke berkas sementara — konsekuensinya satu worker tertahan"
+say "ditulis dulu ke berkas sementara, konsekuensinya satu worker tertahan"
 say "selama unduhan berlangsung, jadi pool jangan terlalu kecil."
 if ask_yn "Set pm.max_children ke 10?"; then
   sed -i -E 's/^;?\s*pm\.max_children\s*=.*/pm.max_children = 10/' "$POOL"
@@ -306,7 +306,7 @@ if [[ -e /etc/nginx/sites-enabled/default ]]; then
     rm -f /etc/nginx/sites-enabled/default
   fi
 fi
-nginx -t || die "konfigurasi nginx tidak valid — tidak ada yang di-reload"
+nginx -t || die "konfigurasi nginx tidak valid, tidak ada yang di-reload"
 systemctl reload nginx
 ok "Nginx aktif dengan konfigurasi php-fpm"
 
@@ -339,10 +339,10 @@ ok "backup-queue dan backup-scheduler aktif"
 if grep -qE '^TELEGRAM_BOT_TOKEN=.+' "$ENV_FILE" && grep -qE '^TELEGRAM_CHAT_ID=.+' "$ENV_FILE"; then
   systemctl enable --now backup-telegram >/dev/null
   systemctl restart backup-telegram
-  ok "backup-telegram aktif — kirim /status ke bot untuk mengujinya"
+  ok "backup-telegram aktif, kirim /status ke bot untuk mengujinya"
 else
   systemctl disable --now backup-telegram >/dev/null 2>&1 || true
-  say "TELEGRAM_BOT_TOKEN/CHAT_ID belum diisi — bot Telegram tidak dinyalakan."
+  say "TELEGRAM_BOT_TOKEN/CHAT_ID belum diisi, bot Telegram tidak dinyalakan."
   say "Isi keduanya di .env lalu jalankan: systemctl enable --now backup-telegram"
 fi
 
@@ -352,7 +352,7 @@ cd "$APP_DIR/backend"
 if ask_yn "Aktifkan config:cache + route:cache? (lebih cepat, tapi WAJIB diulang tiap .env berubah)" n; then
   "$PHP_BIN" artisan config:cache >/dev/null
   "$PHP_BIN" artisan route:cache >/dev/null
-  ok "Cache dibuat — jalankan 'artisan config:clear && artisan route:clear' setelah menyunting .env"
+  ok "Cache dibuat, jalankan 'artisan config:clear && artisan route:clear' setelah menyunting .env"
 else
   "$PHP_BIN" artisan config:clear >/dev/null 2>&1 || true
   "$PHP_BIN" artisan route:clear  >/dev/null 2>&1 || true
@@ -385,7 +385,7 @@ ${G}${B}Selesai.${N}
   Buka:  ${B}http://${VPS_IP}${N}
 
   Belum ada user? Aplikasi akan mengarahkan ke /setup untuk membuat admin pertama.
-  ${Y}Jangan jalankan 'artisan db:seed' di produksi${N} — itu membuat admin/password123.
+  ${Y}Jangan jalankan 'artisan db:seed' di produksi${N}, itu membuat admin/password123.
 
   Log:
     journalctl -u backup-queue -f

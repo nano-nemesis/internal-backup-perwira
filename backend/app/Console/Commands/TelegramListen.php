@@ -48,9 +48,9 @@ class TelegramListen extends Command
                     Cache::forever(self::OFFSET_KEY, $offset);
                 }
             } catch (\Throwable $e) {
-                // Jangan mati karena satu gangguan jaringan — Telegram sering
+                // Jangan mati karena satu gangguan jaringan: Telegram sering
                 // memutus koneksi long-poll, dan itu wajar.
-                Log::warning('telegram:listen — ' . $e->getMessage());
+                Log::warning('telegram:listen: ' . $e->getMessage());
                 sleep(5);
             }
         }

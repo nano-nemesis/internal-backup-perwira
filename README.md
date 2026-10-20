@@ -38,42 +38,42 @@ Proyek ini berupa monorepo dengan dua aplikasi:
 ## Fitur
 
 - **Dua tipe node backup**
-  - **MikroTik** — menjalankan `/export` lewat SSH dan menyimpan file konfigurasi `.rsc`.
-  - **Database** — menjalankan `mysqldump` lewat SSH, menangkap SQL teks, lalu meng-gzip-nya
+  - **MikroTik**: menjalankan `/export` lewat SSH dan menyimpan file konfigurasi `.rsc`.
+  - **Database**: menjalankan `mysqldump` lewat SSH, menangkap SQL teks, lalu meng-gzip-nya
     secara lokal menjadi file `.sql.gz`.
-- **Penjadwalan otomatis** — setiap node punya interval (dalam jam) yang bisa diatur.
+- **Penjadwalan otomatis**: setiap node punya interval (dalam jam) yang bisa diatur.
   Scheduler per-menit men-dispatch backup yang sudah waktunya, di-align ke tengah malam
   `Asia/Jakarta` (WIB).
-- **Eksekusi berbasis queue** — backup berjalan sebagai queued job di queue khusus `backup`,
+- **Eksekusi berbasis queue**: backup berjalan sebagai queued job di queue khusus `backup`,
   memisahkan operasi SSH yang lama dari siklus request web.
-- **Kebijakan retensi** — backup yang lebih tua dari `BACKUP_RETENTION_DAYS` (default 7)
+- **Kebijakan retensi**: backup yang lebih tua dari `BACKUP_RETENTION_DAYS` (default 7)
   otomatis dihapus setelah backup sukses.
-- **Notifikasi Telegram** — peringatan sukses/gagal dengan cooldown per-node agar tidak spam,
+- **Notifikasi Telegram**: peringatan sukses/gagal dengan cooldown per-node agar tidak spam,
   plus notifikasi "recovery" otomatis saat node yang sebelumnya gagal kembali berhasil.
   Notifikasi gagal memuat **kemungkinan sebab dalam satu kalimat** (hasil terjemahan pesan
   error mentah oleh [`BackupErrorSummary`](backend/app/Support/BackupErrorSummary.php)),
   error aslinya, umur backup baik terakhir, dan pintasan `/node <nama>`.
-- **Bot Telegram dua arah (baca saja)** — tanya keadaan sistem langsung dari Telegram:
+- **Bot Telegram dua arah (baca saja)**: tanya keadaan sistem langsung dari Telegram:
   `/status` (ringkasan armada + kapasitas VPS), `/gagal` (node gagal beserta pesan
   errornya), `/vps` (CPU/RAM/disk partisi backup), `/node <nama>`, `/help`. Memakai
-  **long polling**, bukan webhook — webhook Telegram mewajibkan HTTPS, sementara
+  **long polling**, bukan webhook, webhook Telegram mewajibkan HTTPS, sementara
   aplikasi ini diakses lewat `http://IP`. Bot hanya menjawab di chat yang ber-ID sama
   dengan chat yang dikonfigurasi, dan tidak punya satu pun perintah yang mengubah keadaan.
-  Token bot dan Chat ID bisa diisi lewat menu **Bot Telegram** di UI (admin) — tersimpan
+  Token bot dan Chat ID bisa diisi lewat menu **Bot Telegram** di UI (admin): tersimpan
   terenkripsi di database dan menimpa nilai `.env`. Ada tombol **kirim pesan uji** untuk
   memastikan sambungannya benar tanpa menunggu backup berikutnya.
-- **Metrik VPS** — mengumpulkan CPU, memori, disk, dan load average host backup setiap menit
+- **Metrik VPS**: mengumpulkan CPU, memori, disk, dan load average host backup setiap menit
   (disimpan 24 jam) dan menampilkannya dalam grafik di dashboard.
-- **Terminal remote MikroTik** — admin bisa menjalankan perintah RouterOS (yang di-whitelist)
+- **Terminal remote MikroTik**: admin bisa menjalankan perintah RouterOS (yang di-whitelist)
   ke sebuah node langsung dari UI.
-- **Browser file backup** — menampilkan daftar dan mengunduh artefak backup yang tersimpan.
-- **Ekspor/impor konfigurasi node** (menu **Konfigurasi Node**, admin) — cadangkan daftar node
+- **Browser file backup**: menampilkan daftar dan mengunduh artefak backup yang tersimpan.
+- **Ekspor/impor konfigurasi node** (menu **Konfigurasi Node**, admin): cadangkan daftar node
   ke berkas JSON, atau tambahkan node secara massal dari berkas. Dua mode ekspor: *tanpa
   password* (aman disimpan, cocok jadi templat) dan *lengkap* (password ikut dalam bentuk
-  terenkripsi — hanya bisa dipulihkan di instalasi dengan `APP_KEY` yang sama). Impor selalu
+  terenkripsi, hanya bisa dipulihkan di instalasi dengan `APP_KEY` yang sama). Impor selalu
   bisa dipratinjau dulu, dan ditolak seluruhnya kalau ada satu entri tidak valid.
-- **Alur setup awal** — saat belum ada user, aplikasi memandu pembuatan akun admin pertama.
-- **PWA** — bisa dipasang sebagai aplikasi (nama **Perwira Backup**, ikon PerwiraMedia).
+- **Alur setup awal**: saat belum ada user, aplikasi memandu pembuatan akun admin pertama.
+- **PWA**: bisa dipasang sebagai aplikasi (nama **Perwira Backup**, ikon PerwiraMedia).
   Service worker hanya men-cache **kerangka aplikasi**; respons `/api` dan `/sanctum`
   tidak pernah disimpan, sehingga status backup yang tampil tidak akan pernah basi.
   Saat jaringan putus, yang muncul adalah halaman aplikasi beserta peringatannya sendiri,
@@ -83,10 +83,10 @@ Proyek ini berupa monorepo dengan dua aplikasi:
   > (HTTPS atau `localhost`). Lewat `http://IP` seperti deployment saat ini, Android/Chrome
   > tidak akan menawarkan "Install app". iOS Safari tetap bisa **Add to Home Screen**
   > (memakai meta `apple-mobile-web-app-*`, tanpa service worker). Untuk pemasangan penuh,
-  > sediakan TLS — atau untuk jaringan internal, daftarkan origin-nya di Chrome
+  > sediakan TLS, atau untuk jaringan internal, daftarkan origin-nya di Chrome
   > `chrome://flags/#unsafely-treat-insecure-origin-as-secure`.
-- **Kontrol akses berbasis role** — `admin`, `operator`, dan `viewer`.
-- **Kredensial terenkripsi** — password SSH dan database disimpan terenkripsi memakai app key
+- **Kontrol akses berbasis role**: `admin`, `operator`, dan `viewer`.
+- **Kredensial terenkripsi**: password SSH dan database disimpan terenkripsi memakai app key
   Laravel.
 
 ---
@@ -128,7 +128,7 @@ berbasis cookie Sanctum** (`withCredentials`).
 - **Produksi:** nginx menyajikan SPA langsung dari `frontend/dist` dan meneruskan `/api`
   serta `/sanctum` ke **php-fpm** lewat soket Unix. Tidak ada port 8000.
 - **Development:** Vite mem-proxy `/api`, `/sanctum`, dan `/storage` ke `artisan serve`
-  di port 8000. `artisan serve` hanya untuk development — lihat catatan di bagian
+  di port 8000. `artisan serve` hanya untuk development, lihat catatan di bagian
   [Deployment Produksi](#deployment-produksi).
 
 ---
@@ -139,7 +139,7 @@ Backup dikoordinasi oleh [`BackupService`](backend/app/Services/BackupService.ph
 
 1. Sebuah baris `BackupLog` dibuat dengan status `running`.
 2. Berdasarkan `node.type`, dialihkan ke service yang sesuai:
-   - **MikroTik** ([`MikrotikService`](backend/app/Services/MikrotikService.php)) — membuka
+   - **MikroTik** ([`MikrotikService`](backend/app/Services/MikrotikService.php)): membuka
      koneksi SSH via `proc_open` (memakai `ssh` + `sshpass`, atau private key) dan menjalankan
      `/export show-sensitive` (fallback ke `/export` polos untuk RouterOS lawas).
      Outputnya ditulis ke file `.rsc` dengan izin `0600`.
@@ -162,7 +162,7 @@ Backup dikoordinasi oleh [`BackupService`](backend/app/Services/BackupService.ph
      > perintah dalam heredoc (`<< \EOF-SPATIE-SSH`), yang tidak didukung RouterOS 6.x dan
      > menyebabkan output selalu kosong. Perintah dikirim langsung sebagai argumen SSH.
    - **Database** ([`DatabaseBackupService`](backend/app/Services/DatabaseBackupService.php))
-     — menjalankan `mysqldump --single-transaction --quick --lock-tables=false` lewat SSH (via
+, menjalankan `mysqldump --single-transaction --quick --lock-tables=false` lewat SSH (via
      `spatie/ssh`), memvalidasi outputnya benar-benar SQL dump, lalu meng-kompresnya dengan
      `gzip` native PHP menjadi `.sql.gz`. SQL ditangkap sebagai teks (bukan dipipe ke `gzip`
      remote) agar stdout tidak korup.
@@ -301,7 +301,7 @@ npm install
 npm run dev          # Server dev Vite di http://localhost:5173, proxy /api → :8000
 ```
 
-Buka aplikasinya — jika belum ada user, Anda akan diarahkan ke `/setup` untuk membuat akun
+Buka aplikasinya, jika belum ada user, Anda akan diarahkan ke `/setup` untuk membuat akun
 admin pertama. Jika sudah ada, login di `/login`.
 
 Untuk membuat bundle produksi:
@@ -319,13 +319,13 @@ Variabel penting:
 
 | Variabel | Default | Keterangan |
 |---|---|---|
-| `APP_KEY` | — | Kunci enkripsi Laravel (di-generate otomatis; **juga mengenkripsi kredensial node**) |
-| `DB_*` | — | Detail koneksi MySQL |
+| `APP_KEY` |, | Kunci enkripsi Laravel (di-generate otomatis; **juga mengenkripsi kredensial node**) |
+| `DB_*` |, | Detail koneksi MySQL |
 | `QUEUE_CONNECTION` | `database` | Backup memakai queue `backup` pada koneksi ini |
 | `SANCTUM_STATEFUL_DOMAINS` | `localhost,...` | Domain yang diizinkan untuk auth cookie SPA |
 | `SESSION_DRIVER` | `cookie` | Penyimpanan session |
-| `TELEGRAM_BOT_TOKEN` | — | Token bot Telegram (notifikasi nonaktif bila kosong) |
-| `TELEGRAM_CHAT_ID` | — | ID chat/grup tujuan |
+| `TELEGRAM_BOT_TOKEN` |, | Token bot Telegram (notifikasi nonaktif bila kosong) |
+| `TELEGRAM_CHAT_ID` |, | ID chat/grup tujuan |
 | `BACKUP_RETENTION_DAYS` | `7` | Berapa hari file backup disimpan sebelum dihapus |
 | `BACKUP_MAX_PARALLEL` | `5` | Maksimum backup paralel yang dikonfigurasi |
 | `SSH_TIMEOUT` | `30` | Timeout koneksi/perintah SSH dalam detik |
@@ -342,9 +342,9 @@ Variabel penting:
 
 Setiap node terhubung ke targetnya dengan salah satu dari dua cara:
 
-- **Password** — isi `ssh_password` pada node. MikroTik memakai `sshpass`, node database
+- **Password**: isi `ssh_password` pada node. MikroTik memakai `sshpass`, node database
   memakai autentikasi password `spatie/ssh`.
-- **SSH key** — isi `ssh_key_path` pada node dengan **path absolut ke file private key** di
+- **SSH key**: isi `ssh_key_path` pada node dengan **path absolut ke file private key** di
   host backup. Saat `ssh_key_path` terisi dan file-nya ada, key dipakai dan password
   diabaikan ([`MikrotikService`](backend/app/Services/MikrotikService.php),
   [`DatabaseBackupService`](backend/app/Services/DatabaseBackupService.php)).
@@ -352,7 +352,7 @@ Setiap node terhubung ke targetnya dengan salah satu dari dua cara:
 Karena backup berjalan di dalam queue worker (sebagai `www-data` di produksi), private key
 harus **bisa dibaca oleh user tersebut**. Yang dipasang di tiap target adalah **public key**-nya.
 
-### Langkah 1 — Generate keypair di host backup
+### Langkah 1: Generate keypair di host backup
 
 ```bash
 cd /var/www/internal-backup-perwira
@@ -361,7 +361,7 @@ sudo bash deploy/ssh-keys.sh
 
 Skrip ini membuat **satu keypair per kategori node** di
 `backend/storage/app/ssh/`, mengatur kepemilikan `www-data` dan izin `0600`, lalu mencetak
-public key masing-masing beserta cara memasangnya. **Aman dijalankan berulang** — keypair
+public key masing-masing beserta cara memasangnya. **Aman dijalankan berulang**: keypair
 yang sudah ada tidak pernah ditimpa (menimpanya akan memutus semua target yang sudah
 memasang public key lamanya).
 
@@ -372,7 +372,7 @@ memasang public key lamanya).
 | Node Virtualizor | `id_virtualizor` | ed25519 |
 
 > ⚠️ **Kategori MikroTik sengaja memakai RSA, bukan ed25519.** Impor *user public key*
-> ed25519 baru didukung sejak RouterOS 7.12 — RouterOS 6.x dan 7.0–7.11 menolaknya dengan
+> ed25519 baru didukung sejak RouterOS 7.12: RouterOS 6.x dan 7.0–7.11 menolaknya dengan
 > `unable to load key file (wrong format?)`. RSA diterima di semua versi.
 
 Key dipisah per kategori bukan sekadar demi kerapian: kalau key MikroTik bocor, server
@@ -383,7 +383,7 @@ perangkat kategori lain.
 > target. Field `ssh_key_path` menolak nilai yang mengandung `..`, jadi pakai path absolut
 > yang bersih.
 
-### Langkah 2a — Target VPS Linux (node database / PerwiraCloud)
+### Langkah 2a: Target VPS Linux (node database / PerwiraCloud)
 
 Tambahkan **public** key ke `authorized_keys` milik user SSH di server target. Ini user yang
 sama dengan `ssh_user` pada node (mis. user khusus `backup_user`).
@@ -407,14 +407,14 @@ GRANT SELECT, SHOW VIEW, TRIGGER ON dbname.* TO 'backup_user'@'localhost';
 ```
 
 > Ketiganya wajib. Tanpa `SHOW VIEW` dump **gagal** kalau ada view. Tanpa `TRIGGER` dump
-> **selesai dan lolos pemeriksaan**, tapi trigger hilang tanpa pesan apa pun di stderr —
+> **selesai dan lolos pemeriksaan**, tapi trigger hilang tanpa pesan apa pun di stderr,
 > backup yang terlihat utuh padahal tidak. Diuji di MySQL 8.4 dan MariaDB 11.
 >
 > `LOCK TABLES` dan `EVENT` **tidak** diperlukan: perintahnya memakai
 > `--single-transaction --lock-tables=false`, dan mysqldump tidak menyertakan event tanpa
 > `--events`. `PROCESS` juga tidak, karena perintahnya memakai `--no-tablespaces`.
 
-### Langkah 2b — Target MikroTik CHR (node mikrotik)
+### Langkah 2b: Target MikroTik CHR (node mikrotik)
 
 Di MikroTik, public key di-import dan diikat ke user RouterOS tertentu.
 
@@ -439,7 +439,7 @@ Di MikroTik, public key di-import dan diikat ke user RouterOS tertentu.
    > grup yang juga punya `write` (dan `policy` untuk perintah sensitif).
    >
    > **Backup biner (.backup)** butuh `write` + `policy` (`/system backup save`, terbukti di
-   > RouterOS 7.23 — tanpa `policy` ditolak "not enough permissions") dan `ftp` (scp):
+   > RouterOS 7.23, tanpa `policy` ditolak "not enough permissions") dan `ftp` (scp):
    > `/user group add name=backup-biner policy=ssh,ftp,read,write,policy,sensitive` lalu
    > `/user set backup group=backup-biner`. Tukarannya berat: `policy` bisa membuat user baru,
    > jadi kunci backup praktis setara admin penuh router itu.
@@ -453,7 +453,7 @@ Di MikroTik, public key di-import dan diikat ke user RouterOS tertentu.
 4. Set node di aplikasi ini dengan `ssh_user=backup` dan **SSH Key Path** menunjuk ke private
    `id_mikrotik`. Kosongkan field password.
 
-### Langkah 3 — Verifikasi
+### Langkah 3: Verifikasi
 
 Tes koneksi secara manual sebagai user worker sebelum mengandalkan scheduler:
 
@@ -529,7 +529,7 @@ Ditegakkan oleh middleware [`CheckRole`](backend/app/Http/Middleware/CheckRole.p
 
 | Role | Kemampuan |
 |---|---|
-| **viewer** | Melihat node, log, metrik, dan daftar file backup — tanpa mengunduh isinya |
+| **viewer** | Melihat node, log, metrik, dan daftar file backup, tanpa mengunduh isinya |
 | **operator** | Semua kemampuan viewer + mengunduh file backup, buat/update/hapus node, picu backup |
 | **admin** | Semua + manajemen user, remote execute MikroTik, hapus node massal |
 
@@ -568,7 +568,7 @@ Nama file diberi timestamp, mis. `backup-{node}-2026-06-06-14.30WIB.sql.gz`.
 Direktori [deploy/](deploy/) berisi semua yang dibutuhkan untuk deployment Ubuntu 22.04 +
 Nginx.
 
-**Cara cepat** — jalankan skrip interaktifnya di VPS (aman diulang, dipakai juga untuk
+**Cara cepat**: jalankan skrip interaktifnya di VPS (aman diulang, dipakai juga untuk
 memperbarui):
 
 ```bash
@@ -586,13 +586,13 @@ langkah. Ringkasnya:
 3. `composer install --no-dev --optimize-autoloader`, konfigurasi `.env`, `key:generate`,
    `migrate`.
 4. `npm install && npm run build` di `frontend/`.
-5. Pasang [deploy/nginx.conf](deploy/nginx.conf) — menyajikan SPA langsung dari
+5. Pasang [deploy/nginx.conf](deploy/nginx.conf): menyajikan SPA langsung dari
    `frontend/dist` dan meneruskan `/api` + `/sanctum` ke **php-fpm** lewat soket Unix.
 6. Nyalakan `php8.1-fpm` dan atur `pm.max_children` (lihat panduan bagian 7).
 7. Jalankan queue worker dan scheduler sebagai service systemd:
-   - [deploy/backup-queue.service](deploy/backup-queue.service) — `queue:work --queue=backup`
-   - [deploy/backup-scheduler.service](deploy/backup-scheduler.service) — `schedule:run` tiap 60 detik
-   - [deploy/backup-telegram.service](deploy/backup-telegram.service) — bot Telegram
+   - [deploy/backup-queue.service](deploy/backup-queue.service): `queue:work --queue=backup`
+   - [deploy/backup-scheduler.service](deploy/backup-scheduler.service): `schedule:run` tiap 60 detik
+   - [deploy/backup-telegram.service](deploy/backup-telegram.service): bot Telegram
      (`telegram:listen`), hanya dinyalakan kalau `TELEGRAM_BOT_TOKEN` dan
      `TELEGRAM_CHAT_ID` sudah diisi
 
@@ -608,29 +608,29 @@ langkah. Ringkasnya:
 
 ## Catatan Keamanan
 
-- **Kredensial saat tersimpan** — password SSH dan DB dienkripsi via `encrypt()` Laravel
+- **Kredensial saat tersimpan**: password SSH dan DB dienkripsi via `encrypt()` Laravel
   (terikat `APP_KEY`) dan disembunyikan dari respons API.
-- **Auth** — session cookie SPA Sanctum; login dibatasi rate per IP; akun nonaktif diblokir.
-- **Path traversal** — unduhan backup memakai pengecekan `basename()` + `realpath()` agar
+- **Auth**: session cookie SPA Sanctum; login dibatasi rate per IP; akun nonaktif diblokir.
+- **Path traversal**: unduhan backup memakai pengecekan `basename()` + `realpath()` agar
   akses tetap di dalam direktori backups.
-- **Remote execute MikroTik** — injeksi shell ditutup `escapeshellarg()` di
+- **Remote execute MikroTik**: injeksi shell ditutup `escapeshellarg()` di
   [`MikrotikService`](backend/app/Services/MikrotikService.php); filter karakter di
   controller hanya mempersempit input, **bukan** pengaman. Perintah yang mengubah keadaan
   router (`remove`, `reset-configuration`, `disable`, `shutdown`, `set`, `upgrade`) ditolak
   oleh [`RouterOsCommandPolicy`](backend/app/Support/RouterOsCommandPolicy.php).
-  Ini **daftar-tolak, bukan allowlist** — sintaks tak terduga bisa lolos.
+  Ini **daftar-tolak, bukan allowlist**: sintaks tak terduga bisa lolos.
   Cek mandiri: `php backend/tests/router-os-command-policy.php`.
 - **Kebijakan password**: minimal 12 karakter, wajib memuat huruf dan angka, dan dicek
   terhadap basis data password bocor (Have I Been Pwned). Pengecekan itu memakai
-  *k-anonymity* — hanya 5 karakter awal hash SHA-1 yang dikirim, passwordnya tidak
-  pernah meninggalkan server — dan **gagal terbuka** kalau server tidak punya internet,
+  *k-anonymity*, hanya 5 karakter awal hash SHA-1 yang dikirim, passwordnya tidak
+  pernah meninggalkan server, dan **gagal terbuka** kalau server tidak punya internet,
   sehingga pembuatan akun tidak ikut mati. Berlaku di `/setup`, pembuatan user, dan
   reset password.
 - `/setup` dibatasi 5 percobaan per IP per 15 menit, sama seperti halaman login.
 - Audit tersendiri tercatat di [SECURITY_AUDIT.md](SECURITY_AUDIT.md).
 
 > Seeder development membuat `admin` / `password123`. Seeder menulis langsung ke
-> database sehingga tidak melewati kebijakan password di atas — padahal password itu
+> database sehingga tidak melewati kebijakan password di atas, padahal password itu
 > ada di daftar bocor dan akan ditolak lewat API. **Jangan pakai seeder dev di
 > produksi**: gunakan alur `/setup` untuk membuat admin pertama.
 

@@ -14,7 +14,7 @@ class RouterOsCommandPolicy
      * Verb yang mengubah keadaan router. Dicocokkan sebagai kata utuh, jadi
      * `disabled=yes` pada filter print tetap lolos sementara `disable` ditolak.
      *
-     * ponytail: ini daftar-TOLAK, bukan allowlist — sintaks tak terduga (singkatan
+     * ponytail: ini daftar-TOLAK, bukan allowlist, sintaks tak terduga (singkatan
      * RouterOS, `:execute` di scripting) bisa lolos. Kalau terminal ini dipakai lebih
      * luas, ganti ke allowlist prefix default-deny.
      */

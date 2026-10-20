@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { Play, Power, Edit, Trash2, ChevronRight } from 'lucide-react'
+import { Play, Power, Edit, Trash2, ChevronRight, MoreHorizontal } from 'lucide-react'
 import type { Node, NodeType } from '../../types'
 import { Button } from '../ui/button'
-import { cn, lalu } from '../../lib/utils'
+import { basi, cn, lalu } from '../../lib/utils'
 import {
   useTriggerBackup,
   useToggleNode,
@@ -11,8 +12,9 @@ import {
   useBulkDeleteNodes,
 } from '../../hooks/useNodes'
 import { useAuth } from '../../context/AuthContext'
-import { useBackupWatcher, isRunning } from '../../hooks/useBackupWatcher'
+import { useBackupWatcher } from '../../hooks/useBackupWatcher'
 import { BackupProgress } from './BackupProgress'
+import { TAHAP, keadaan, useManual } from '../../lib/prosesBackup'
 import { toast } from '../ui/toaster'
 import {
   AlertDialog,
@@ -44,17 +46,21 @@ const ABU = 'bg-[#E5E7EB] text-[#374151]'
 /** Lampu Backup: percobaan terakhir, plus kapan terakhir sukses kalau gagal. */
 function Backup({ node }: { node: Node }) {
   const log = node.latest_log
-  if (isRunning(log?.status)) {
+  const manual = useManual().find((m) => m.id === node.id)
+  const k = keadaan(node, log, manual)
+  if (k?.fase === 'berjalan') {
     return (
       <>
-        <span className="pill bg-[#E0E3FF] text-[#2E3AC2]">{log?.status === 'running' ? 'Berjalan' : 'Antre'}</span>
-        <BackupProgress startedAt={log?.created_at} className="mt-1.5" />
+        <span className="pill bg-[#E0E3FF] text-[#2E3AC2]">{k.tahap === 'antre' ? 'Antre' : 'Berjalan'}</span>
+        <span className="block text-xs text-[#2E3AC2] font-semibold mt-1 max-w-[150px] sm:max-w-[220px] truncate">{TAHAP[k.tahap] ?? k.tahap}</span>
+        {k.log && <BackupProgress startedAt={k.log.created_at} className="mt-1" />}
       </>
     )
   }
   const [teks, gaya] = !log
     ? ['Belum ada', ABU]
-    : log.status === 'success' ? ['Sehat', 'bg-[#BBF7D0] text-[#14532D]'] : ['Gagal', 'bg-[#FEE2E2] text-[#991B1B]']
+    : log.status !== 'success' ? ['Gagal', 'bg-[#FEE2E2] text-[#991B1B]']
+      : basi(node) ? ['Basi', 'bg-[#FEF3C7] text-[#92400E]'] : ['Sehat', 'bg-[#BBF7D0] text-[#14532D]']
   const ket = !log
     ? 'belum pernah dibackup'
     : log.status === 'success'
@@ -68,9 +74,18 @@ function Backup({ node }: { node: Node }) {
   )
 }
 
+/** Lampu Pulih: backup berhasil terakhir bisa dipulihkan ke perangkat sekarang? */
+export function Pulih({ node }: { node: Node }) {
+  const p = node.pulih
+  const [teks, gaya] = !p ? ['Belum ada', ABU]
+    : p.putusan === 'siap' ? ['Siap', 'bg-[#BBF7D0] text-[#14532D]']
+      : p.putusan === 'perhatian' ? ['Perhatian', 'bg-[#FEF3C7] text-[#92400E]'] : ['Tidak bisa', 'bg-[#DC2626] text-white']
+  return <span className={cn('pill', gaya)} title={p ? `Dinilai dari ${p.berkas}` : undefined}>{teks}</span>
+}
+
 /** Lampu Konfigurasi: ringkasan Doctor (hanya MikroTik). */
 export function Konfigurasi({ node }: { node: Node }) {
-  if (node.type !== 'mikrotik') return <span className="text-[#94A3B8]">—</span>
+  if (node.type !== 'mikrotik') return <span className="text-[#94A3B8]">-</span>
   const d = node.doctor
   const r = d?.ringkasan
   const [teks, gaya] = !d
@@ -86,8 +101,73 @@ const versi = (n: Node) =>
   [n.doctor?.peran?.includes('CHR') && 'CHR', n.routeros_version && `ROS ${n.routeros_version.split(' ')[0]}`]
     .filter(Boolean).join(' · ')
 
+/**
+ * Menu ⋯ per baris untuk aksi yang jarang dan berisiko (nonaktifkan, hapus). Dirender lewat
+ * portal ke body: di dalam tabel yang bisa digulir ke samping, menu biasa akan terpotong.
+ */
+function MenuBaris({ node, onToggle, onHapus }: {
+  node: Node
+  onToggle: (e: React.MouseEvent) => void
+  onHapus: (e: React.MouseEvent) => void
+}) {
+  const tombol = useRef<HTMLButtonElement>(null)
+  const [kotak, setKotak] = useState<DOMRect | null>(null)
+  const tutup = () => setKotak(null)
+
+  useEffect(() => {
+    if (!kotak) return
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') { tutup(); tombol.current?.focus() } }
+    window.addEventListener('scroll', tutup, true)
+    window.addEventListener('resize', tutup)
+    document.addEventListener('keydown', esc)
+    return () => {
+      window.removeEventListener('scroll', tutup, true)
+      window.removeEventListener('resize', tutup)
+      document.removeEventListener('keydown', esc)
+    }
+  }, [kotak])
+
+  const item = 'w-full flex items-center gap-2.5 px-3 min-h-[40px] rounded-xl text-sm font-semibold text-left transition-colors'
+  return (
+    <>
+      <button
+        ref={tombol}
+        title="Menu lain"
+        aria-label={`Menu lain untuk ${node.name}`}
+        aria-haspopup="menu"
+        aria-expanded={!!kotak}
+        onClick={() => setKotak((k) => (k ? null : tombol.current!.getBoundingClientRect()))}
+        className="hover:bg-[#F1F2F7] text-[#334155] transition-colors w-9 h-9 rounded-[10px] flex items-center justify-center"
+      >
+        <MoreHorizontal className="w-4 h-4" />
+      </button>
+      {kotak && createPortal(
+        <>
+          <div className="fixed inset-0 z-40" onClick={tutup} />
+          <div
+            role="menu"
+            aria-label={`Aksi ${node.name}`}
+            className="fixed z-50 w-52 bg-white rounded-2xl p-1.5 shadow-[0_20px_40px_-16px_rgba(15,23,42,0.45)] border border-[#EEF0F6] animate-muncul"
+            style={{ top: Math.min(kotak.bottom + 6, window.innerHeight - 120), left: Math.max(8, kotak.right - 208) }}
+          >
+            <button role="menuitem" autoFocus onClick={(e) => { tutup(); onToggle(e) }} className={cn(item, 'text-[#334155] hover:bg-[#F1F2F7]')}>
+              <Power className="w-4 h-4" />
+              {node.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+            </button>
+            <button role="menuitem" onClick={(e) => { tutup(); onHapus(e) }} className={cn(item, 'text-[#B91C1C] hover:bg-[#FEF2F2]')}>
+              <Trash2 className="w-4 h-4" />
+              Hapus node
+            </button>
+          </div>
+        </>,
+        document.body,
+      )}
+    </>
+  )
+}
+
 export function NodeTable({ nodes, semua, onEdit }: NodeTableProps) {
-  // Dipasang di sini karena NodeTable dipakai Dashboard maupun Devices — satu
+  // Dipasang di sini karena NodeTable dipakai Dashboard maupun Devices, satu
   // tempat, dan hanya satu di antaranya yang aktif pada satu waktu, jadi tidak
   // ada notifikasi ganda.
   useBackupWatcher(semua ?? nodes)
@@ -109,8 +189,7 @@ export function NodeTable({ nodes, semua, onEdit }: NodeTableProps) {
   const handleBackup = async (node: Node, e: React.MouseEvent) => {
     e.stopPropagation()
     try {
-      await trigger.mutateAsync(node.id)
-      toast(`Backup "${node.name}" dimulai, statusnya diperbarui otomatis`, 'info')
+      await trigger.mutateAsync({ id: node.id, name: node.name, logTerakhir: node.latest_log?.id ?? null })
     } catch (err: any) {
       toast(err.response?.data?.message ?? 'Gagal memulai backup', 'error')
     }
@@ -215,6 +294,7 @@ export function NodeTable({ nodes, semua, onEdit }: NodeTableProps) {
               <th className="th hidden xl:table-cell">Tipe</th>
               <th className="th">Backup</th>
               <th className="th">Konfigurasi</th>
+              <th className="th hidden xl:table-cell">Pulih</th>
               <th className="th hidden 2xl:table-cell">Jadwal</th>
               <th className="th"><span className="sr-only">Aksi</span></th>
             </tr>
@@ -266,6 +346,9 @@ export function NodeTable({ nodes, semua, onEdit }: NodeTableProps) {
                 <td className="px-3 py-3.5 whitespace-nowrap">
                   <Konfigurasi node={node} />
                 </td>
+                <td className="px-3 py-3.5 whitespace-nowrap hidden xl:table-cell">
+                  <Pulih node={node} />
+                </td>
                 <td className="px-3 py-3.5 text-[#475569] hidden 2xl:table-cell whitespace-nowrap">
                   {node.schedule_interval_hours} jam
                 </td>
@@ -295,24 +378,7 @@ export function NodeTable({ nodes, semua, onEdit }: NodeTableProps) {
                         >
                           <Edit className="w-4 h-4" />
                         </button>
-                        <button
-                          title={node.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-                          aria-label={`${node.is_active ? 'Nonaktifkan' : 'Aktifkan'} ${node.name}`}
-                          onClick={(e) => handleToggle(node, e)}
-                          className={`transition-colors w-9 h-9 rounded-[10px] flex items-center justify-center ${
-                            node.is_active ? 'hover:bg-[#FEF3C7] text-[#B45309]' : 'hover:bg-[#DCFCE7] text-[#15803D]'
-                          }`}
-                        >
-                          <Power className="w-4 h-4" />
-                        </button>
-                        <button
-                          title="Hapus"
-                          aria-label={`Hapus ${node.name}`}
-                          onClick={(e) => handleDelete(node, e)}
-                          className="hover:bg-[#FEE2E2] text-[#B91C1C] transition-colors w-9 h-9 rounded-[10px] flex items-center justify-center"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <MenuBaris node={node} onToggle={(e) => handleToggle(node, e)} onHapus={(e) => handleDelete(node, e)} />
                       </>
                     )}
                   </div>

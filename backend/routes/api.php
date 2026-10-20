@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BackupFilesController;
+use App\Http\Controllers\DoctorStandarController;
 use App\Http\Controllers\NodeController;
 use App\Http\Controllers\VpsMetricsController;
 use App\Http\Controllers\Admin\ActivityLogController;
@@ -27,7 +28,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Nodes (read-only for viewer, backup for operator+)
     Route::get('/nodes', [NodeController::class, 'index']);
     Route::get('/nodes/{id}', [NodeController::class, 'show']);
-    // Hanya membaca header berkas — isinya tidak dikirim, jadi viewer boleh.
+    Route::get('/doctor/standar', [DoctorStandarController::class, 'show']);
+    // Hanya membaca header berkas, isinya tidak dikirim, jadi viewer boleh.
     Route::get('/nodes/{id}/restore-check/{filename}', [NodeController::class, 'restoreCheck']);
     // Perintah baca tetap (versi + model), tanpa input pengguna.
     Route::post('/nodes/{id}/device-info', [NodeController::class, 'deviceInfo'])
@@ -47,7 +49,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         // Unduhan dibatasi operator ke atas: sejak /export show-sensitive aktif,
         // berkas .rsc memuat kredensial pelanggan (PPPoE/RADIUS/PSK) dalam teks
         // polos, dan dump .sql.gz memuat isi database. Peran 'viewer' tetap bisa
-        // melihat status, log, dan daftar berkasnya — tapi tidak isinya.
+        // melihat status, log, dan daftar berkasnya, tapi tidak isinya.
         Route::get('/nodes/{id}/download/{filename}', [NodeController::class, 'downloadBackup']);
         Route::get('/backup-files/download', [BackupFilesController::class, 'download']);
     });
@@ -55,17 +57,18 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::post('/nodes/{id}/execute', [NodeController::class, 'remoteExecute'])
             ->middleware('throttle:remote-execute');
-        // Impor bisa menimpa konfigurasi node produksi — admin saja.
+        // Impor bisa menimpa konfigurasi node produksi, admin saja.
         Route::post('/admin/nodes/import', [NodeConfigController::class, 'import']);
 
-        // Pengaturan bot Telegram — token adalah kredensial penuh atas bot, admin saja.
+        // Pengaturan bot Telegram, token adalah kredensial penuh atas bot, admin saja.
+        Route::put('/doctor/standar', [DoctorStandarController::class, 'update']);
         Route::get('/admin/telegram', [TelegramSettingsController::class, 'show']);
         Route::put('/admin/telegram', [TelegramSettingsController::class, 'update']);
         Route::post('/admin/telegram/test', [TelegramSettingsController::class, 'test']);
         Route::delete('/admin/nodes/bulk', [AdminNodeController::class, 'bulkDestroy']);
         Route::delete('/admin/nodes/all', [AdminNodeController::class, 'destroyAll']);
 
-        // Log Sistem memuat IP, username, dan perintah terminal — admin saja.
+        // Log Sistem memuat IP, username, dan perintah terminal, admin saja.
         Route::get('/admin/activity-logs', [ActivityLogController::class, 'index']);
     });
 

@@ -27,7 +27,7 @@ export function AlertDialog({ open, onOpenChange, children }: AlertDialogProps) 
       />
       {/* alertdialog + aria-modal: dialog ini memagari aksi destruktif (hapus node,
           hapus semua). Tanpa peran ini pembaca layar tidak mengumumkannya sama sekali.
-          Catatan: fokus belum dikurung di dalam dialog — Tab masih bisa menjangkau
+          Catatan: fokus belum dikurung di dalam dialog: Tab masih bisa menjangkau
           elemen di belakang overlay. */}
       <div role="alertdialog" aria-modal="true" className="relative z-50 w-full max-w-md animate-muncul">
         {children}

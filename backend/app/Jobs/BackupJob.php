@@ -61,7 +61,7 @@ class BackupJob implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         Log::error("BackupJob: unexpected failure for node [{$this->nodeId}]: " . $exception->getMessage());
-        // Sampai di sini berarti job mati di luar try/catch BackupService — biasanya
+        // Sampai di sini berarti job mati di luar try/catch BackupService, biasanya
         // melewati batas waktu 300 detik atau worker kehabisan memori.
         $node = Node::find($this->nodeId);
         ActivityLog::error('backup', 'backup.crash',

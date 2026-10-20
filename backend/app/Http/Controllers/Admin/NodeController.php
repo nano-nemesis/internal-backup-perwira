@@ -36,7 +36,7 @@ class NodeController extends Controller
      *    lewat cleanOldBackups) di luar direktori backup.
      * 2. Tanpa keunikan, dua node berbagi satu direktori: berkasnya tercampur,
      *    Node::all()->keyBy('name') di BackupFilesController membuat berkas terhubung
-     *    ke node yang salah, dan retensi node A ikut menghapus berkas node B —
+     *    ke node yang salah, dan retensi node A ikut menghapus berkas node B,
      *    berujung memulihkan konfigurasi router yang keliru.
      */
     private function nameRules(?string $ignoreId = null): array
@@ -102,7 +102,7 @@ class NodeController extends Controller
 
         // Interval bersifat nullable di validasi. Tanpa nilai eksplisit di sini,
         // $node->schedule_interval_hours masih null sampai baris dibaca ulang dari
-        // database — dan getNextAlignedSlot(null) melempar TypeError, sehingga node
+        // database, dan getNextAlignedSlot(null) melempar TypeError, sehingga node
         // terbuat tapi jadwalnya tidak dan pengguna melihat 500.
         $interval = $validated['schedule_interval_hours'] ?? self::INTERVAL_DEFAULT;
         $validated['schedule_interval_hours'] = $interval;
@@ -112,7 +112,7 @@ class NodeController extends Controller
         NodeSchedule::create([
             'node_id'     => $node->id,
             // Slot ter-align berikutnya menurut interval-nya (mis. interval 6 jam
-            // pada 00:15 → 06:00 hari ini), bukan now()+interval — kalau tidak, node
+            // pada 00:15 → 06:00 hari ini), bukan now()+interval, kalau tidak, node
             // baru langsung keluar dari grid jadwal yang dijanjikan README.
             'next_run_at' => $this->getNextAlignedSlot($interval),
             'interval_hours' => $interval,
@@ -185,7 +185,7 @@ class NodeController extends Controller
             // next_run_at ikut dihitung ulang: tanpa ini interval baru baru berlaku
             // setelah jadwal LAMA jalan (ubah 24→6 jam pukul 00:15 tetap menunggu
             // besok 00:00), dan pada node yang belum punya baris jadwal
-            // updateOrCreate membuatnya dengan next_run_at NULL — scheduler melewati
+            // updateOrCreate membuatnya dengan next_run_at NULL, scheduler melewati
             // baris itu selamanya sehingga node tidak pernah dibackup.
             NodeSchedule::updateOrCreate(
                 ['node_id' => $node->id],
@@ -209,7 +209,7 @@ class NodeController extends Controller
      *
      * Catatan: kolom file_path di backup_logs tetap menunjuk path lama. Itu hanya
      * dipakai untuk mencocokkan baris saat retensi menghapus berkas, dan UI cuma
-     * menampilkan basename-nya — jadi dampaknya baris log lama tidak ikut terhapus,
+     * menampilkan basename-nya, jadi dampaknya baris log lama tidak ikut terhapus,
      * bukan berkas yang hilang.
      */
     private function renameBackupDirs(string $from, string $to): void
@@ -227,7 +227,7 @@ class NodeController extends Controller
             if (!@rename($src, $dst)) {
                 ActivityLog::warning('node', 'node.pindah-folder-gagal',
                     "Node {$from} diganti nama jadi {$to}, tapi folder backup {$type} lama gagal dipindahkan. "
-                    . 'Berkas lama masih ada di server, tapi tidak lagi terhubung ke node — pindahkan manual.',
+                    . 'Berkas lama masih ada di server, tapi tidak lagi terhubung ke node. Pindahkan manual.',
                     ['dari' => $src, 'ke' => $dst]);
             }
         }
@@ -251,7 +251,7 @@ class NodeController extends Controller
         $node->update(['is_active' => !$node->is_active]);
         $status = $node->is_active ? 'activated' : 'deactivated';
         ActivityLog::info('node', $node->is_active ? 'node.aktif' : 'node.nonaktif',
-            "Node {$node->name} " . ($node->is_active ? 'diaktifkan — backup terjadwal berjalan lagi.' : 'dinonaktifkan — backup terjadwal dihentikan.'),
+            "Node {$node->name} " . ($node->is_active ? 'diaktifkan, backup terjadwal berjalan lagi.' : 'dinonaktifkan, backup terjadwal dihentikan.'),
             [], $node);
         return response()->json(['data' => $node, 'message' => "Node {$status}"]);
     }
@@ -288,7 +288,7 @@ class NodeController extends Controller
         ]);
 
         // delete(), BUKAN truncate(): MySQL menolak TRUNCATE pada tabel yang
-        // direferensikan foreign key (error 1701) — backup_logs dan node_schedules
+        // direferensikan foreign key (error 1701): backup_logs dan node_schedules
         // menunjuk ke nodes, jadi endpoint ini SELALU gagal 500 sebelumnya.
         // FK-nya onDelete('cascade'), sehingga baris anak ikut terhapus sendiri.
         Node::query()->delete();

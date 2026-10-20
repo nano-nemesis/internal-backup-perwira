@@ -11,14 +11,14 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Sisi MASUK bot Telegram: menerima perintah, menjawab dengan keadaan sistem.
- * (Sisi keluar — notifikasi sukses/gagal — ada di TelegramNotifier.)
+ * (Sisi keluar, notifikasi sukses/gagal, ada di TelegramNotifier.)
  *
  * Memakai long polling `getUpdates`, bukan webhook. Webhook Telegram mewajibkan
  * HTTPS dengan sertifikat sah, sementara aplikasi ini diakses lewat http://IP
  * tanpa domain. Long polling tidak butuh port terbuka, TLS, maupun domain.
  *
  * BACA SAJA. Tidak ada perintah yang mengubah keadaan: kalau token bot atau
- * grupnya bocor, yang didapat hanya informasi — bukan kendali atas router produksi.
+ * grupnya bocor, yang didapat hanya informasi, bukan kendali atas router produksi.
  */
 class TelegramBot
 {
@@ -52,7 +52,7 @@ class TelegramBot
         );
 
         if (! $res->successful()) {
-            Log::warning('TelegramBot: getUpdates gagal — ' . $res->status());
+            Log::warning('TelegramBot: getUpdates gagal: ' . $res->status());
             return $offset;
         }
 
@@ -64,7 +64,7 @@ class TelegramBot
             $text = trim((string) ($msg['text'] ?? ''));
             $from = (string) ($msg['chat']['id'] ?? '');
 
-            // Diamkan pesan dari chat lain. Jangan membalas apa pun — membalas
+            // Diamkan pesan dari chat lain. Jangan membalas apa pun, membalas
             // saja sudah memberi tahu orang asing bahwa bot ini hidup.
             if ($from !== $this->chatId || $text === '') {
                 continue;
@@ -137,7 +137,7 @@ class TelegramBot
     {
         $m = $this->metrics->getLatest();
         if (! $m) {
-            return "💻 Belum ada data metrik VPS.\nKolektor berjalan tiap menit — coba lagi sebentar lagi.";
+            return "💻 Belum ada data metrik VPS.\nKolektor berjalan tiap menit, coba lagi sebentar lagi.";
         }
 
         $ramPct  = $m->memory_total_mb > 0 ? round($m->memory_used_mb / $m->memory_total_mb * 100) : 0;
@@ -209,7 +209,7 @@ class TelegramBot
             $out .= "Berikut  " . $this->waktu($n->schedule->next_run_at) . "\n";
         }
         if (! $n->is_active) {
-            $out .= "⚠️ Node ini _nonaktif_ — tidak dijadwalkan.\n";
+            $out .= "⚠️ Node ini _nonaktif_, tidak dijadwalkan.\n";
         }
 
         $out .= "\nStatus   {$ikon} " . ($log?->status ?? 'belum pernah dijalankan');
@@ -231,11 +231,11 @@ class TelegramBot
     private function help(): string
     {
         return "*Perintah yang tersedia*\n\n"
-             . "/status — ringkasan armada + kapasitas VPS\n"
-             . "/gagal — node yang gagal beserta alasannya\n"
-             . "/vps — kapasitas VPS backup\n"
-             . "/node `<nama>` — detail satu node\n"
-             . "/help — pesan ini\n\n"
+             . "/status: ringkasan armada + kapasitas VPS\n"
+             . "/gagal: node yang gagal beserta alasannya\n"
+             . "/vps: kapasitas VPS backup\n"
+             . "/node `<nama>`: detail satu node\n"
+             . "/help: pesan ini\n\n"
              . "_Bot ini hanya membaca; tidak ada perintah yang mengubah apa pun._";
     }
 
@@ -309,7 +309,7 @@ class TelegramBot
                 ['chat_id' => $this->chatId, 'text' => $message, 'parse_mode' => 'Markdown'],
             );
         } catch (\Exception $e) {
-            Log::error('TelegramBot: gagal mengirim balasan — ' . $e->getMessage());
+            Log::error('TelegramBot: gagal mengirim balasan: ' . $e->getMessage());
         }
     }
 }

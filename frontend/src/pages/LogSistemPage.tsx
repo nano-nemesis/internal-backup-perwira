@@ -36,7 +36,7 @@ function waktuWIB(iso: string) {
 }
 
 function NilaiKonteks({ nilai }: { nilai: unknown }) {
-  if (nilai === null || nilai === undefined || nilai === '') return <span className="text-[#94A3B8]">—</span>
+  if (nilai === null || nilai === undefined || nilai === '') return <span className="text-[#94A3B8]">-</span>
   if (typeof nilai === 'string' && !nilai.includes('\n')) return <span className="break-all">{nilai}</span>
   return (
     <pre className="whitespace-pre-wrap break-all text-xs font-mono bg-[#F4F5FA] rounded-xl p-3 max-h-64 overflow-auto">
@@ -132,7 +132,7 @@ export default function LogSistemPage() {
         </p>
       </div>
 
-      {/* Ringkasan 24 jam — klik untuk memfilter */}
+      {/* Ringkasan 24 jam, klik untuk memfilter */}
       <div className="grid grid-cols-3 gap-3 md:gap-5 berurutan">
         {(['error', 'warning', 'info'] as const).map((lv) => {
           const L = LEVEL[lv]

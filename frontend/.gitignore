@@ -5,7 +5,7 @@ node_modules/
 dist/
 dist-ssr/
 
-# Environment files — NEVER commit
+# Environment files: NEVER commit
 .env
 .env.*
 !.env.example

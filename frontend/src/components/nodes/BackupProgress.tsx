@@ -3,8 +3,8 @@ import { useEffect, useState } from 'react'
 /**
  * Penanda proses backup yang sedang berjalan.
  *
- * Durasinya tidak bisa diperkirakan — tergantung ukuran konfigurasi atau dump dan
- * kecepatan SSH ke target — jadi bar-nya indeterminate, bukan persentase palsu.
+ * Durasinya tidak bisa diperkirakan, tergantung ukuran konfigurasi atau dump dan
+ * kecepatan SSH ke target, jadi bar-nya indeterminate, bukan persentase palsu.
  * Penghitung detik yang berjalan memberi bukti bahwa prosesnya benar-benar hidup,
  * bukan layar yang membeku.
  */

@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 
 /**
  * Penanda bahwa halaman memperbarui dirinya sendiri. Titik menyala setiap kali
- * data sedang diambil, supaya pengguna tahu angka di layar hidup — bukan
+ * data sedang diambil, supaya pengguna tahu angka di layar hidup, bukan
  * tangkapan lama yang perlu di-refresh.
  */
 function LiveDot() {
