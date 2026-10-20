@@ -5,6 +5,15 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.3.1',
+    tanggal: '2026-10-20',
+    judul: 'Perbaikan backup biner',
+    poin: [
+      'Penolakan router saat /system backup save kini terdeteksi. Sebelumnya RouterOS tetap melapor sukses dan Log Sistem menampilkan error scp yang menyesatkan.',
+      'Koreksi syarat policy: backup biner butuh write + policy + ftp (terbukti di RouterOS 7.23), bukan write + ftp saja.',
+    ],
+  },
+  {
     versi: '1.3.0',
     tanggal: '2026-10-20',
     judul: 'Backup biner MikroTik (.backup)',

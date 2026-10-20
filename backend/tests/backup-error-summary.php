@@ -21,6 +21,7 @@ $kasus = [
     ['Tidak ada file backup ditemukan di 10.10.9.5:/var/virtualizor/backup/db.', 'kosong atau pathnya salah'],
     ['mkdir(): Permission denied', 'Folder backup'],
     ['SSH command gagal ke 10.10.3.1 (exit code 1): not enough permissions (9)', 'policy'],
+    ["Router 10.28.0.17 menolak '/system backup save name=perwira-x dont-encrypt=yes': Failed to save system configuration backup\nnot enough permissions (9) (/system/backup/save; line 1)", 'policy'],
 ];
 
 $gagal = [];

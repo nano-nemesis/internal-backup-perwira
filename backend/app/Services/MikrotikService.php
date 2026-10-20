@@ -82,12 +82,12 @@ class MikrotikService
         try {
             // dont-encrypt eksplisit: default enkripsi berubah antar versi RouterOS, dan
             // berkas harus bisa di-restore tanpa password user backup.
-            $this->runSshCommand($node, "/system backup save name=perwira-{$stamp} dont-encrypt=yes");
+            $this->runRouterCommand($node, "/system backup save name=perwira-{$stamp} dont-encrypt=yes");
             try {
                 $this->scpPull($node, $remote, $localPath);
             } finally {
                 try {
-                    $this->runSshCommand($node, "/file remove {$remote}");
+                    $this->runRouterCommand($node, "/file remove {$remote}");
                 } catch (\RuntimeException $e) {
                     ActivityLog::warning('backup', 'mikrotik.backup-biner-sisa',
                         "{$node->name}: berkas {$remote} gagal dihapus dari router dan masih memakan flash — hapus manual.",
@@ -107,9 +107,23 @@ class MikrotikService
             $sebab = BackupErrorSummary::sebab($e->getMessage());
             ActivityLog::warning('backup', 'mikrotik.backup-biner-gagal',
                 "{$node->name}: .rsc tersimpan, tapi .backup gagal — "
-                . ($sebab ? "kemungkinan sebab: {$sebab}." : 'periksa policy write + ftp user router (dipakai /system backup save dan scp).'),
+                . ($sebab ? "kemungkinan sebab: {$sebab}." : 'periksa policy write + policy + ftp user router (dipakai /system backup save dan scp).'),
                 ['error' => $e->getMessage(), 'sebab' => $sebab], $node);
         }
+    }
+
+    /**
+     * RouterOS keluar dengan exit 0 walau perintahnya ditolak ("Failed to save ...",
+     * "not enough permissions (9)") — tanpa membaca output, kegagalan lolos sebagai sukses.
+     */
+    private function runRouterCommand(Node $node, string $command): string
+    {
+        $output = $this->runSshCommand($node, $command);
+        if (preg_match('/failed|not enough permissions/i', $output)) {
+            throw new \RuntimeException("Router {$node->host} menolak '{$command}': " . trim($output));
+        }
+
+        return $output;
     }
 
     public function execute(Node $node, string $command): string

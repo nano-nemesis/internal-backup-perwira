@@ -431,9 +431,11 @@ Di MikroTik, public key di-import dan diikat ke user RouterOS tertentu.
    > User grup `read` sudah cukup untuk backup. Untuk eksekusi perintah remote dari UI, pakai
    > grup yang juga punya `write` (dan `policy` untuk perintah sensitif).
    >
-   > **Backup biner (.backup)** butuh `write` (save + hapus berkas) dan `ftp` (scp):
-   > `/user group add name=backup policy=ssh,ftp,read,write,sensitive` lalu
-   > `/user set backup group=backup`. Tukarannya: kunci backup jadi bisa mengubah konfigurasi.
+   > **Backup biner (.backup)** butuh `write` + `policy` (`/system backup save`, terbukti di
+   > RouterOS 7.23 — tanpa `policy` ditolak "not enough permissions") dan `ftp` (scp):
+   > `/user group add name=backup-biner policy=ssh,ftp,read,write,policy,sensitive` lalu
+   > `/user set backup group=backup-biner`. Tukarannya berat: `policy` bisa membuat user baru,
+   > jadi kunci backup praktis setara admin penuh router itu.
 
 3. **Import** public key dan ikat ke user tersebut (di terminal RouterOS):
 

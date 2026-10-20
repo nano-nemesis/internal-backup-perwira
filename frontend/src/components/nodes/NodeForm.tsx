@@ -163,7 +163,7 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
                 Selain <code className="text-xs bg-[#F1F5F9] px-1 rounded">.rsc</code>, ambil{' '}
                 <code className="text-xs bg-[#F1F5F9] px-1 rounded">/system backup save</code> untuk
                 restore penuh ke unit yang sama. User router butuh policy{' '}
-                <strong>write</strong> + <strong>ftp</strong>; kalau belum, .rsc tetap tersimpan
+                <strong>write</strong> + <strong>policy</strong> + <strong>ftp</strong> (setara admin penuh); kalau belum, .rsc tetap tersimpan
                 dan kegagalannya tercatat di Log Sistem.
               </span>
             </span>

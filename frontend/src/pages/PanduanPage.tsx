@@ -148,10 +148,11 @@ export default function PanduanPage() {
             <K>sensitive</K> wajib: tanpanya <K>/export show-sensitive</K> tetap jalan tapi
             nilai rahasianya keluar sebagai <K>***</K>. Tidak perlu <K>write</K> maupun{' '}
             <K>policy</K> — kecuali node itu menyalakan <strong>backup biner (.backup)</strong>:
-            <K>/system backup save</K> dan <K>/file remove</K> butuh <K>write</K>, menarik berkasnya
+            <K>/system backup save</K> butuh <K>write</K> + <K>policy</K>, menarik berkasnya
             lewat scp butuh <K>ftp</K>. Buat grup sendiri, mis.{' '}
-            <K>/user group add name=backup policy=ssh,ftp,read,write,sensitive</K>. Ingat
-            tukarannya: kunci backup jadi bisa mengubah konfigurasi router.
+            <K>/user group add name=backup-biner policy=ssh,ftp,read,write,policy,sensitive</K>.
+            Ingat tukarannya: <K>policy</K> bisa membuat user baru, jadi kunci backup praktis
+            setara admin penuh router itu.
           </li>
           <li>
             <strong>Server database</strong> — user SSH biasa (tanpa sudo, tanpa root) yang
