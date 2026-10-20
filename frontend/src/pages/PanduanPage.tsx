@@ -147,7 +147,7 @@ export default function PanduanPage() {
             sudah memuat policy <K>ssh</K>, <K>read</K>, dan <K>sensitive</K>. Policy{' '}
             <K>sensitive</K> wajib: tanpanya <K>/export show-sensitive</K> tetap jalan tapi
             nilai rahasianya keluar sebagai <K>***</K>. Tidak perlu <K>write</K> maupun{' '}
-            <K>policy</K> — kecuali node itu menyalakan <strong>backup biner (.backup)</strong>:
+            <K>policy</K> — kecuali node itu memilih tipe backup <strong>.backup</strong> (biner):
             <K>/system backup save</K> butuh <K>write</K> + <K>policy</K>, menarik berkasnya
             lewat scp butuh <K>ftp</K>. Buat grup sendiri, mis.{' '}
             <K>/user group add name=backup-biner policy=ssh,ftp,read,write,policy,sensitive</K>.

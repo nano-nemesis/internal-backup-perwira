@@ -143,9 +143,10 @@ Backup dikoordinasi oleh [`BackupService`](backend/app/Services/BackupService.ph
      koneksi SSH via `proc_open` (memakai `ssh` + `sshpass`, atau private key) dan menjalankan
      `/export show-sensitive` (fallback ke `/export` polos untuk RouterOS lawas).
      Outputnya ditulis ke file `.rsc` dengan izin `0600`.
-     Kalau node menyalakan **backup biner**, ikut dijalankan `/system backup save`, berkasnya
-     ditarik lewat `scp -O` jadi `.backup` (nama sama dengan `.rsc`), lalu dihapus dari router.
-     Gagalnya `.backup` tidak menggagalkan backup — `.rsc` tetap tersimpan, sebabnya ke Log Sistem.
+     Node yang memilih **tipe backup `.backup`** (biner) tidak menjalankan `/export`, melainkan
+     `/system backup save` → berkas ditarik lewat `scp -O` → dihapus dari flash router.
+     `.backup` memuat seluruh konfigurasi termasuk user router, tapi hanya bisa di-restore ke
+     model + versi RouterOS yang sama; untuk pindah perangkat pakai `.rsc`.
 
      > ⚠️ `show-sensitive` membuat file `.rsc` berisi **kredensial pelanggan plaintext**
      > (PPPoE secret, RADIUS secret, WiFi PSK). Tanpa flag ini backup tidak cukup untuk

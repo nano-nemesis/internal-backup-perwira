@@ -5,6 +5,16 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.4.0',
+    tanggal: '2026-10-20',
+    judul: 'Pilih tipe backup MikroTik: .rsc atau .backup',
+    poin: [
+      'Tiap node MikroTik kini memilih satu tipe backup di form node: .rsc (export teks) atau .backup (biner). Centang "Juga simpan backup biner" diganti pilihan ini.',
+      'Backup .backup tampil di Backup Logs seperti .rsc: nama berkas, ukuran, durasi, berhasil atau gagal.',
+      '.backup yang gagal kini dihitung backup gagal dan dikirim ke Telegram, bukan lagi sekadar peringatan.',
+    ],
+  },
+  {
     versi: '1.3.1',
     tanggal: '2026-10-20',
     judul: 'Perbaikan backup biner',

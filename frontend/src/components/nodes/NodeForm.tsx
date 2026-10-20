@@ -150,24 +150,23 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
         </div>
 
         {form.type === 'mikrotik' && (
-          <label className="flex items-start gap-3 pt-3 border-t border-[#E2E8F0] text-sm text-[#0F172A] cursor-pointer">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={form.backup_binary}
-              onChange={(e) => set('backup_binary', e.target.checked)}
+          <div className="pt-3 border-t border-[#E2E8F0]">
+            <Select
+              label="Tipe Backup"
+              value={form.backup_binary ? 'backup' : 'rsc'}
+              onChange={(e) => set('backup_binary', e.target.value === 'backup')}
+              options={[
+                { value: 'rsc', label: '.rsc — export teks (bisa dipulihkan ke perangkat lain)' },
+                { value: 'backup', label: '.backup — biner (restore penuh ke unit yang sama)' },
+              ]}
             />
-            <span>
-              <strong>Juga simpan backup biner (.backup)</strong>
-              <span className="block text-[#475569] mt-0.5">
-                Selain <code className="text-xs bg-[#F1F5F9] px-1 rounded">.rsc</code>, ambil{' '}
-                <code className="text-xs bg-[#F1F5F9] px-1 rounded">/system backup save</code> untuk
-                restore penuh ke unit yang sama. User router butuh policy{' '}
-                <strong>write</strong> + <strong>policy</strong> + <strong>ftp</strong> (setara admin penuh); kalau belum, .rsc tetap tersimpan
-                dan kegagalannya tercatat di Log Sistem.
-              </span>
-            </span>
-          </label>
+            <p className="text-xs text-[#475569] mt-1.5">
+              <code className="bg-[#F1F5F9] px-1 rounded">.backup</code> memuat seluruh konfigurasi
+              termasuk user router, tapi hanya bisa di-restore ke model + versi RouterOS yang sama.
+              User router butuh policy <strong>write</strong> + <strong>policy</strong> +{' '}
+              <strong>ftp</strong> (setara admin penuh).
+            </p>
+          </div>
         )}
 
         {form.type === 'database' && (

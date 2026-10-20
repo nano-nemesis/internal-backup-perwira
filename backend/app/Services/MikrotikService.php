@@ -3,7 +3,6 @@ namespace App\Services;
 
 use App\Models\ActivityLog;
 use App\Models\Node;
-use App\Support\BackupErrorSummary;
 
 class MikrotikService
 {
@@ -23,6 +22,12 @@ class MikrotikService
             mkdir($localDir, 0755, true);
         }
         $localPath = "{$localDir}/{$filename}";
+
+        if ($node->backup_binary) {
+            $binaryPath = preg_replace('/\.rsc$/', '.backup', $localPath);
+            $this->backupBinary($node, $binaryPath, $now->format('Ymd-His'));
+            return $binaryPath;
+        }
 
         // '/export' polos MENYAMARKAN secret (PPPoE/RADIUS/PSK) di RouterOS v7,
         // sehingga backup-nya tidak cukup untuk memulihkan layanan pelanggan. Flag ini
@@ -59,19 +64,14 @@ class MikrotikService
             throw new \RuntimeException("Gagal menyimpan file backup dari {$node->host}");
         }
 
-        if ($node->backup_binary) {
-            $this->backupBinary($node, preg_replace('/\.rsc$/', '.backup', $localPath), $now->format('Ymd-His'));
-        }
-
         return $localPath;
     }
 
     /**
-     * Pendamping .rsc: /system backup save, tarik lewat scp, hapus dari flash router.
+     * Backup biner: /system backup save, tarik lewat scp, hapus dari flash router.
      *
-     * Gagal di sini TIDAK menggagalkan backup — .rsc sudah tersimpan dan itulah yang
-     * bisa dipulihkan ke unit pengganti (.backup terikat model + versi RouterOS).
-     * Kegagalannya dicatat warning di Log Sistem.
+     * Hanya bisa dipulihkan ke unit dengan model + versi RouterOS yang sama — untuk
+     * pindah perangkat pakai .rsc. Butuh policy write + policy + ftp di user router.
      */
     private function backupBinary(Node $node, string $localPath, string $stamp): void
     {
@@ -101,14 +101,11 @@ class MikrotikService
             // Memuat seluruh konfigurasi + database user router.
             chmod($localPath, 0600);
         } catch (\RuntimeException $e) {
+            // Jangan tinggalkan berkas setengah jadi yang tampak seperti backup sah.
             if (is_file($localPath)) {
                 unlink($localPath);
             }
-            $sebab = BackupErrorSummary::sebab($e->getMessage());
-            ActivityLog::warning('backup', 'mikrotik.backup-biner-gagal',
-                "{$node->name}: .rsc tersimpan, tapi .backup gagal — "
-                . ($sebab ? "kemungkinan sebab: {$sebab}." : 'periksa policy write + policy + ftp user router (dipakai /system backup save dan scp).'),
-                ['error' => $e->getMessage(), 'sebab' => $sebab], $node);
+            throw $e;
         }
     }
 
