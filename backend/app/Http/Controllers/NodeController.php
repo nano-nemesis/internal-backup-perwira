@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\BackupLog;
 use App\Models\Node;
 use App\Services\MikrotikService;
+use App\Support\RestoreCheck;
 use App\Support\RouterOsCommandPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -30,6 +31,9 @@ class NodeController extends Controller
                 'schedule_interval_hours' => $node->schedule_interval_hours,
                 'is_active' => $node->is_active,
                 'backup_binary' => $node->backup_binary,
+                'routeros_version' => $node->routeros_version,
+                'routeros_model' => $node->routeros_model,
+                'routeros_checked_at' => $node->routeros_checked_at,
                 'last_backup_at' => $node->last_backup_at,
                 'latest_log' => $node->latestBackupLog ? [
                     'id' => $node->latestBackupLog->id,
@@ -70,6 +74,7 @@ class NodeController extends Controller
                 'file_size_formatted' => $log->file_size_formatted,
                 'duration_seconds' => $log->duration_seconds,
                 'error_message' => $log->error_message,
+                'routeros_version' => $log->routeros_version,
                 'started_at' => $log->started_at,
                 'finished_at' => $log->finished_at,
                 'created_at' => $log->created_at,
@@ -91,6 +96,9 @@ class NodeController extends Controller
                 'schedule_interval_hours' => $node->schedule_interval_hours,
                 'is_active' => $node->is_active,
                 'backup_binary' => $node->backup_binary,
+                'routeros_version' => $node->routeros_version,
+                'routeros_model' => $node->routeros_model,
+                'routeros_checked_at' => $node->routeros_checked_at,
                 'last_backup_at' => $node->last_backup_at,
                 'schedule' => $node->load('schedule')->schedule,
             ],
@@ -162,33 +170,93 @@ class NodeController extends Controller
     public function downloadBackup(string $id, string $filename): BinaryFileResponse|JsonResponse
     {
         $node = Node::findOrFail($id);
+        $resolved = $this->resolveBackupFile($node, $filename);
+        if (!$resolved) {
+            return response()->json(['message' => 'File not found'], 404);
+        }
 
-        // basename() removes any directory component; realpath() then confirms the
-        // resolved path stays inside the allowed backup directory.
+        ActivityLog::info('berkas', 'unduh', 'Berkas backup ' . basename($resolved) . ' diunduh.', ['file' => basename($resolved)], $node);
+        return response()->download($resolved);
+    }
+
+    /** Baca versi + model RouterOS langsung dari router (tombol "Cek sekarang"). */
+    public function deviceInfo(string $id): JsonResponse
+    {
+        $node = Node::findOrFail($id);
+        if ($node->type !== 'mikrotik') {
+            return response()->json(['message' => 'Hanya untuk node MikroTik'], 422);
+        }
+
+        try {
+            $info = app(MikrotikService::class)->refreshDeviceInfo($node);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 502);
+        }
+
+        return response()->json(['data' => $info + ['checked_at' => $node->routeros_checked_at]]);
+    }
+
+    /** Simulasi restore satu berkas — hanya membaca header berkas, router tidak disentuh. */
+    public function restoreCheck(string $id, string $filename): JsonResponse
+    {
+        $node = Node::findOrFail($id);
+        $resolved = $this->resolveBackupFile($node, $filename);
+        if (!$resolved || !preg_match('/\.(rsc|backup)$/', $resolved)) {
+            return response()->json(['message' => 'Berkas backup MikroTik tidak ditemukan'], 404);
+        }
+
+        $log = BackupLog::where('file_path', $resolved)->first();
+
+        return response()->json(['data' => RestoreCheck::periksa(
+            $resolved,
+            ['version' => $node->routeros_version, 'model' => $node->routeros_model],
+            ['version' => $log?->routeros_version, 'model' => $log?->routeros_model],
+        ) + ['dicek_pada' => $node->routeros_checked_at]]);
+    }
+
+    public function simulateFailure(Request $request, string $id): JsonResponse
+    {
+        $node = Node::findOrFail($id);
+        if ($node->type !== 'mikrotik') {
+            return response()->json(['message' => 'Simulasi hanya untuk node MikroTik'], 422);
+        }
+        $data = $request->validate(['skenario' => 'required|in:tak-terjangkau,login-ditolak']);
+
+        BackupJob::dispatch($node->id, $request->user()->username, $data['skenario'])->onQueue('backup');
+        ActivityLog::warning('backup', 'backup.simulasi',
+            "Simulasi gangguan '{$data['skenario']}' untuk {$node->name} dimasukkan ke antrean — notifikasi Telegram akan terkirim.",
+            ['skenario' => $data['skenario']], $node);
+
+        return response()->json(['message' => 'Simulasi dimasukkan ke antrean']);
+    }
+
+    /**
+     * basename() membuang komponen direktori; realpath() lalu memastikan hasilnya tetap
+     * di dalam direktori backup. null = tidak ada / di luar batas.
+     */
+    private function resolveBackupFile(Node $node, string $filename): ?string
+    {
         $safeName = basename($filename);
         if (str_contains($safeName, "\0")) {
-            return response()->json(['message' => 'Invalid filename'], 400);
+            return null;
         }
 
         $baseDir = realpath(storage_path('app/backups'));
 
         foreach (['mikrotik', 'database'] as $type) {
-            $candidate = $baseDir . DIRECTORY_SEPARATOR . $type
-                       . DIRECTORY_SEPARATOR . $node->name
-                       . DIRECTORY_SEPARATOR . $safeName;
-
-            $resolved = realpath($candidate);
+            $resolved = realpath($baseDir . DIRECTORY_SEPARATOR . $type
+                . DIRECTORY_SEPARATOR . $node->name
+                . DIRECTORY_SEPARATOR . $safeName);
 
             if ($resolved
                 && str_starts_with($resolved, $baseDir . DIRECTORY_SEPARATOR)
                 && is_file($resolved)
             ) {
-                ActivityLog::info('berkas', 'unduh', "Berkas backup {$safeName} diunduh.", ['file' => $safeName], $node);
-                return response()->download($resolved);
+                return $resolved;
             }
         }
 
-        return response()->json(['message' => 'File not found'], 404);
+        return null;
     }
 
     private function getBackupFiles(Node $node): array

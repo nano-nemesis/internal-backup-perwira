@@ -29,6 +29,7 @@ class Node extends Model
         'ssh_user', 'ssh_password', 'ssh_key_path',
         'db_name', 'db_user', 'db_password',
         'schedule_interval_hours', 'is_active', 'last_backup_at', 'backup_binary',
+        'routeros_version', 'routeros_model', 'routeros_checked_at',
     ];
 
     protected $hidden = ['ssh_password', 'db_password'];
@@ -37,6 +38,7 @@ class Node extends Model
         'is_active'               => 'boolean',
         'backup_binary'           => 'boolean',
         'last_backup_at'          => 'datetime',
+        'routeros_checked_at'     => 'datetime',
         'port'                    => 'integer',
         'schedule_interval_hours' => 'integer',
     ];

@@ -27,9 +27,17 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Nodes (read-only for viewer, backup for operator+)
     Route::get('/nodes', [NodeController::class, 'index']);
     Route::get('/nodes/{id}', [NodeController::class, 'show']);
+    // Hanya membaca header berkas — isinya tidak dikirim, jadi viewer boleh.
+    Route::get('/nodes/{id}/restore-check/{filename}', [NodeController::class, 'restoreCheck']);
+    // Perintah baca tetap (versi + model), tanpa input pengguna.
+    Route::post('/nodes/{id}/device-info', [NodeController::class, 'deviceInfo'])
+        ->middleware('throttle:backup-trigger');
 
     Route::middleware('role:admin,operator')->group(function () {
         Route::post('/nodes/{id}/backup', [NodeController::class, 'triggerBackup'])
+            ->middleware('throttle:backup-trigger');
+        // Mengirim notifikasi Telegram sungguhan dan memerahkan status node.
+        Route::post('/nodes/{id}/simulate-failure', [NodeController::class, 'simulateFailure'])
             ->middleware('throttle:backup-trigger');
 
         // Unduhan dibatasi operator ke atas: sejak /export show-sensitive aktif,

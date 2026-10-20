@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\BackupLog;
 use App\Models\Node;
 use App\Support\BackupErrorSummary;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class BackupService
@@ -17,9 +18,13 @@ class BackupService
         private VirtualizorBackupService $virtualizor,
     ) {}
 
-    public function run(Node $node, ?string $pemicu = null): BackupLog
+    public function run(Node $node, ?string $pemicu = null, bool $simulasi = false): BackupLog
     {
-        $cara = $pemicu ? "manual oleh {$pemicu}" : 'terjadwal';
+        $cara = match (true) {
+            $simulasi => "SIMULASI gangguan oleh {$pemicu}",
+            $pemicu !== null => "manual oleh {$pemicu}",
+            default => 'terjadwal',
+        };
         ActivityLog::info('backup', 'backup.mulai', "Backup {$node->name} ({$node->type}, {$node->host}) dimulai — {$cara}.", [
             'pemicu' => $pemicu ?? 'jadwal',
             'host'   => "{$node->host}:" . ($node->port ?? 22),
@@ -43,8 +48,23 @@ class BackupService
                 default          => throw new \RuntimeException("Unknown node type: {$node->type}"),
             };
 
+            // Node simulasi adalah salinan ber-host palsu; sukses di sini berarti targetnya
+            // ternyata menjawab, dan $node->update() di bawah akan menyimpan host palsu itu.
+            if ($simulasi) {
+                throw new \RuntimeException("Target simulasi {$node->host} ternyata menjawab — simulasi dibatalkan.");
+            }
+
             $duration = (int) (microtime(true) - $startTime);
             $fileSize = file_exists($filePath) ? filesize($filePath) : 0;
+
+            // Versi + model saat backup dibuat — syarat menilai apakah .backup bisa
+            // di-restore nanti. Gagal membacanya tidak menggagalkan backup yang sudah jadi.
+            if ($node->type === 'mikrotik') {
+                try {
+                    $this->mikrotik->refreshDeviceInfo($node);
+                } catch (\RuntimeException) {
+                }
+            }
 
             $log->update([
                 'status' => 'success',
@@ -52,6 +72,8 @@ class BackupService
                 'file_size' => $fileSize,
                 'duration_seconds' => $duration,
                 'finished_at' => now(),
+                'routeros_version' => $node->routeros_version,
+                'routeros_model' => $node->routeros_model,
             ]);
 
             $node->update(['last_backup_at' => now()]);
@@ -67,27 +89,60 @@ class BackupService
 
         } catch (\Exception $e) {
             $duration = (int) (microtime(true) - $startTime);
+            $error = ($simulasi ? '[SIMULASI] ' : '') . $e->getMessage();
 
             $log->update([
                 'status' => 'failed',
-                'error_message' => $e->getMessage(),
+                'error_message' => $error,
                 'duration_seconds' => $duration,
                 'finished_at' => now(),
             ]);
 
             // Pesan dibuka dengan SEBAB yang bisa ditindaklanjuti; error mentah tetap
             // disimpan utuh di konteks untuk penelusuran.
-            $sebab = BackupErrorSummary::sebab($e->getMessage());
+            $sebab = BackupErrorSummary::sebab($error);
             ActivityLog::error('backup', 'backup.gagal',
                 "Backup {$node->name} ({$node->host}) gagal setelah {$duration} detik. "
                 . ($sebab ? "Kemungkinan sebab: {$sebab}." : 'Sebab tidak dikenali otomatis — lihat error mentah di detail.'),
-                ['error' => $e->getMessage(), 'sebab' => $sebab, 'durasi_detik' => $duration, 'pemicu' => $pemicu ?? 'jadwal'],
+                ['error' => $error, 'sebab' => $sebab, 'durasi_detik' => $duration, 'pemicu' => $pemicu ?? 'jadwal'],
                 $node,
             );
-            $this->telegram->notifyFailure($node, $e->getMessage());
+            $this->telegram->notifyFailure($node, $error);
         }
 
         return $log->fresh();
+    }
+
+    /**
+     * Gangguan SUNGGUHAN ke target palsu: alur gagal yang sama persis dengan aslinya
+     * (backup_logs, Log Sistem, Telegram, status node) teruji tanpa menyentuh router.
+     * Status node merah sampai backup asli berikutnya berhasil — itu juga menguji pesan
+     * pemulihan Telegram.
+     */
+    public function simulate(Node $node, string $skenario, string $pemicu): BackupLog
+    {
+        // Salinan di memori, tidak pernah disimpan (lihat penjaga di run()).
+        $palsu = clone $node;
+        if ($skenario === 'login-ditolak') {
+            // sshd VPS sendiri menolak user yang tidak ada → "Permission denied" asli.
+            $palsu->host = '127.0.0.1';
+            $palsu->port = 22;
+            $palsu->ssh_user = 'simulasi-perwira';
+        } else {
+            // TEST-NET-1 (RFC 5737) tidak pernah dirutekan → timeout seperti router mati.
+            $palsu->host = '192.0.2.1';
+        }
+        // Password router asli tidak boleh ikut terkirim ke target palsu.
+        $palsu->ssh_password = null;
+
+        // Cooldown dibersihkan sebelum (agar notifikasi uji pasti terkirim) dan sesudah
+        // (agar gangguan asli berikutnya tidak tertahan oleh cooldown dari simulasi).
+        Cache::forget("telegram_cooldown_{$node->id}");
+        try {
+            return $this->run($palsu, $pemicu, simulasi: true);
+        } finally {
+            Cache::forget("telegram_cooldown_{$node->id}");
+        }
     }
 
     private function cleanOldBackups(Node $node): void

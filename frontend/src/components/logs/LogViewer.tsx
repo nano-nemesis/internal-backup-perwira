@@ -42,6 +42,11 @@ export function LogViewer({ logs }: LogViewerProps) {
                 {formatDuration(log.duration_seconds)}
               </span>
             )}
+            {log.routeros_version && (
+              <span className="text-xs text-[#475569] font-mono">
+                ROS {log.routeros_version.split(' ')[0]}
+              </span>
+            )}
             {log.file_path && (
               <span className="text-xs text-[#475569] font-mono truncate max-w-xs">
                 {log.file_path}

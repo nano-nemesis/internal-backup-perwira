@@ -217,6 +217,13 @@ export function NodeTable({ nodes, onEdit }: NodeTableProps) {
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant={node.type}>{node.type}</Badge>
+                    {/* Di bawah badge, bukan kolom sendiri: kolom tambahan membuat tabel
+                        melebar di layar 1280 px dan tombol aksi terpotong. */}
+                    {node.type === 'mikrotik' && node.routeros_version && (
+                      <p className="text-[11px] text-[#475569] font-mono mt-1 whitespace-nowrap" title={node.routeros_model ?? undefined}>
+                        ROS {node.routeros_version.split(' ')[0]}
+                      </p>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-[#475569] font-mono text-xs hidden md:table-cell">
                     {node.host}:{node.port}

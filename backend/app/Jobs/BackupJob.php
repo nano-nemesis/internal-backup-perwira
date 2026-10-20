@@ -28,9 +28,13 @@ class BackupJob implements ShouldQueue
      */
     public ?string $pemicu = null;
 
-    public function __construct(public readonly string $nodeId, ?string $pemicu = null)
+    /** Skenario simulasi gangguan ('tak-terjangkau' | 'login-ditolak'), null = backup asli. */
+    public ?string $simulasi = null;
+
+    public function __construct(public readonly string $nodeId, ?string $pemicu = null, ?string $simulasi = null)
     {
         $this->pemicu = $pemicu;
+        $this->simulasi = $simulasi;
     }
 
     public function handle(BackupService $backupService): void
@@ -39,6 +43,12 @@ class BackupJob implements ShouldQueue
 
         if (!$node || !$node->is_active) {
             Log::info("BackupJob: node [{$this->nodeId}] not found or inactive, skipping");
+            return;
+        }
+
+        if ($this->simulasi) {
+            // Jadwal tidak disentuh: simulasi bukan backup.
+            $backupService->simulate($node, $this->simulasi, $this->pemicu ?? 'sistem');
             return;
         }
 

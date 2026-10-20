@@ -147,6 +147,9 @@ Backup dikoordinasi oleh [`BackupService`](backend/app/Services/BackupService.ph
      `/system backup save` → berkas ditarik lewat `scp -O` → dihapus dari flash router.
      `.backup` memuat seluruh konfigurasi termasuk user router, tapi hanya bisa di-restore ke
      model + versi RouterOS yang sama; untuk pindah perangkat pakai `.rsc`.
+     Setiap backup MikroTik yang berhasil juga membaca versi + model RouterOS (disimpan di node
+     dan di baris `backup_logs`), dasar **simulasi restore** (`App\Support\RestoreCheck`) yang
+     menilai keutuhan berkas dan kecocokan model/versi tanpa menyentuh router.
 
      > ⚠️ `show-sensitive` membuat file `.rsc` berisi **kredensial pelanggan plaintext**
      > (PPPoE secret, RADIUS secret, WiFi PSK). Tanpa flag ini backup tidak cukup untuk

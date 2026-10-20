@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/axios'
-import type { NodesResponse, NodeDetailResponse, NodeFormData } from '../types'
+import type { NodesResponse, NodeDetailResponse, NodeFormData, RestoreCheckResult, SkenarioGangguan } from '../types'
 import { pollInterval } from './useBackupWatcher'
 
 export function useNodes() {
@@ -31,6 +31,39 @@ export function useTriggerBackup() {
   return useMutation({
     mutationFn: (nodeId: string) => api.post(`/nodes/${nodeId}/backup`),
     onSuccess: (_, nodeId) => {
+      qc.invalidateQueries({ queryKey: ['nodes'] })
+      qc.invalidateQueries({ queryKey: ['node', nodeId] })
+    },
+  })
+}
+
+/** Baca versi + model RouterOS langsung dari router. */
+export function useRefreshDevice() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (nodeId: string) => api.post(`/nodes/${nodeId}/device-info`),
+    onSuccess: (_, nodeId) => {
+      qc.invalidateQueries({ queryKey: ['nodes'] })
+      qc.invalidateQueries({ queryKey: ['node', nodeId] })
+    },
+  })
+}
+
+export function useRestoreCheck() {
+  return useMutation({
+    mutationFn: ({ nodeId, filename }: { nodeId: string; filename: string }) =>
+      api
+        .get<{ data: RestoreCheckResult }>(`/nodes/${nodeId}/restore-check/${encodeURIComponent(filename)}`)
+        .then((r) => r.data.data),
+  })
+}
+
+export function useSimulateFailure() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ nodeId, skenario }: { nodeId: string; skenario: SkenarioGangguan }) =>
+      api.post(`/nodes/${nodeId}/simulate-failure`, { skenario }),
+    onSuccess: (_, { nodeId }) => {
       qc.invalidateQueries({ queryKey: ['nodes'] })
       qc.invalidateQueries({ queryKey: ['node', nodeId] })
     },

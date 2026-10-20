@@ -5,6 +5,17 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.5.0',
+    tanggal: '2026-10-20',
+    judul: 'Versi RouterOS & simulasi pemulihan',
+    poin: [
+      'Versi RouterOS dan model tiap MikroTik dibaca langsung dari router: saat halaman node dibuka, setiap backup berhasil, dan lewat tombol "Cek sekarang". Tampil juga di daftar Devices.',
+      'Backup Logs mencatat versi RouterOS saat tiap backup dibuat.',
+      'Tab baru "Simulasi & Pemulihan": simulasi restore menilai keutuhan berkas, kecocokan model dan versi, lalu menampilkan langkah restore.',
+      'Simulasi gangguan: picu backup gagal ke target palsu untuk membuktikan Telegram, Log Sistem, dan status dashboard bereaksi.',
+    ],
+  },
+  {
     versi: '1.4.0',
     tanggal: '2026-10-20',
     judul: 'Pilih tipe backup MikroTik: .rsc atau .backup',

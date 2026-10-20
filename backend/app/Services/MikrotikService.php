@@ -123,6 +123,34 @@ class MikrotikService
         return $output;
     }
 
+    /**
+     * Baca versi + model RouterOS langsung dari router dan simpan ke node.
+     * Model diambil dari routerboard (sama dengan "# model =" di header .rsc); CHR/x86
+     * tidak punya routerboard, jadi jatuh ke board-name. Teruji di ROS 6.49, 7.23, CHR.
+     *
+     * @return array{version: string, model: string}
+     */
+    public function refreshDeviceInfo(Node $node): array
+    {
+        $output = $this->runRouterCommand($node,
+            ':local m [/system resource get board-name]; '
+            . ':do {:local r [/system routerboard get model]; :if ([:len $r] > 0) do={:set m $r}} on-error={}; '
+            . ':put ([/system resource get version] . "|" . $m)');
+
+        [$version, $model] = array_pad(explode('|', trim($output), 2), 2, '');
+        if ($version === '') {
+            throw new \RuntimeException("Versi RouterOS tidak terbaca dari {$node->host}: " . trim($output));
+        }
+
+        $node->update([
+            'routeros_version'    => $version,
+            'routeros_model'      => $model ?: null,
+            'routeros_checked_at' => now(),
+        ]);
+
+        return ['version' => $version, 'model' => $model];
+    }
+
     public function execute(Node $node, string $command): string
     {
         return $this->runSshCommand($node, $command);

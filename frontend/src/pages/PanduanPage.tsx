@@ -10,6 +10,7 @@ const SECTIONS = [
   ['jadwal', 'Jadwal backup'],
   ['baca', 'Membaca dashboard'],
   ['berkas', 'Mengambil hasil backup'],
+  ['simulasi', 'Simulasi & pemulihan MikroTik'],
   ['terminal', 'Terminal MikroTik'],
   ['konfig', 'Cadangkan daftar node'],
   ['user', 'Pengguna dan hak akses'],
@@ -238,6 +239,33 @@ export default function PanduanPage() {
           <K>storage/app/backups/&lt;tipe&gt;/&lt;nama-node&gt;/</K> dengan nama berstempel
           waktu WIB.
         </p>
+      </Section>
+
+      <Section id="simulasi" title="Simulasi & pemulihan MikroTik">
+        <p>
+          Halaman detail node MikroTik menampilkan <strong>versi RouterOS dan model</strong> yang
+          dibaca langsung dari router: otomatis saat halaman dibuka (kalau bacaan terakhir lebih
+          dari 5 menit lalu), setiap backup berhasil, dan lewat tombol <strong>Cek sekarang</strong>.
+          Tiap baris Backup Logs juga mencatat versi saat backup itu dibuat.
+        </p>
+        <p>
+          Tab <strong>Simulasi &amp; Pemulihan</strong> berisi dua alat:
+        </p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>
+            <strong>Simulasi restore</strong> — pilih berkas, lalu sistem menilai keutuhannya
+            (untuk <K>.backup</K>: header dan panjang berkas), kecocokan model, dan versi RouterOS
+            dengan perangkat sekarang, lengkap dengan langkah restore. Router tidak disentuh.
+            <K>.backup</K> hanya untuk model yang sama dan versi yang sama atau lebih baru;
+            <K>.rsc</K> bisa ke perangkat lain dengan penyesuaian nama interface.
+          </li>
+          <li>
+            <strong>Simulasi gangguan</strong> (operator ke atas) — backup dikirim ke target palsu
+            sehingga gagal sungguhan: tercatat di Backup Logs dan Log Sistem bertanda{' '}
+            <K>[SIMULASI]</K>, Telegram mengirim notifikasi, dan status node merah sampai backup
+            berikutnya berhasil. Gunanya membuktikan alarm benar-benar berbunyi saat dibutuhkan.
+          </li>
+        </ul>
       </Section>
 
       <Section id="terminal" title="Terminal MikroTik">

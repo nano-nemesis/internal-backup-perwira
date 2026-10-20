@@ -33,7 +33,10 @@ export interface Node {
   db_user?: string
   schedule_interval_hours: number
   is_active: boolean
-  backup_binary?: boolean  // MikroTik: ikut simpan .backup biner di samping .rsc
+  backup_binary?: boolean  // MikroTik: true = tipe backup .backup (biner), false = .rsc
+  routeros_version?: string | null  // terakhir dibaca dari router, mis. "7.23.5 (long-term)"
+  routeros_model?: string | null
+  routeros_checked_at?: string | null
   last_backup_at?: string | null
   latest_log?: BackupLog | null
   next_run_at?: string | null
@@ -49,6 +52,7 @@ export interface BackupLog {
   file_size_formatted?: string
   duration_seconds?: number | null
   error_message?: string | null
+  routeros_version?: string | null  // versi RouterOS saat backup ini dibuat
   started_at?: string | null
   finished_at?: string | null
   created_at?: string | null
@@ -159,4 +163,18 @@ export interface ActivityLogsResponse {
   data: ActivityLogItem[]
   meta: { current_page: number; last_page: number; per_page: number; total: number }
   ringkasan: Partial<Record<LogLevel, number>>
+}
+
+export type CekStatus = 'ok' | 'peringatan' | 'gagal'
+export type SkenarioGangguan = 'tak-terjangkau' | 'login-ditolak'
+
+/** Hasil simulasi restore (App\Support\RestoreCheck di backend). */
+export interface RestoreCheckResult {
+  jenis: 'rsc' | 'backup'
+  putusan: 'siap' | 'perhatian' | 'tidak-bisa'
+  versi_backup: string | null
+  model_backup: string | null
+  cek: { status: CekStatus; judul: string; detail: string }[]
+  langkah: string[]
+  dicek_pada: string | null
 }

@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Play, Terminal } from 'lucide-react'
-import { useNode, useTriggerBackup } from '../hooks/useNodes'
+import { useNode, useRefreshDevice, useTriggerBackup } from '../hooks/useNodes'
 import { useAuth } from '../context/AuthContext'
 import { useBackupWatcher, isRunning } from '../hooks/useBackupWatcher'
 import { BackupProgress } from '../components/nodes/BackupProgress'
@@ -10,10 +10,11 @@ import { Badge, StatusBadge } from '../components/ui/badge'
 import { LogViewer } from '../components/logs/LogViewer'
 import { BackupFileList } from '../components/nodes/BackupFileList'
 import { RemoteTerminal } from '../components/nodes/RemoteTerminal'
+import { SimulasiPanel } from '../components/nodes/SimulasiPanel'
 import { toast } from '../components/ui/toaster'
 import { formatDatetimeWIB, formatBytes, formatDuration } from '../lib/utils'
 
-type Tab = 'logs' | 'files'
+type Tab = 'logs' | 'files' | 'simulasi'
 
 export default function NodeDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -29,6 +30,18 @@ export default function NodeDetailPage() {
   const trigger = useTriggerBackup()
   const [showTerminal, setShowTerminal] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('logs')
+  const refreshDevice = useRefreshDevice()
+
+  // Versi RouterOS dibaca langsung dari router saat halaman dibuka, kecuali baru saja
+  // dibaca (5 menit) — backup terjadwal juga memperbaruinya.
+  const nodeData = data?.data
+  useEffect(() => {
+    if (nodeData?.type !== 'mikrotik') return
+    const umur = nodeData.routeros_checked_at
+      ? Date.now() - new Date(nodeData.routeros_checked_at).getTime()
+      : Infinity
+    if (umur > 5 * 60_000) refreshDevice.mutate(nodeData.id)
+  }, [nodeData?.id])
 
   const handleBackup = async () => {
     try {
@@ -125,6 +138,34 @@ export default function NodeDetailPage() {
         </div>
       </div>
 
+      {node.type === 'mikrotik' && (
+        <div className="flex items-center gap-x-3 gap-y-1 flex-wrap text-sm px-1">
+          <span className="font-mono text-[#0F172A]">
+            RouterOS {node.routeros_version ?? 'belum terbaca'}
+          </span>
+          {node.routeros_model && (
+            <span className="font-mono text-[#475569]">{node.routeros_model}</span>
+          )}
+          <span className="text-xs text-[#475569]">
+            {refreshDevice.isPending
+              ? 'membaca dari router…'
+              : node.routeros_checked_at && `dibaca ${formatDatetimeWIB(node.routeros_checked_at)}`}
+          </span>
+          <button
+            onClick={() => refreshDevice.mutate(node.id)}
+            disabled={refreshDevice.isPending}
+            className="text-xs text-[#0077FF] hover:underline disabled:opacity-50 min-h-[44px]"
+          >
+            Cek sekarang
+          </button>
+          {refreshDevice.isError && (
+            <span className="text-xs text-[#DC2626] break-words">
+              {(refreshDevice.error as any)?.response?.data?.message ?? 'Gagal membaca router'}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="card p-4">
@@ -185,22 +226,20 @@ export default function NodeDetailPage() {
 
       {/* Tabs */}
       <div className="card">
-        <div className="flex border-b border-[#E2E8F0]">
-          {(['logs', 'files'] as const).map((tab) => (
+        <div className="flex border-b border-[#E2E8F0] overflow-x-auto">
+          {(node.type === 'mikrotik' ? (['logs', 'files', 'simulasi'] as const) : (['logs', 'files'] as const)).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-5 py-3 text-sm font-mono transition-colors ${
+              className={`px-5 py-3 text-sm font-mono whitespace-nowrap transition-colors ${
                 activeTab === tab
                   ? 'text-[#0077FF] border-b-2 border-blue-500'
                   : 'text-[#475569] hover:text-[#0F172A]'
               }`}
             >
-              {tab === 'logs' ? (
-                <>Backup Logs ({data.logs?.length ?? 0})</>
-              ) : (
-                <>Backup Files ({data.backup_files?.length ?? 0})</>
-              )}
+              {tab === 'logs' && <>Backup Logs ({data.logs?.length ?? 0})</>}
+              {tab === 'files' && <>Backup Files ({data.backup_files?.length ?? 0})</>}
+              {tab === 'simulasi' && <>Simulasi &amp; Pemulihan</>}
             </button>
           ))}
         </div>
@@ -213,6 +252,9 @@ export default function NodeDetailPage() {
               files={data.backup_files ?? []}
               nodeId={node.id}
             />
+          )}
+          {activeTab === 'simulasi' && node.type === 'mikrotik' && (
+            <SimulasiPanel nodeId={node.id} files={data.backup_files ?? []} />
           )}
         </div>
       </div>
