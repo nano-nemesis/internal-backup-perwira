@@ -5,6 +5,14 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.6.1',
+    tanggal: '2026-10-20',
+    judul: 'Doctor membaca chain firewall buatan',
+    poin: [
+      'Aturan drop yang berada di chain buatan (dituju "jump" dari chain input) kini dihitung sebagai perlindungan, sehingga router seperti itu tidak lagi dinilai kritis secara keliru.',
+    ],
+  },
+  {
     versi: '1.6.0',
     tanggal: '2026-10-20',
     judul: 'Doctor: standar router MikroTik Perwira',

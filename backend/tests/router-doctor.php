@@ -54,7 +54,7 @@ default-route=1
  0 I  address=192.0.2.200/29 network=192.0.2.192 interface=*2 actual-interface=*2 vrf=main
  1    address=192.0.2.8/28 network=192.0.2.0 interface=VLAN618-UPLINK actual-interface=VLAN618-UPLINK vrf=main
  3    address=10.18.58.58/32 network=198.51.100.101 interface=wgserver actual-interface=wgserver vrf=main
-##input
+##filter
 ##pppoe
 ##profile
 0 * name=default use-ipv6=yes change-tcp-mss=yes
@@ -104,7 +104,7 @@ default-route=1
 ##addr
  0   address=192.0.2.50/30 network=192.0.2.48 interface=ether1
  1   address=100.64.10.1/22 network=100.64.8.0 interface=ether2
-##input
+##filter
  0   chain=input action=accept protocol=icmp
 ##pppoe
  0   service-name="" interface=ether2 one-session-per-host=no default-profile=default
@@ -148,7 +148,7 @@ default-route=1
  1     name=winbox port=8291 proto=tcp address= vrf=main
 ##addr
  0    address=192.0.2.1/30 network=192.0.2.0 interface=sfp1-WAN actual-interface=sfp1-WAN vrf=main
-##input
+##filter
 0 chain=input action=accept connection-state=established,related
 1 chain=input action=drop connection-state=invalid
 2 chain=input action=accept src-address-list=NOC
@@ -217,7 +217,18 @@ if ($c['ringkasan']['kritis'] || $c['ringkasan']['peringatan'] || $c['utama'] !=
 }
 if (in_array('CHR', $c['peran'], true)) $gagal[] = 'sehat: bukan CHR';
 
-// 4. Script: tiap nilai dibungkus on-error supaya satu menu yang tak ada tidak menghentikan sisanya.
+// 4. Drop menyeluruh di chain buatan yang dituju jump dari input → tidak boleh dinilai kritis.
+$lompat = str_replace(
+    "3 chain=input action=drop in-interface-list=WAN log=no log-prefix=",
+    "3 chain=input action=jump jump-target=wan-masuk\n4 chain=forward action=drop in-interface=sfp1-WAN\n5 chain=wan-masuk action=drop in-interface=sfp1-WAN",
+    $sehat);
+$e = D::periksa(D::parse($lompat), $terbaru);
+$harap('lompat', $e, ['firewall-input' => 'ok']);
+// Drop yang hanya ada di chain forward bukan perlindungan input.
+$e2 = D::periksa(D::parse(str_replace("5 chain=wan-masuk action=drop in-interface=sfp1-WAN", "", $lompat)), $terbaru);
+$harap('hanya-forward', $e2, ['firewall-input' => 'kritis']);
+
+// 5. Script: tiap nilai dibungkus on-error supaya satu menu yang tak ada tidak menghentikan sisanya.
 $s = D::script();
 if (substr_count($s, 'on-error=') < 30 || !str_contains($s, '##service')) $gagal[] = 'script: pembungkus on-error kurang';
 

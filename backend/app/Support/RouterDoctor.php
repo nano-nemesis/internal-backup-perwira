@@ -49,7 +49,8 @@ final class RouterDoctor
     private const DAFTAR = [
         'service' => '/ip service print terse',
         'addr'    => '/ip address print terse',
-        'input'   => '/ip firewall filter print terse where chain=input',
+        // Semua chain, bukan hanya input: drop bisa berada di chain buatan yang dituju "jump" dari input.
+        'filter'  => '/ip firewall filter print terse',
         'pppoe'   => '/interface pppoe-server server print terse',
         'profile' => '/ppp profile print terse',
         'snmpc'   => '/snmp community print terse',
@@ -121,7 +122,7 @@ final class RouterDoctor
         // Entri dinamis (D), mati (X), atau tak valid (I) tidak dihitung sebagai konfigurasi aktif.
         $aktif = fn (string $b) => array_values(array_filter($d[$b] ?? [], fn ($r) => !preg_match('/[XDI]/', $r['_flags'])));
         $layanan = array_column($aktif('service'), null, 'name');
-        $input = $aktif('input');
+        $input = self::aturanInput($aktif('filter'));
         $publik = array_values(array_filter($aktif('addr'), fn ($a) => self::ipPublik($a['address'] ?? '')));
 
         $k = [
@@ -524,6 +525,23 @@ final class RouterDoctor
         }
 
         return false;
+    }
+
+    /** Aturan chain input ditambah semua chain yang dicapai lewat "jump" dari sana. */
+    private static function aturanInput(array $filter): array
+    {
+        $chain = ['input' => true];
+        do {
+            $tambah = false;
+            foreach ($filter as $r) {
+                $tujuan = $r['jump-target'] ?? '';
+                if (($r['action'] ?? '') === 'jump' && isset($chain[$r['chain'] ?? '']) && $tujuan !== '' && !isset($chain[$tujuan])) {
+                    $chain[$tujuan] = $tambah = true;
+                }
+            }
+        } while ($tambah);
+
+        return array_values(array_filter($filter, fn ($r) => isset($chain[$r['chain'] ?? ''])));
     }
 
     /** Alamat NOC diambil dari batas address SSH router itu sendiri — standar yang sudah dipakai di sana. */
