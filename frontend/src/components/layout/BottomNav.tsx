@@ -21,12 +21,15 @@ function Ikon({ aktif, children }: { aktif: boolean; children: ReactNode }) {
 }
 
 /** Navigasi utama di HP. "Lainnya" membuka laci sidebar yang memuat menu sisanya. */
-export default function BottomNav({ onLainnya }: { onLainnya: () => void }) {
+export default function BottomNav({ onLainnya, tersembunyi }: { onLainnya: () => void; tersembunyi?: boolean }) {
   return (
     <nav
       aria-label="Navigasi utama"
-      className="md:hidden fixed inset-x-0 bottom-0 z-30 flex bg-white rounded-t-[22px] px-1.5 pt-2
-                 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-10px_24px_-18px_rgba(15,23,42,0.35)]"
+      className={cn(
+        'md:hidden fixed inset-x-0 bottom-0 z-30 flex bg-white rounded-t-[22px] px-1.5 pt-2',
+        'pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-10px_24px_-18px_rgba(15,23,42,0.35)]',
+        tersembunyi && 'hidden',
+      )}
     >
       {items.map(({ to, icon: Icon, label }) => (
         <NavLink

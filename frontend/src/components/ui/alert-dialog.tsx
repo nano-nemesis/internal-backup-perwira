@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '../../lib/utils'
 
 interface AlertDialogProps {
@@ -19,10 +20,11 @@ export function AlertDialog({ open, onOpenChange, children }: AlertDialogProps) 
 
   if (!open) return null
 
-  return (
+  // Portal ke body, sama seperti Dialog: jangan terkurung induk yang punya transform.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="fixed inset-0 bg-[#0F172A]/50 animate-pudar"
+        className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm animate-pudar"
         onClick={() => onOpenChange(false)}
       />
       {/* alertdialog + aria-modal: dialog ini memagari aksi destruktif (hapus node,
@@ -32,7 +34,8 @@ export function AlertDialog({ open, onOpenChange, children }: AlertDialogProps) 
       <div role="alertdialog" aria-modal="true" className="relative z-50 w-full max-w-md animate-muncul">
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

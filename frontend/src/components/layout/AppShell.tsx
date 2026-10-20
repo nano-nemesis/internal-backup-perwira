@@ -23,7 +23,7 @@ export default function AppShell() {
       {/* Mobile backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-[#0F172A]/50 z-30 md:hidden animate-pudar"
+          className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm z-30 md:hidden animate-pudar"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -44,8 +44,9 @@ export default function AppShell() {
           </ErrorBoundary>
         </main>
       </div>
-      <BottomNav onLainnya={() => setSidebarOpen(true)} />
-      <BackupBerjalan />
+      {/* Laci HP terbuka: navigasi bawah dan panel proses disembunyikan supaya tidak menumpuk di atas latar buram. */}
+      <BottomNav onLainnya={() => setSidebarOpen(true)} tersembunyi={sidebarOpen} />
+      <BackupBerjalan tersembunyi={sidebarOpen} />
       <YangBaru open={baru} onClose={() => setBaru(false)} />
     </div>
   )

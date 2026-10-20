@@ -150,7 +150,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         )}
         {jenis === 'ios' && langkahIos && <p className="px-3 pb-2 leading-relaxed">{LANGKAH_IOS}</p>}
         <button
-          onClick={() => setLihatBaru(true)}
+          onClick={() => { setLihatBaru(true); closeOnMobile() }}
           title={`build ${build}`}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-[14px] hover:bg-[#F1F2F7] hover:text-[#0F172A] transition-colors whitespace-nowrap tabular-nums"
         >

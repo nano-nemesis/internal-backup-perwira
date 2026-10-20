@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
@@ -22,10 +23,12 @@ export function Dialog({ open, onClose, title, children, className }: DialogProp
 
   if (!open) return null
 
-  return (
+  // Portal ke body: dialog yang dibuka dari dalam laci/kartu yang punya transform (mis. sidebar
+  // HP) akan terkurung di dalamnya, karena transform menjadi acuan posisi position:fixed.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="fixed inset-0 bg-[#0F172A]/50 animate-pudar"
+        className="fixed inset-0 bg-[#0F172A]/40 backdrop-blur-sm animate-pudar"
         onClick={onClose}
       />
       <div
@@ -50,6 +53,7 @@ export function Dialog({ open, onClose, title, children, className }: DialogProp
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

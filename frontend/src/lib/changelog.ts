@@ -5,6 +5,15 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.9.1',
+    tanggal: '2026-10-21',
+    judul: 'Perbaikan tampilan di HP',
+    poin: [
+      'Jendela "Yang baru" yang dibuka dari menu Lainnya tidak lagi terjepit di dalam laci; sekarang tampil penuh di tengah layar.',
+      'Saat menu Lainnya terbuka, latar belakang diburamkan dan navigasi bawah disembunyikan.',
+    ],
+  },
+  {
     versi: '1.9.0',
     tanggal: '2026-10-21',
     judul: 'Standar Doctor, proses backup langsung, lampu Pulih',
