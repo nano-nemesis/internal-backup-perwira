@@ -1,59 +1,31 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --primary: #0077FF;
-  --primary-hover: #0060CC;
-  --primary-light: #EFF6FF;
-  --secondary: #FF8C00;
-  --secondary-light: #FFF7ED;
-  --danger: #E63000;
-  --danger-light: #FEF2F0;
-  --success: #16A34A;
-  --success-light: #F0FDF4;
-  --background: #FFFFFF;
-  --surface: #F8FAFC;
-  --border: #E2E8F0;
-  --text-primary: #0F172A;
-  --text-secondary: #475569;
-  --sidebar-bg: #0F172A;
-  --sidebar-text: #CBD5E1;
-  --sidebar-active: #0077FF;
-  --sidebar-active-bg: #1E293B;
-}
-
 @layer base {
   * {
-    border-color: var(--border);
+    border-color: #E2E4EC;
   }
   body {
-    @apply bg-white text-[#0F172A] font-sans;
+    @apply bg-[#F4F5FA] text-[#0F172A] font-sans antialiased;
+    font-variant-numeric: tabular-nums;
   }
   h1, h2, h3, h4, h5 {
-    font-family: 'DM Sans', system-ui, sans-serif;
+    @apply font-display tracking-tight;
   }
 }
 
 @layer components {
+  /* Kartu putih tanpa garis tepi; batasnya cukup dari kontras dengan latar #F4F5FA. */
   .card {
-    @apply bg-white rounded-lg border border-[#E2E8F0] shadow-sm;
+    @apply bg-white rounded-[20px] shadow-[0_1px_2px_rgba(15,23,42,0.04)];
   }
-  .badge-success {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#F0FDF4] text-[#16A34A] border border-[#BBF7D0];
+  .pill {
+    @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap;
   }
-  .badge-failed {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#FEF2F0] text-[#E63000] border border-[#FECACA];
-  }
-  .badge-pending {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#F8FAFC] text-[#475569] border border-[#E2E8F0];
-  }
-  .badge-running {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#EFF6FF] text-[#0077FF] border border-[#BFDBFE] animate-pulse;
-  }
-  .badge-unknown {
-    @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[#F8FAFC] text-[#475569] border border-[#E2E8F0];
-  }
+  .badge-success { @apply pill bg-[#BBF7D0] text-[#14532D]; }
+  .badge-failed  { @apply pill bg-[#FEE2E2] text-[#991B1B]; }
+  .badge-pending { @apply pill bg-[#E5E7EB] text-[#374151]; }
+  .badge-running { @apply pill bg-[#E0E3FF] text-[#2E3AC2] animate-pulse; }
+  .badge-unknown { @apply pill bg-[#E5E7EB] text-[#374151]; }
 }

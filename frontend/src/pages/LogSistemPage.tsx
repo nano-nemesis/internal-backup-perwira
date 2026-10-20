@@ -19,13 +19,13 @@ const KATEGORI: Record<string, string> = {
 }
 
 const LEVEL: Record<LogLevel, { label: string; icon: typeof Info; warna: string; garis: string }> = {
-  error: { label: 'Error', icon: XCircle, warna: 'text-red-600 bg-red-50 border-red-200', garis: 'border-l-red-500' },
-  warning: { label: 'Peringatan', icon: AlertTriangle, warna: 'text-amber-700 bg-amber-50 border-amber-200', garis: 'border-l-amber-400' },
-  info: { label: 'Info', icon: Info, warna: 'text-[#0077FF] bg-[#EFF6FF] border-[#BFDBFE]', garis: 'border-l-[#BFDBFE]' },
+  error: { label: 'Error', icon: XCircle, warna: 'text-[#991B1B] bg-[#FEE2E2]', garis: '' },
+  warning: { label: 'Peringatan', icon: AlertTriangle, warna: 'text-[#92400E] bg-[#FEF3C7]', garis: '' },
+  info: { label: 'Info', icon: Info, warna: 'text-[#2E3AC2] bg-[#E0E3FF]', garis: '' },
 }
 
 const inputCls =
-  'px-3 py-2 bg-white border border-[#E2E8F0] rounded-md text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#0077FF]'
+  'px-3.5 min-h-[44px] bg-white border border-[#DADDE8] rounded-xl text-sm text-[#0F172A] focus:outline-none focus:border-[#4255F0] focus:ring-4 focus:ring-[#4255F0]/15'
 
 function waktuWIB(iso: string) {
   return new Date(iso).toLocaleString('id-ID', {
@@ -38,7 +38,7 @@ function NilaiKonteks({ nilai }: { nilai: unknown }) {
   if (nilai === null || nilai === undefined || nilai === '') return <span className="text-[#94A3B8]">—</span>
   if (typeof nilai === 'string' && !nilai.includes('\n')) return <span className="break-all">{nilai}</span>
   return (
-    <pre className="whitespace-pre-wrap break-all text-xs bg-[#F8FAFC] border border-[#E2E8F0] rounded p-2 max-h-64 overflow-auto">
+    <pre className="whitespace-pre-wrap break-all text-xs font-mono bg-[#F4F5FA] rounded-xl p-3 max-h-64 overflow-auto">
       {typeof nilai === 'string' ? nilai : JSON.stringify(nilai, null, 2)}
     </pre>
   )
@@ -51,23 +51,25 @@ function BarisLog({ log }: { log: ActivityLogItem }) {
   const konteks = Object.entries(log.konteks ?? {})
 
   return (
-    <li className={cn('card border-l-4 overflow-hidden', lv.garis)}>
+    <li className="card overflow-hidden">
       <button
         onClick={() => setBuka((b) => !b)}
         aria-expanded={buka}
-        className="w-full text-left p-3 md:p-4 flex gap-3 items-start hover:bg-[#F8FAFC] transition-colors"
+        className="w-full text-left p-4 md:px-5 flex gap-3.5 items-start hover:bg-[#F8F9FC] transition-colors"
       >
-        <Ikon className={cn('w-4 h-4 mt-0.5 flex-shrink-0', lv.warna.split(' ')[0])} aria-label={lv.label} />
+        <span className={cn('w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0', lv.warna)}>
+          <Ikon className="w-[18px] h-[18px]" strokeWidth={1.8} aria-label={lv.label} />
+        </span>
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#475569]">
             <span className="tabular-nums">{waktuWIB(log.created_at)}</span>
-            <span className={cn('px-1.5 py-0.5 rounded border font-medium', lv.warna)}>{lv.label}</span>
-            <span className="px-1.5 py-0.5 rounded border border-[#E2E8F0] bg-[#F8FAFC]">
+            <span className={cn('pill', lv.warna)}>{lv.label}</span>
+            <span className="pill bg-[#F1F2F7] text-[#334155]">
               {KATEGORI[log.kategori] ?? log.kategori}
             </span>
           </div>
-          <p className="text-sm text-[#0F172A] mt-1 break-words">{log.pesan}</p>
-          <p className="text-xs text-[#94A3B8] mt-1 flex flex-wrap gap-x-3">
+          <p className="text-sm font-semibold text-[#0F172A] mt-1 break-words">{log.pesan}</p>
+          <p className="text-xs text-[#475569] mt-1 flex flex-wrap gap-x-3">
             {log.username && <span>👤 {log.username}</span>}
             {log.ip && <span>🌐 {log.ip}</span>}
             {log.node_name && <span>🖧 {log.node_name}</span>}
@@ -78,7 +80,7 @@ function BarisLog({ log }: { log: ActivityLogItem }) {
       </button>
 
       {buka && (
-        <dl className="px-3 md:px-4 pb-4 pt-1 ml-7 grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-x-4 gap-y-2 text-sm border-t border-[#F1F5F9]">
+        <dl className="px-4 md:px-5 pb-4 pt-3 md:ml-[50px] grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-x-4 gap-y-2 text-sm border-t border-[#EEF0F6]">
           <dt className="text-[#475569] text-xs pt-0.5">Kode kejadian</dt>
           <dd className="font-mono text-xs pt-0.5">{log.kategori}.{log.aksi} · #{log.id}</dd>
           {konteks.map(([k, v]) => (
@@ -121,43 +123,44 @@ export default function LogSistemPage() {
   const ubah = (setter: (v: string) => void) => (v: string) => { setter(v); setPage(1) }
 
   return (
-    <div className="space-y-6 max-w-screen-xl">
+    <div className="space-y-5 max-w-screen-2xl">
       <div>
-        <h1 className="text-2xl font-display font-bold text-[#0F172A]">Log Sistem</h1>
+        <h1 className="text-[28px] leading-tight font-extrabold text-[#0F172A]">Log Sistem</h1>
         <p className="text-sm text-[#475569] mt-1">
-          Semua kejadian: login, backup, perubahan node &amp; user, terminal, unduhan, dan error. Klik baris untuk detail.
+          Semua kejadian: login, backup, perubahan node &amp; user, terminal, unduhan, dan error. Ketuk baris untuk detail.
         </p>
       </div>
 
       {/* Ringkasan 24 jam — klik untuk memfilter */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-3 md:gap-5">
         {(['error', 'warning', 'info'] as const).map((lv) => {
           const L = LEVEL[lv]
           return (
             <button
               key={lv}
               onClick={() => ubah(setLevel)(level === lv ? '' : lv)}
-              className={cn('card p-3 text-left transition-shadow hover:shadow-md', level === lv && 'ring-2 ring-[#0077FF]')}
+              aria-pressed={level === lv}
+              className={cn('card p-4 text-left transition-shadow hover:shadow-md', level === lv && 'ring-2 ring-[#4255F0]')}
             >
-              <p className="text-xs text-[#475569] flex items-center gap-1.5">
-                <L.icon className={cn('w-3.5 h-3.5', L.warna.split(' ')[0])} /> {L.label} · 24 jam
+              <p className="text-[13px] font-semibold text-[#334155] flex items-center gap-1.5 flex-wrap">
+                {L.label} <span className="font-normal text-[#475569]">24 jam</span>
               </p>
-              <p className="text-2xl font-bold text-[#0F172A] tabular-nums mt-1">{ringkasan[lv] ?? 0}</p>
+              <p className="text-[30px] leading-none font-extrabold text-[#0F172A] mt-2">{ringkasan[lv] ?? 0}</p>
             </button>
           )
         })}
       </div>
 
       {/* Filter */}
-      <div className="card p-4 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-6">
+      <div className="card p-3 md:p-4 grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6">
         <label className="relative lg:col-span-2">
           <span className="sr-only">Cari</span>
-          <Search className="w-4 h-4 text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-[#475569] absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             value={ketik}
             onChange={(e) => setKetik(e.target.value)}
             placeholder="Cari pesan, user, IP, node…"
-            className={cn(inputCls, 'w-full pl-9')}
+            className={cn(inputCls, 'w-full pl-10')}
           />
         </label>
         <select aria-label="Kategori" value={kategori} onChange={(e) => ubah(setKategori)(e.target.value)} className={inputCls}>
@@ -179,7 +182,7 @@ export default function LogSistemPage() {
       </div>
 
       {isLoading && <div className="card p-8 text-center text-[#475569] text-sm animate-pulse">Memuat log…</div>}
-      {isError && <div className="card p-8 text-center text-red-600 text-sm">Gagal memuat log. Coba muat ulang halaman.</div>}
+      {isError && <div className="card p-8 text-center text-[#991B1B] text-sm">Gagal memuat log. Coba muat ulang halaman.</div>}
 
       {!isLoading && !isError && logs.length === 0 && (
         <div className="card p-16 text-center">
@@ -202,7 +205,7 @@ export default function LogSistemPage() {
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={meta.current_page === 1}
               aria-label="Halaman sebelumnya"
-              className="p-2 rounded-md border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-11 h-11 rounded-full bg-white border border-[#E2E4EC] text-[#334155] hover:bg-[#F1F2F7] flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -211,7 +214,7 @@ export default function LogSistemPage() {
               onClick={() => setPage((p) => Math.min(meta.last_page, p + 1))}
               disabled={meta.current_page === meta.last_page}
               aria-label="Halaman berikutnya"
-              className="p-2 rounded-md border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-11 h-11 rounded-full bg-white border border-[#E2E4EC] text-[#334155] hover:bg-[#F1F2F7] flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

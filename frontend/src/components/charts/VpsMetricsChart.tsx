@@ -14,7 +14,7 @@ export function VpsMetricsChart() {
   const { data, isLoading } = useVpsMetrics()
 
   if (isLoading) {
-    return <div className="h-48 animate-pulse bg-[#F1F5F9] rounded" />
+    return <div className="h-48 animate-pulse bg-[#F1F2F7] rounded" />
   }
 
   const chartData = (data?.data ?? []).map((m) => ({
@@ -39,41 +39,46 @@ export function VpsMetricsChart() {
   return (
     <ResponsiveContainer width="100%" height={200}>
       <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+        <CartesianGrid strokeDasharray="4 4" stroke="#ECEEF4" vertical={false} />
         <XAxis
           dataKey="time"
-          tick={{ fill: '#64748b', fontSize: 10, fontFamily: 'monospace' }}
+          tick={{ fill: '#475569', fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
           interval="preserveStartEnd"
         />
         <YAxis
-          tick={{ fill: '#64748b', fontSize: 10 }}
+          tick={{ fill: '#475569', fontSize: 11 }}
+          axisLine={false}
+          tickLine={false}
           domain={[0, 100]}
           unit="%"
         />
         <Tooltip
           contentStyle={{
-            backgroundColor: '#1e293b',
-            border: '1px solid #334155',
-            borderRadius: '8px',
-            color: '#e2e8f0',
-            fontSize: '11px',
-            fontFamily: 'monospace',
+            backgroundColor: '#111827',
+            border: 'none',
+            borderRadius: '12px',
+            fontSize: '12px',
           }}
+          itemStyle={{ color: '#FFFFFF' }}
+          labelStyle={{ color: '#CBD5E1' }}
+          cursor={{ stroke: '#C9CCD8', strokeDasharray: '4 4' }}
         />
-        <Legend wrapperStyle={{ fontSize: '11px', color: '#94a3b8' }} />
+        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '12px', color: '#334155' }} />
         <Line
           type="monotone"
           dataKey="CPU"
-          stroke="#3b82f6"
+          stroke="#4255F0"
           dot={false}
-          strokeWidth={1.5}
+          strokeWidth={2.5}
         />
         <Line
           type="monotone"
           dataKey="RAM"
-          stroke="#10b981"
+          stroke="#F97316"
           dot={false}
-          strokeWidth={1.5}
+          strokeWidth={2.5}
         />
       </LineChart>
     </ResponsiveContainer>

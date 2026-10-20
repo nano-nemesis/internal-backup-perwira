@@ -4,7 +4,7 @@ import { cn } from '../../lib/utils'
 import type { BackupStatus } from '../../types'
 
 export function StatusBadge({ status }: { status: BackupStatus | undefined | null }) {
-  if (!status) return <span className="badge-unknown">Unknown</span>
+  if (!status) return <span className="badge-unknown">belum ada</span>
 
   // Backup berjalan di queue, jadi tanpa penanda bergerak layar terlihat diam
   // dan pengguna tidak tahu apakah proses sudah mulai.
@@ -24,17 +24,18 @@ export function StatusBadge({ status }: { status: BackupStatus | undefined | nul
     running: 'badge-running',
   }
 
-  return <span className={map[status] ?? 'badge-unknown'}>{status}</span>
+  const teks: Record<BackupStatus, string> = { success: 'berhasil', failed: 'gagal', pending: 'antre', running: 'berjalan' }
+  return <span className={map[status] ?? 'badge-unknown'}>{teks[status] ?? status}</span>
 }
 
 const variantStyles: Record<string, string> = {
-  default: 'bg-[#F8FAFC] text-[#475569] border-[#E2E8F0]',
-  admin: 'bg-purple-50 text-purple-700 border-purple-200',
-  operator: 'bg-[#EFF6FF] text-[#0077FF] border-[#BFDBFE]',
-  viewer: 'bg-[#F8FAFC] text-[#475569] border-[#E2E8F0]',
-  mikrotik: 'bg-[#FFF7ED] text-[#FF8C00] border-orange-200',
-  database: 'bg-teal-50 text-teal-700 border-teal-200',
-  virtualizor_db: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  default: 'bg-[#E5E7EB] text-[#374151]',
+  admin: 'bg-[#EDE9FE] text-[#5B21B6]',
+  operator: 'bg-[#E0E3FF] text-[#2E3AC2]',
+  viewer: 'bg-[#E5E7EB] text-[#374151]',
+  mikrotik: 'bg-[#FEF3C7] text-[#92400E]',
+  database: 'bg-[#CCFBF1] text-[#115E59]',
+  virtualizor_db: 'bg-[#E0E3FF] text-[#2E3AC2]',
 }
 
 export function Badge({
@@ -49,7 +50,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border',
+        'pill',
         variantStyles[variant] ?? variantStyles.default,
         className,
       )}

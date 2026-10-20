@@ -5,6 +5,18 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.7.0',
+    tanggal: '2026-10-20',
+    judul: 'Tampilan baru',
+    poin: [
+      'Gaya baru: kartu putih lembut, warna aksen indigo, dan huruf Plus Jakarta Sans. Teks teknis (IP, versi, perintah) tetap memakai huruf monospace.',
+      'Dashboard baru: kartu ringkas, cincin kesehatan armada, dan daftar "Perlu tindakan" dari temuan Doctor.',
+      'Detail node menampilkan RouterOS, model, tipe backup, berkas terakhir, dan blok riwayat backup sekaligus.',
+      'Di HP ada navigasi bawah (Beranda, Perangkat, Doctor, Berkas, Lainnya) dan daftar perangkat berupa kartu.',
+      'Hampir semua label kini berbahasa Indonesia.',
+    ],
+  },
+  {
     versi: '1.6.1',
     tanggal: '2026-10-20',
     judul: 'Doctor membaca chain firewall buatan',

@@ -86,19 +86,19 @@ export default function NodeConfigPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-screen-lg">
+    <div className="space-y-5 max-w-screen-lg">
       <div>
-        <h1 className="text-2xl font-display font-bold text-[#0F172A]">Konfigurasi Node</h1>
+        <h1 className="text-[28px] leading-tight font-extrabold text-[#0F172A]">Konfigurasi Node</h1>
         <p className="text-sm text-[#475569] mt-1">
           Cadangkan daftar node ke berkas JSON, atau tambahkan node secara massal dari berkas.
         </p>
       </div>
 
       {/* ── Ekspor ───────────────────────────────────────────────────────── */}
-      <div className="card p-5 space-y-4">
-        <div className="flex items-center gap-2">
-          <Download className="w-4 h-4 text-[#0077FF]" />
-          <h2 className="text-sm font-display font-semibold text-[#0F172A]">Ekspor</h2>
+      <div className="card p-5 md:p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <span className="w-9 h-9 rounded-xl bg-[#EEF0FE] text-[#2E3AC2] flex items-center justify-center"><Download className="w-[18px] h-[18px]" strokeWidth={1.8} /></span>
+          <h2 className="text-lg font-bold text-[#0F172A]">Ekspor</h2>
         </div>
 
         <p className="text-sm text-[#475569]">
@@ -133,7 +133,7 @@ export default function NodeConfigPage() {
           </Button>
         </div>
 
-        <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div className="rounded-xl bg-[#FEF3C7] px-4 py-3 text-sm text-[#78350F]">
           <p>
             <strong>Tanpa password</strong> — aman disimpan dan dibagikan. Cocok jadi templat
             untuk menambah node massal. Setelah diimpor, password tiap node harus diisi ulang.
@@ -148,13 +148,13 @@ export default function NodeConfigPage() {
       </div>
 
       {/* ── Impor ────────────────────────────────────────────────────────── */}
-      <div className="card p-5 space-y-4">
-        <div className="flex items-center gap-2">
-          <Upload className="w-4 h-4 text-[#0077FF]" />
-          <h2 className="text-sm font-display font-semibold text-[#0F172A]">Impor</h2>
+      <div className="card p-5 md:p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <span className="w-9 h-9 rounded-xl bg-[#EEF0FE] text-[#2E3AC2] flex items-center justify-center"><Upload className="w-[18px] h-[18px]" strokeWidth={1.8} /></span>
+          <h2 className="text-lg font-bold text-[#0F172A]">Impor</h2>
         </div>
 
-        <div className="rounded-md border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="rounded-xl bg-[#F4F5FA] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-[#475569]">
             Belum punya berkasnya? Unduh templat berisi satu contoh per tipe node, lalu
             sunting dengan editor teks. Password boleh diisi teks polos — hapus berkasnya
@@ -187,9 +187,9 @@ export default function NodeConfigPage() {
               if (f) handleFile(f)
             }}
             className="block w-full text-sm text-[#0F172A] file:mr-3 file:py-2 file:px-4
-                       file:rounded-md file:border file:border-gray-300 file:text-sm
-                       file:bg-white hover:file:bg-gray-50 file:cursor-pointer
-                       border border-gray-300 rounded-md min-h-[44px] py-1.5 px-2"
+                       file:rounded-lg file:border file:border-[#DADDE8] file:font-semibold file:text-sm
+                       file:bg-white hover:file:bg-[#F4F5FA] file:cursor-pointer
+                       border border-[#DADDE8] rounded-xl min-h-[44px] py-1.5 px-2"
           />
           {fileName && (
             <p className="text-xs text-[#475569] mt-2 flex items-center gap-1.5">
@@ -202,8 +202,8 @@ export default function NodeConfigPage() {
         <fieldset className="space-y-2">
           <legend className="text-sm text-[#475569] mb-1">Kalau nama node sudah ada:</legend>
           {([
-            ['skip', 'Lewati — node yang sudah ada tidak disentuh sama sekali'],
-            ['update', 'Perbarui — konfigurasinya ditimpa isi berkas'],
+            ['skip', 'Lewati: node yang sudah ada tidak disentuh sama sekali'],
+            ['update', 'Perbarui: konfigurasinya ditimpa isi berkas'],
           ] as const).map(([val, label]) => (
             <label key={val} className="flex items-start gap-2 text-sm cursor-pointer">
               <input
@@ -212,7 +212,7 @@ export default function NodeConfigPage() {
                 value={val}
                 checked={mode === val}
                 onChange={() => { setMode(val); setPreview(null) }}
-                className="mt-0.5"
+                className="mt-0.5 w-4 h-4 accent-[#4255F0]"
               />
               <span className="text-[#0F172A]">{label}</span>
             </label>
@@ -238,9 +238,9 @@ export default function NodeConfigPage() {
         </div>
 
         {preview && (
-          <div className="rounded-md border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-sm space-y-1">
+          <div className="rounded-xl bg-[#F4F5FA] px-4 py-3 text-sm space-y-1">
             <p className="text-[#0F172A] font-medium">
-              Pratinjau — belum ada yang berubah
+              Pratinjau, belum ada yang berubah
             </p>
             <p className="text-[#475569]">
               {preview.summary.create} akan dibuat · {preview.summary.update} akan diperbarui ·{' '}
@@ -261,9 +261,9 @@ export default function NodeConfigPage() {
         )}
 
         {rowErrors.length > 0 && (
-          <div className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 space-y-1">
+          <div className="rounded-xl bg-[#FEE2E2] px-4 py-3 text-sm text-[#991B1B] space-y-1">
             <p className="font-medium">
-              Tidak ada perubahan yang diterapkan — perbaiki dulu entri berikut:
+              Tidak ada perubahan yang diterapkan. Perbaiki dulu entri berikut:
             </p>
             <ul className="list-disc pl-5 space-y-0.5">
               {rowErrors.slice(0, 20).map((e) => (

@@ -150,7 +150,7 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
         </div>
 
         {form.type === 'mikrotik' && (
-          <div className="pt-3 border-t border-[#E2E8F0]">
+          <div className="pt-3 border-t border-[#EEF0F6]">
             <Select
               label="Tipe Backup"
               value={form.backup_binary ? 'backup' : 'rsc'}
@@ -161,7 +161,7 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
               ]}
             />
             <p className="text-xs text-[#475569] mt-1.5">
-              <code className="bg-[#F1F5F9] px-1 rounded">.backup</code> memuat seluruh konfigurasi
+              <code className="bg-[#F1F2F7] px-1 rounded">.backup</code> memuat seluruh konfigurasi
               termasuk user router, tapi hanya bisa di-restore ke model + versi RouterOS yang sama.
               User router butuh policy <strong>write</strong> + <strong>policy</strong> +{' '}
               <strong>ftp</strong> (setara admin penuh).
@@ -170,11 +170,11 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
         )}
 
         {form.type === 'database' && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-[#E2E8F0]">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-[#EEF0F6]">
             {directMysql && (
-              <div className="sm:col-span-3 p-3 rounded-md bg-blue-50 border border-blue-200 text-sm text-blue-800">
+              <div className="sm:col-span-3 p-4 rounded-xl bg-[#EEF0FE] text-sm text-[#1E2A78]">
                 <strong>MySQL langsung</strong> — SSH User kosong, jadi VPS backup menjalankan{' '}
-                <code className="text-xs bg-blue-100 px-1 rounded">mysqldump</code> langsung ke{' '}
+                <code className="text-xs bg-white px-1 rounded">mysqldump</code> langsung ke{' '}
                 {form.host || 'host'}:{form.port}. Port biasanya 3306, dan user MySQL harus
                 diizinkan dari IP VPS backup.
               </div>
@@ -201,10 +201,10 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
         )}
 
         {form.type === 'virtualizor_db' && (
-          <div className="grid grid-cols-1 gap-4 pt-3 border-t border-[#E2E8F0]">
-            <div className="p-3 rounded-md bg-blue-50 border border-blue-200 text-sm text-blue-800">
+          <div className="grid grid-cols-1 gap-4 pt-3 border-t border-[#EEF0F6]">
+            <div className="p-4 rounded-xl bg-[#EEF0FE] text-sm text-[#1E2A78]">
               <strong>Virtualizor DB Backup</strong> — Sistem akan pull file{' '}
-              <code className="text-xs bg-blue-100 px-1 rounded">.sql.gz</code> terbaru
+              <code className="text-xs bg-white px-1 rounded">.sql.gz</code> terbaru
               dari node Virtualizor via SCP. Pastikan SSH user memiliki akses baca ke
               direktori backup.
             </div>

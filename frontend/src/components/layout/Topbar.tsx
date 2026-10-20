@@ -1,4 +1,4 @@
-import { Menu, LogOut, User } from 'lucide-react'
+import { PanelLeft, LogOut } from 'lucide-react'
 import { useIsFetching } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 
@@ -11,7 +11,7 @@ function LiveDot() {
   const fetching = useIsFetching() > 0
   return (
     <span
-      className="hidden sm:flex items-center gap-1.5 text-xs text-[#475569]"
+      className="hidden sm:flex items-center gap-1.5 h-11 px-3.5 rounded-full bg-white border border-[#E2E4EC] text-xs font-semibold text-[#334155]"
       title="Halaman memperbarui datanya sendiri"
     >
       <span className="relative flex h-2 w-2">
@@ -33,50 +33,48 @@ interface TopbarProps {
   onToggleSidebar: () => void
 }
 
-const roleBadge: Record<string, string> = {
-  admin: 'bg-purple-50 text-purple-700 border-purple-200',
-  operator: 'bg-[#EFF6FF] text-[#0077FF] border-[#BFDBFE]',
-  viewer: 'bg-[#F8FAFC] text-[#475569] border-[#E2E8F0]',
-}
+const peran: Record<string, string> = { admin: 'Admin', operator: 'Operator', viewer: 'Viewer' }
 
 export default function Topbar({ onToggleSidebar }: TopbarProps) {
   const { user, logout } = useAuth()
+  const inisial = (user?.username ?? '?').slice(0, 2).toUpperCase()
 
   return (
-    <header className="flex items-center justify-between px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] bg-white border-b border-[#E2E8F0] shadow-sm flex-shrink-0">
-      {/* Left: hamburger */}
+    <header className="flex items-center justify-between gap-3 px-4 md:px-6 pb-2 pt-[max(1rem,env(safe-area-inset-top))] flex-shrink-0">
+      {/* Desktop: lipat/buka sidebar. Di HP menu ada di navigasi bawah, jadi cukup logo. */}
       <button
         onClick={onToggleSidebar}
-        className="p-2 rounded-md hover:bg-[#F8FAFC] text-[#475569] hover:text-[#0F172A] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-        aria-label="Toggle sidebar"
+        className="hidden md:flex w-11 h-11 rounded-full bg-white border border-[#E2E4EC] text-[#334155] hover:text-[#0F172A] transition-colors items-center justify-center"
+        aria-label="Lipat atau buka sidebar"
       >
-        <Menu className="w-5 h-5" />
+        <PanelLeft className="w-[18px] h-[18px]" strokeWidth={1.8} />
       </button>
+      <div className="md:hidden flex items-center gap-2 min-w-0">
+        <img src="/perwiramedia.png" alt="" className="h-7 w-auto" />
+        <span className="font-display font-extrabold text-[15px] truncate">Perwira Backup</span>
+      </div>
 
-      {/* Right: user info + logout */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         <LiveDot />
-        <div className="hidden md:flex items-center gap-2">
-          <User className="w-4 h-4 text-[#475569]" />
-          <span className="text-sm text-[#0F172A] font-medium">{user?.username}</span>
+        <div className="flex items-center gap-2.5 pl-1">
           <span
-            className={`text-xs font-medium px-2 py-0.5 rounded border ${
-              roleBadge[user?.role ?? 'viewer']
-            }`}
+            aria-hidden="true"
+            className="w-10 h-10 rounded-full bg-[#E0E3FF] text-[#2E3AC2] font-bold text-sm flex items-center justify-center"
           >
-            {user?.role}
+            {inisial}
           </span>
-        </div>
-        {/* Mobile: just icon */}
-        <div className="md:hidden">
-          <User className="w-5 h-5 text-[#475569]" />
+          <div className="hidden md:flex flex-col leading-tight">
+            <span className="text-sm font-bold text-[#0F172A]">{user?.username}</span>
+            <span className="text-xs text-[#475569]">{peran[user?.role ?? 'viewer']}</span>
+          </div>
         </div>
         <button
           onClick={logout}
-          className="p-2 rounded-md hover:bg-[#FEF2F0] text-[#475569] hover:text-[#E63000] transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
-          title="Logout"
+          className="w-11 h-11 rounded-full bg-white border border-[#E2E4EC] text-[#334155] hover:bg-[#FEE2E2] hover:text-[#991B1B] hover:border-[#FEE2E2] transition-colors flex items-center justify-center"
+          aria-label="Keluar"
+          title="Keluar"
         >
-          <LogOut className="w-4 h-4" />
+          <LogOut className="w-[18px] h-[18px]" strokeWidth={1.8} />
         </button>
       </div>
     </header>

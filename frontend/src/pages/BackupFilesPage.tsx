@@ -14,24 +14,25 @@ function FileCard({ file }: { file: BackupFileItem }) {
 
   return (
     <div className="card p-4 flex items-start gap-3">
-      <div className="p-2 rounded-lg bg-[#EFF6FF] flex-shrink-0">
-        <FileArchive className="w-4 h-4 text-[#0077FF]" />
-      </div>
+      <span className="w-10 h-10 rounded-xl bg-[#F1F2F7] text-[#334155] flex items-center justify-center flex-shrink-0">
+        <FileArchive className="w-[18px] h-[18px]" strokeWidth={1.8} />
+      </span>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-[#0F172A] truncate">{file.filename}</p>
+        <p className="text-[13px] font-mono font-medium text-[#0F172A] break-all">{file.filename}</p>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           <Badge variant={file.type as 'mikrotik' | 'database' | 'virtualizor_db'}>{file.type === 'virtualizor_db' ? 'Virtualizor' : file.type}</Badge>
-          <span className="text-xs text-[#475569]">{file.node_name}</span>
+          <span className="text-xs font-semibold text-[#334155]">{file.node_name}</span>
           <span className="text-xs text-[#475569]">{file.size_human}</span>
         </div>
-        <p className="text-xs text-[#94A3B8] mt-1">{formatDatetimeWIB(file.created_at)}</p>
+        <p className="text-xs text-[#475569] mt-1">{formatDatetimeWIB(file.created_at)}</p>
       </div>
       {isOperator && (
         <a
           href={file.download_url}
           download={file.filename}
-          className="p-2 rounded-md bg-[#0077FF] hover:bg-[#0060CC] text-white transition-colors flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center"
-          title="Download"
+          className="rounded-xl bg-[#EEF0FE] hover:bg-[#E0E3FF] text-[#2E3AC2] transition-colors flex-shrink-0 w-11 h-11 flex items-center justify-center"
+          title="Unduh"
+          aria-label={`Unduh ${file.filename}`}
         >
           <Download className="w-4 h-4" />
         </a>
@@ -66,38 +67,40 @@ export default function BackupFilesPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-screen-xl">
+    <div className="space-y-5 max-w-screen-2xl">
       <div>
-        <h1 className="text-2xl font-display font-bold text-[#0F172A]">Backup Files</h1>
-        <p className="text-sm text-[#475569] mt-1">Download file backup per node</p>
+        <h1 className="text-[28px] leading-tight font-extrabold text-[#0F172A]">Berkas Backup</h1>
+        <p className="text-sm text-[#475569] mt-1">Unduh berkas backup per node</p>
       </div>
 
       {/* Filters */}
-      <div className="card p-4 flex flex-wrap gap-3">
+      <div className="card p-3 md:p-4 flex flex-wrap items-center gap-3">
         <select
           value={nodeId}
           onChange={(e) => handleFilterChange(setNodeId, e.target.value)}
-          className="flex-1 min-w-[160px] px-3 py-2 bg-white border border-[#E2E8F0] rounded-md text-sm text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#0077FF]"
+          aria-label="Saring per node"
+          className="flex-1 min-w-[180px] px-3.5 min-h-[44px] bg-white border border-[#DADDE8] rounded-xl text-sm text-[#0F172A] focus:outline-none focus:border-[#4255F0] focus:ring-4 focus:ring-[#4255F0]/15"
         >
-          <option value="">All Nodes</option>
+          <option value="">Semua node</option>
           {nodes.map((n) => (
             <option key={n.id} value={n.id}>
               {n.name}
             </option>
           ))}
         </select>
-        <div className="flex gap-1">
+        <div className="flex gap-1.5 flex-wrap">
           {(['', 'mikrotik', 'database', 'virtualizor_db'] as const).map((t) => (
             <button
               key={t}
               onClick={() => handleFilterChange(setType, t)}
-              className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              aria-pressed={type === t}
+              className={`px-4 min-h-[40px] rounded-full text-[13px] font-semibold transition-colors ${
                 type === t
-                  ? 'bg-[#0077FF] text-white'
-                  : 'bg-[#F8FAFC] text-[#475569] hover:bg-[#EFF6FF] hover:text-[#0077FF]'
+                  ? 'bg-[#4255F0] text-white'
+                  : 'bg-white border border-[#E2E4EC] text-[#334155] hover:bg-[#F1F2F7]'
               }`}
             >
-              {t === '' ? 'All' : t === 'mikrotik' ? 'MikroTik' : t === 'database' ? 'Database' : 'Virtualizor'}
+              {t === '' ? 'Semua' : t === 'mikrotik' ? 'MikroTik' : t === 'database' ? 'Database' : 'Virtualizor'}
             </button>
           ))}
         </div>
@@ -106,7 +109,7 @@ export default function BackupFilesPage() {
       {/* Loading */}
       {isLoading && (
         <div className="card p-8 text-center text-[#475569] text-sm animate-pulse">
-          Loading...
+          Memuat...
         </div>
       )}
 
@@ -132,30 +135,30 @@ export default function BackupFilesPage() {
           </div>
 
           {/* Desktop table */}
-          <div className="card hidden md:block overflow-hidden">
+          <div className="card hidden md:block overflow-hidden pt-2">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
-                    {['Node', 'Filename', 'Ukuran', 'Tanggal', ...(isOperator ? ['Download'] : [])].map((h) => (
+                  <tr className="bg-[#F8F9FC] border-y border-[#EEF0F6]">
+                    {['Node', 'Nama berkas', 'Ukuran', 'Tanggal', ...(isOperator ? [''] : [])].map((h) => (
                       <th
                         key={h}
-                        className="px-4 py-3 text-left text-xs font-semibold text-[#475569] uppercase tracking-wider"
+                        className="px-4 py-3 text-left text-xs font-semibold text-[#475569] whitespace-nowrap"
                       >
                         {h}
                       </th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#F1F5F9]">
+                <tbody className="divide-y divide-[#EEF0F6]">
                   {files.map((file) => (
                     <tr
                       key={`${file.node_name}-${file.filename}`}
-                      className="hover:bg-[#F8FAFC] transition-colors"
+                      className="hover:bg-[#F8F9FC] transition-colors"
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-[#0F172A]">{file.node_name}</span>
+                          <span className="font-bold text-[#0F172A]">{file.node_name}</span>
                           <Badge variant={file.type as 'mikrotik' | 'database' | 'virtualizor_db'}>{file.type === 'virtualizor_db' ? 'Virtualizor' : file.type}</Badge>
                         </div>
                       </td>
@@ -173,11 +176,11 @@ export default function BackupFilesPage() {
                           <a
                             href={file.download_url}
                             download={file.filename}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#EFF6FF] hover:bg-[#0077FF] text-[#0077FF] hover:text-white rounded-md text-xs font-medium transition-colors"
-                            title={`Download ${file.filename}`}
+                            className="inline-flex items-center gap-1.5 px-3.5 min-h-[40px] bg-[#EEF0FE] hover:bg-[#E0E3FF] text-[#2E3AC2] rounded-xl text-[13px] font-semibold transition-colors"
+                            title={`Unduh ${file.filename}`}
                           >
-                            <Download className="w-3.5 h-3.5" />
-                            Download
+                            <Download className="w-4 h-4" />
+                            Unduh
                           </a>
                         </td>
                       )}
@@ -199,7 +202,8 @@ export default function BackupFilesPage() {
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={meta.current_page === 1}
-                  className="p-2 rounded-md border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Halaman sebelumnya"
+                  className="w-11 h-11 rounded-full bg-white border border-[#E2E4EC] text-[#334155] hover:bg-[#F1F2F7] flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -209,7 +213,8 @@ export default function BackupFilesPage() {
                 <button
                   onClick={() => setPage((p) => Math.min(meta.last_page, p + 1))}
                   disabled={meta.current_page === meta.last_page}
-                  className="p-2 rounded-md border border-[#E2E8F0] text-[#475569] hover:bg-[#F8FAFC] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Halaman berikutnya"
+                  className="w-11 h-11 rounded-full bg-white border border-[#E2E4EC] text-[#334155] hover:bg-[#F1F2F7] flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>

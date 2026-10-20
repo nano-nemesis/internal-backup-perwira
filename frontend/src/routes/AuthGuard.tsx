@@ -14,9 +14,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#0f172a]">
-        <div className="text-slate-400 font-mono text-sm animate-pulse">
-          Loading...
+      <div className="flex items-center justify-center h-[100dvh] bg-[#F4F5FA]">
+        <div className="text-[#475569] text-sm animate-pulse">
+          Memuat...
         </div>
       </div>
     )

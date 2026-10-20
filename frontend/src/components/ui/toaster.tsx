@@ -43,22 +43,24 @@ export function Toaster() {
   }
 
   const styles: Record<Toast['type'], string> = {
-    success: 'bg-emerald-900 border-emerald-700 text-emerald-200',
-    error: 'bg-red-900 border-red-700 text-red-200',
-    info: 'bg-slate-800 border-slate-600 text-slate-200',
+    success: 'bg-[#0F172A] text-white [&>i]:bg-[#4ADE80]',
+    error: 'bg-[#0F172A] text-white [&>i]:bg-[#F87171]',
+    info: 'bg-[#0F172A] text-white [&>i]:bg-[#8C99F7]',
   }
 
   if (items.length === 0) return null
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
+    <div className="fixed left-4 right-4 bottom-[calc(6rem+env(safe-area-inset-bottom))] md:left-auto md:bottom-4 z-50 flex flex-col gap-2 md:max-w-sm">
       {items.map((t) => (
         <div
           key={t.id}
-          className={`flex items-start gap-3 px-4 py-3 rounded-lg border text-sm font-mono shadow-xl ${styles[t.type]}`}
+          role="status"
+          className={`flex items-start gap-3 px-4 py-3 rounded-2xl text-sm font-medium shadow-[0_20px_40px_-16px_rgba(15,23,42,0.5)] ${styles[t.type]}`}
         >
-          <span className="flex-1">{t.message}</span>
-          <button onClick={() => dismiss(t.id)} className="opacity-60 hover:opacity-100 flex-shrink-0">
+          <i aria-hidden="true" className="mt-1.5 w-2 h-2 rounded-full flex-shrink-0" />
+          <span className="flex-1 break-words">{t.message}</span>
+          <button onClick={() => dismiss(t.id)} aria-label="Tutup" className="-m-1 p-1 opacity-70 hover:opacity-100 flex-shrink-0">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>

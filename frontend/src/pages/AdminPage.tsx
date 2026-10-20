@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { Plus, Trash2, Key, Shield } from 'lucide-react'
+import { Plus, Trash2, Key } from 'lucide-react'
 import {
   useUsers,
   useCreateUser,
@@ -56,23 +56,23 @@ export default function AdminPage() {
     e.preventDefault()
     try {
       await createUser.mutateAsync(newUser)
-      toast(`User "${newUser.username}" created`, 'success')
+      toast(`Pengguna "${newUser.username}" dibuat`, 'success')
       setShowCreate(false)
       setNewUser({ username: '', email: '', password: '', role: 'viewer' })
     } catch (err) {
-      toast(apiMessage(err, 'Failed to create user'), 'error')
+      toast(apiMessage(err, 'Gagal membuat pengguna'), 'error')
     }
   }
 
   const handleRoleChange = async (user: User, role: string) => {
     try {
       await updateRole.mutateAsync({ id: user.id, role })
-      toast('Role updated', 'success')
+      toast('Peran diperbarui', 'success')
     } catch (err) {
       // Server mengirim alasan konkret di sini — mis. penolakan menurunkan admin
       // aktif terakhir. `catch` kosong menggantinya jadi pesan generik yang bikin
       // admin menyangka fiturnya rusak.
-      toast(apiMessage(err, 'Failed to update role'), 'error')
+      toast(apiMessage(err, 'Gagal mengubah peran'), 'error')
     }
   }
 
@@ -81,54 +81,54 @@ export default function AdminPage() {
     if (!resetTarget) return
     try {
       await resetPwd.mutateAsync({ id: resetTarget.id, password: newPassword })
-      toast(`Password reset for "${resetTarget.username}"`, 'success')
+      toast(`Password "${resetTarget.username}" direset`, 'success')
       setResetTarget(null)
       setNewPassword('')
     } catch (err) {
-      toast(apiMessage(err, 'Failed to reset password'), 'error')
+      toast(apiMessage(err, 'Gagal mereset password'), 'error')
     }
   }
 
   const handleDelete = async (user: User) => {
     if (user.id === me?.id) {
-      toast("You can't delete your own account", 'error')
+      toast('Akun sendiri tidak bisa dihapus', 'error')
       return
     }
-    if (!confirm(`Delete user "${user.username}"?`)) return
+    if (!confirm(`Hapus pengguna "${user.username}"?`)) return
     try {
       await deleteUser.mutateAsync(user.id)
-      toast(`User "${user.username}" deleted`, 'success')
+      toast(`Pengguna "${user.username}" dihapus`, 'success')
     } catch (err) {
-      toast(apiMessage(err, 'Failed to delete user'), 'error')
+      toast(apiMessage(err, 'Gagal menghapus pengguna'), 'error')
     }
   }
 
   return (
-    <div className="space-y-6 max-w-screen-xl">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5 max-w-screen-2xl">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-display font-bold text-[#0F172A]">
-            User Management
+          <h1 className="text-[28px] leading-tight font-extrabold text-[#0F172A]">
+            Pengguna
           </h1>
           <p className="text-sm text-[#475569] mt-1">
-            {data?.data?.length ?? 0} users
+            {data?.data?.length ?? 0} akun
           </p>
         </div>
         <Button onClick={() => setShowCreate(true)}>
           <Plus className="w-4 h-4" />
-          Add User
+          Tambah pengguna
         </Button>
       </div>
 
-      <div className="card overflow-x-auto">
-        <table className="w-full text-sm">
+      <div className="card overflow-x-auto pt-2">
+        <table className="w-full text-sm min-w-[720px]">
           <thead>
-            <tr className="border-b border-[#E2E8F0]">
-              {['Username', 'Email', 'Role', 'Status', 'Created', 'Actions'].map(
+            <tr className="border-b border-[#EEF0F6]">
+              {['Pengguna', 'Email', 'Peran', 'Status', 'Dibuat', ''].map(
                 (h) => (
                   <th
                     key={h}
-                    className="px-4 py-3 text-left text-xs font-mono text-[#475569] uppercase tracking-wider"
+                    className="px-4 py-3 text-left text-xs font-semibold text-[#475569] whitespace-nowrap"
                   >
                     {h}
                   </th>
@@ -136,23 +136,23 @@ export default function AdminPage() {
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#E2E8F0]">
+          <tbody className="divide-y divide-[#EEF0F6]">
             {(data?.data ?? []).map((user) => (
-              <tr key={user.id} className="hover:bg-[#F8FAFC]">
+              <tr key={user.id} className="hover:bg-[#F8F9FC]">
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-3.5 h-3.5 text-[#475569] flex-shrink-0" />
-                    <span className="font-mono text-[#0F172A]">
+                  <div className="flex items-center gap-2.5">
+                    <span aria-hidden="true" className="w-9 h-9 rounded-full bg-[#E0E3FF] text-[#2E3AC2] text-xs font-bold flex items-center justify-center flex-shrink-0">
+                      {user.username.slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="font-bold text-[#0F172A]">
                       {user.username}
                     </span>
                     {user.id === me?.id && (
-                      <span className="text-xs text-[#0077FF] font-mono">
-                        (you)
-                      </span>
+                      <span className="pill bg-[#E0E3FF] text-[#2E3AC2]">Anda</span>
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-[#475569] text-xs font-mono">
+                <td className="px-4 py-3 text-[#475569] text-[13px]">
                   {user.email}
                 </td>
                 <td className="px-4 py-3">
@@ -160,7 +160,8 @@ export default function AdminPage() {
                     value={user.role}
                     onChange={(e) => handleRoleChange(user, e.target.value)}
                     disabled={user.id === me?.id}
-                    className="bg-white border border-gray-300 rounded px-2 py-1 text-xs text-[#0F172A] disabled:opacity-40 focus:outline-none focus:border-[#0077FF]"
+                    aria-label={`Peran ${user.username}`}
+                    className="bg-white border border-[#DADDE8] rounded-xl px-3 min-h-[40px] text-[13px] font-semibold text-[#0F172A] disabled:opacity-50 focus:outline-none focus:border-[#4255F0] focus:ring-4 focus:ring-[#4255F0]/15"
                   >
                     {roleOptions.map((r) => (
                       <option key={r.value} value={r.value}>
@@ -170,15 +171,11 @@ export default function AdminPage() {
                   </select>
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`text-xs font-mono ${
-                      user.is_active ? 'text-emerald-400' : 'text-red-400'
-                    }`}
-                  >
-                    {user.is_active ? 'Active' : 'Inactive'}
+                  <span className={`pill ${user.is_active ? 'bg-[#BBF7D0] text-[#14532D]' : 'bg-[#E5E7EB] text-[#374151]'}`}>
+                    {user.is_active ? 'Aktif' : 'Nonaktif'}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-[#475569] text-xs font-mono">
+                <td className="px-4 py-3 text-[#475569] text-[13px] whitespace-nowrap">
                   {user.created_at
                     ? new Date(user.created_at).toLocaleDateString('id-ID')
                     : '—'}
@@ -186,19 +183,21 @@ export default function AdminPage() {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
                     <button
-                      title="Reset Password"
+                      title="Reset password"
+                      aria-label={`Reset password ${user.username}`}
                       onClick={() => setResetTarget(user)}
-                      className="p-1.5 rounded hover:bg-[#EFF6FF] text-[#0077FF] transition-colors"
+                      className="w-10 h-10 rounded-xl hover:bg-[#EEF0FE] text-[#2E3AC2] transition-colors flex items-center justify-center"
                     >
-                      <Key className="w-3.5 h-3.5" />
+                      <Key className="w-4 h-4" />
                     </button>
                     {user.id !== me?.id && (
                       <button
-                        title="Delete"
+                        title="Hapus"
+                        aria-label={`Hapus ${user.username}`}
                         onClick={() => handleDelete(user)}
-                        className="p-1.5 rounded hover:bg-red-900/50 text-red-400 transition-colors"
+                        className="w-10 h-10 rounded-xl hover:bg-[#FEE2E2] text-[#B91C1C] transition-colors flex items-center justify-center"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     )}
                   </div>
@@ -208,13 +207,13 @@ export default function AdminPage() {
           </tbody>
         </table>
         {isLoading && (
-          <div className="p-8 text-center text-[#475569] font-mono text-sm animate-pulse">
-            Loading...
+          <div className="p-8 text-center text-[#475569] text-sm animate-pulse">
+            Memuat...
           </div>
         )}
         {!isLoading && (data?.data?.length ?? 0) === 0 && (
-          <div className="p-8 text-center text-[#475569] font-mono text-sm">
-            No users found
+          <div className="p-8 text-center text-[#475569] text-sm">
+            Belum ada pengguna
           </div>
         )}
       </div>
@@ -223,7 +222,7 @@ export default function AdminPage() {
       <Dialog
         open={showCreate}
         onClose={() => setShowCreate(false)}
-        title="Add New User"
+        title="Tambah pengguna"
       >
         <form onSubmit={handleCreate} className="space-y-4">
           <Input
@@ -248,10 +247,10 @@ export default function AdminPage() {
             onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
             required
             minLength={8}
-            placeholder="min. 8 characters"
+            placeholder="minimal 8 karakter"
           />
           <Select
-            label="Role"
+            label="Peran"
             value={newUser.role}
             onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
             options={roleOptions}
@@ -262,10 +261,10 @@ export default function AdminPage() {
               variant="secondary"
               onClick={() => setShowCreate(false)}
             >
-              Cancel
+              Batal
             </Button>
             <Button type="submit" loading={createUser.isPending}>
-              Create User
+              Buat pengguna
             </Button>
           </div>
         </form>
@@ -278,17 +277,17 @@ export default function AdminPage() {
           setResetTarget(null)
           setNewPassword('')
         }}
-        title={`Reset Password: ${resetTarget?.username}`}
+        title={`Reset password ${resetTarget?.username ?? ""}`}
       >
         <form onSubmit={handleResetPassword} className="space-y-4">
           <Input
-            label="New Password"
+            label="Password baru"
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             required
             minLength={8}
-            placeholder="min. 8 characters"
+            placeholder="minimal 8 karakter"
             autoFocus
           />
           <div className="flex justify-end gap-3 pt-2">
@@ -300,10 +299,10 @@ export default function AdminPage() {
                 setNewPassword('')
               }}
             >
-              Cancel
+              Batal
             </Button>
             <Button type="submit" loading={resetPwd.isPending}>
-              Reset Password
+              Reset password
             </Button>
           </div>
         </form>

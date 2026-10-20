@@ -17,23 +17,23 @@ export function Button({
   ...props
 }: ButtonProps) {
   const variants = {
-    primary: 'bg-[#0077FF] hover:bg-[#0060CC] text-white',
-    secondary: 'bg-white hover:bg-[#F8FAFC] text-[#0F172A] border border-[#E2E8F0]',
-    danger: 'bg-[#E63000] hover:bg-[#C02800] text-white',
-    warning: 'bg-[#FF8C00] hover:bg-[#E07800] text-white',
-    ghost: 'text-[#475569] hover:text-[#0F172A] hover:bg-[#F8FAFC] border border-transparent',
+    primary: 'bg-[#4255F0] hover:bg-[#3442D9] text-white shadow-[0_10px_20px_-12px_#4255F0CC]',
+    secondary: 'bg-white hover:bg-[#F4F5FA] text-[#0F172A] border border-[#DADDE8]',
+    danger: 'bg-[#DC2626] hover:bg-[#B91C1C] text-white',
+    warning: 'bg-[#D97706] hover:bg-[#B45309] text-white',
+    ghost: 'text-[#334155] hover:text-[#0F172A] hover:bg-[#F1F2F7] border border-transparent',
   }
 
   const sizes = {
-    sm: 'px-3 py-1.5 text-xs min-h-[36px]',
-    md: 'px-4 py-2 text-sm min-h-[40px]',
-    lg: 'px-6 py-3 text-base min-h-[44px]',
+    sm: 'px-3.5 py-1.5 text-xs min-h-[36px]',
+    md: 'px-4 py-2 text-sm min-h-[44px]',
+    lg: 'px-6 py-3 text-base min-h-[52px]',
   }
 
   return (
     <button
       className={cn(
-        'rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2',
+        'rounded-[14px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4255F0] focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2',
         variants[variant],
         sizes[size],
         className,

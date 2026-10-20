@@ -16,23 +16,23 @@ export function BackupFileList({ files, nodeId }: BackupFileListProps) {
 
   if (files.length === 0) {
     return (
-      <div className="text-center py-10 text-[#475569] text-sm font-mono">
-        No backup files found
+      <div className="text-center py-10 text-[#475569] text-sm">
+        Belum ada berkas backup
       </div>
     )
   }
 
   return (
-    <div className="divide-y divide-[#E2E8F0]">
+    <div className="divide-y divide-[#EEF0F6]">
       {files.map((file) => (
         <div
           key={file.filename}
-          className="flex items-center justify-between px-4 py-3 hover:bg-[#F8FAFC] group"
+          className="flex items-center justify-between px-5 md:px-6 py-3 hover:bg-[#F8F9FC] group"
         >
           <div className="flex items-center gap-3 min-w-0">
-            <FileArchive className="w-4 h-4 text-[#475569] flex-shrink-0" />
+            <span className="w-10 h-10 rounded-xl bg-[#F1F2F7] text-[#334155] flex items-center justify-center flex-shrink-0"><FileArchive className="w-[18px] h-[18px]" strokeWidth={1.8} /></span>
             <div className="min-w-0">
-              <p className="text-sm font-mono text-[#0F172A] truncate">
+              <p className="text-[13px] font-mono font-medium text-[#0F172A] truncate">
                 {file.filename}
               </p>
               <p className="text-xs text-[#475569] mt-0.5">
@@ -45,10 +45,11 @@ export function BackupFileList({ files, nodeId }: BackupFileListProps) {
               href={`/api/nodes/${nodeId}/download/${file.filename}`}
               download
               onClick={(e) => e.stopPropagation()}
-              className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded hover:bg-[#EFF6FF] text-[#0077FF] transition-colors flex-shrink-0 ml-4 min-h-[44px] min-w-[44px]"
+              aria-label={`Unduh ${file.filename}`}
+              className="flex items-center justify-center gap-1.5 px-3.5 text-[13px] font-semibold rounded-xl bg-[#EEF0FE] hover:bg-[#E0E3FF] text-[#2E3AC2] transition-colors flex-shrink-0 ml-4 min-h-[44px] min-w-[44px]"
             >
-              <Download className="w-3.5 h-3.5" />
-              Download
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Unduh</span>
             </a>
           )}
         </div>

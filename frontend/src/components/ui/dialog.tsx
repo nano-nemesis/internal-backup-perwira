@@ -25,7 +25,7 @@ export function Dialog({ open, onClose, title, children, className }: DialogProp
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 bg-[#0F172A]/50"
         onClick={onClose}
       />
       <div
@@ -33,17 +33,17 @@ export function Dialog({ open, onClose, title, children, className }: DialogProp
         aria-modal="true"
         aria-label={title}
         className={cn(
-          'relative bg-white border border-[#E2E8F0] rounded-xl shadow-xl w-full max-w-lg p-4 md:p-6',
+          'relative bg-white rounded-[22px] shadow-[0_30px_60px_-20px_rgba(15,23,42,0.45)] w-full max-w-lg p-5 md:p-7 max-h-[calc(100dvh-2rem)] overflow-y-auto',
           'animate-in fade-in zoom-in-95 duration-150',
           className,
         )}
       >
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-base font-display font-semibold text-[#0F172A]">{title}</h2>
+          <h2 className="text-lg font-display font-bold text-[#0F172A]">{title}</h2>
           <button
             onClick={onClose}
             aria-label="Tutup"
-            className="p-1.5 rounded-md hover:bg-[#F8FAFC] text-[#475569] hover:text-[#0F172A] transition-colors"
+            className="w-11 h-11 -mr-2 -mt-2 flex items-center justify-center rounded-full hover:bg-[#F1F2F7] text-[#475569] hover:text-[#0F172A] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>

@@ -3,11 +3,11 @@ import type { DoctorCek, DoctorReport, DoctorStatus, Node } from '../../types'
 import { Button } from '../ui/button'
 import { formatDatetimeWIB } from '../../lib/utils'
 
-export const STATUS_DOCTOR: Record<DoctorStatus, { label: string; teks: string }> = {
-  kritis: { label: 'KRITIS', teks: 'text-[#DC2626]' },
-  peringatan: { label: 'PERHATIAN', teks: 'text-amber-600' },
-  info: { label: 'INFO', teks: 'text-[#0077FF]' },
-  ok: { label: 'OK', teks: 'text-[#16A34A]' },
+export const STATUS_DOCTOR: Record<DoctorStatus, { label: string; pill: string }> = {
+  kritis: { label: 'Kritis', pill: 'bg-[#DC2626] text-white' },
+  peringatan: { label: 'Perhatian', pill: 'bg-[#FEF3C7] text-[#92400E]' },
+  info: { label: 'Info', pill: 'bg-[#E0E3FF] text-[#2E3AC2]' },
+  ok: { label: 'OK', pill: 'bg-[#BBF7D0] text-[#14532D]' },
 }
 
 // Yang paling perlu ditangani di atas: tak terjangkau, lalu kritis, lalu peringatan.
@@ -31,7 +31,7 @@ export function PeranBadges({ peran }: { peran?: string[] }) {
   return (
     <span className="inline-flex flex-wrap gap-1">
       {peran.map((p) => (
-        <span key={p} className="px-1.5 py-0.5 rounded border border-[#E2E8F0] text-[11px] font-mono text-[#475569] whitespace-nowrap">
+        <span key={p} className="px-2.5 py-0.5 rounded-full border border-[#DADDE8] text-xs font-semibold text-[#334155] whitespace-nowrap">
           {p}
         </span>
       ))}
@@ -41,17 +41,17 @@ export function PeranBadges({ peran }: { peran?: string[] }) {
 
 function Temuan({ c }: { c: DoctorCek }) {
   return (
-    <li className="px-3 py-3 flex flex-col sm:flex-row gap-1 sm:gap-3 text-sm">
-      <span className={`font-mono text-xs sm:w-20 flex-shrink-0 pt-0.5 ${STATUS_DOCTOR[c.status].teks}`}>
-        {STATUS_DOCTOR[c.status].label}
+    <li className="py-4 flex flex-col sm:flex-row gap-2 sm:gap-4 text-sm">
+      <span className="sm:w-24 flex-shrink-0">
+        <span className={`pill ${STATUS_DOCTOR[c.status].pill}`}>{STATUS_DOCTOR[c.status].label}</span>
       </span>
       <div className="min-w-0 flex-1">
-        <p className="font-medium text-[#0F172A]">
+        <p className="font-bold text-[#0F172A]">
           {c.judul} <span className="text-xs font-normal text-[#475569]">· {c.kategori}</span>
         </p>
         <p className="text-[#475569] mt-0.5 break-words">{c.detail}</p>
         {c.perbaikan && (
-          <pre className="mt-2 px-3 py-2 rounded-md bg-[#0F172A] text-[#E2E8F0] text-xs font-mono overflow-x-auto whitespace-pre">
+          <pre className="mt-2.5 px-4 py-3 rounded-[14px] bg-[#111827] text-[#E2E4EC] text-xs leading-relaxed font-mono overflow-x-auto whitespace-pre">
             {c.perbaikan}
           </pre>
         )}
@@ -67,11 +67,11 @@ export function DoctorPanel({ nodeId, laporan, dicek }: { nodeId: string; lapora
   const lulus = cek.filter((c) => c.status === 'ok')
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-5 md:p-6 space-y-5">
       <div className="flex flex-col sm:flex-row items-start gap-3">
         <div className="flex-1 min-w-0 space-y-1">
           <p className="text-sm text-[#475569]">
-            Membandingkan konfigurasi router dengan standar Perwira. Hanya membaca — perbaikan di
+            Membandingkan konfigurasi router dengan standar Perwira. Hanya membaca, perbaikan di
             bawah dijalankan manual di router. Diperbarui otomatis tiap backup berhasil.
           </p>
           <div className="flex items-center gap-2 flex-wrap text-xs text-[#475569]">
@@ -85,40 +85,40 @@ export function DoctorPanel({ nodeId, laporan, dicek }: { nodeId: string; lapora
       </div>
 
       {laporan?.galat && (
-        <p className="text-sm text-[#991B1B] bg-[#FEF2F2] border-l-4 border-[#DC2626] px-3 py-2 break-words">
+        <p role="alert" className="text-sm text-[#991B1B] bg-[#FEE2E2] rounded-xl px-4 py-3 break-words">
           Router tidak bisa diperiksa: {laporan.galat}
         </p>
       )}
 
       {!laporan && (
-        <p className="text-sm text-[#475569] font-mono">Belum pernah diperiksa — klik "Periksa sekarang".</p>
+        <p className="text-sm text-[#475569]">Belum pernah diperiksa. Tekan "Periksa sekarang".</p>
       )}
 
       {laporan?.ringkasan && (
-        <div className="flex gap-4 flex-wrap text-sm">
+        <div className="flex gap-2 flex-wrap">
           {(['kritis', 'peringatan', 'info', 'ok'] as const).map((s) => (
-            <span key={s} className={STATUS_DOCTOR[s].teks}>
-              <span className="font-mono font-semibold">{laporan.ringkasan![s]}</span> {STATUS_DOCTOR[s].label.toLowerCase()}
+            <span key={s} className={`pill ${STATUS_DOCTOR[s].pill}`}>
+              {laporan.ringkasan![s]} {STATUS_DOCTOR[s].label.toLowerCase()}
             </span>
           ))}
         </div>
       )}
 
       {masalah.length > 0 && (
-        <ul className="divide-y divide-[#E2E8F0] border border-[#E2E8F0] rounded-md">
+        <ul className="divide-y divide-[#EEF0F6] border-y border-[#EEF0F6]">
           {masalah.map((c) => <Temuan key={c.id} c={c} />)}
         </ul>
       )}
 
       {lulus.length > 0 && (
         <div>
-          <h4 className="text-sm font-semibold text-[#0F172A] mb-2">Sudah sesuai standar ({lulus.length})</h4>
-          <ul className="space-y-1 text-sm text-[#475569]">
+          <h4 className="text-[15px] font-bold text-[#0F172A] mb-2.5">Sudah sesuai standar ({lulus.length})</h4>
+          <ul className="space-y-2 text-sm text-[#475569]">
             {lulus.map((c) => (
               <li key={c.id} className="flex gap-2">
-                <span className="text-[#16A34A] font-mono text-xs pt-0.5">OK</span>
+                <span className="pill bg-[#BBF7D0] text-[#14532D] self-start">OK</span>
                 <span className="min-w-0 break-words">
-                  {c.judul} <span className="text-xs">— {c.detail}</span>
+                  <span className="text-[#0F172A] font-semibold">{c.judul}</span> <span className="text-[13px]">· {c.detail}</span>
                 </span>
               </li>
             ))}

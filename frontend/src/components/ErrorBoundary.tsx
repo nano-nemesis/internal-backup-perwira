@@ -37,7 +37,7 @@ export class ErrorBoundary extends Component<Props, State> {
     return (
       <div role="alert" className="max-w-2xl mx-auto my-10 card p-6 space-y-4">
         <div>
-          <h2 className="text-lg font-display font-semibold text-[#0F172A]">
+          <h2 className="text-lg font-bold text-[#0F172A]">
             Halaman ini gagal ditampilkan
           </h2>
           <p className="text-sm text-[#475569] mt-1">
@@ -46,20 +46,20 @@ export class ErrorBoundary extends Component<Props, State> {
           </p>
         </div>
 
-        <pre className="text-xs font-mono bg-[#F1F5F9] text-[#0F172A] p-3 rounded-md overflow-x-auto">
+        <pre className="text-xs font-mono bg-[#F1F2F7] text-[#0F172A] p-3 rounded-xl overflow-x-auto">
           {error.message || String(error)}
         </pre>
 
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => this.setState({ error: null })}
-            className="px-4 py-2 text-sm rounded-md bg-[#0077FF] text-white hover:bg-[#0066DD] min-h-[44px]"
+            className="px-4 py-2 text-sm font-semibold rounded-[14px] bg-[#4255F0] text-white hover:bg-[#3442D9] min-h-[44px]"
           >
             Coba tampilkan lagi
           </button>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 text-sm rounded-md border border-gray-300 hover:bg-gray-50 min-h-[44px]"
+            className="px-4 py-2 text-sm font-semibold rounded-[14px] bg-white border border-[#DADDE8] hover:bg-[#F4F5FA] min-h-[44px]"
           >
             Muat ulang halaman
           </button>

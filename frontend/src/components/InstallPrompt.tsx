@@ -91,51 +91,55 @@ export function InstallPrompt() {
   const tersedia = jenis === 'prompt'
 
   return (
+    // HP: lembar dari bawah selebar layar. Desktop: kartu kecil di pojok kiri bawah.
     <div
       role="dialog"
-      aria-label="Pasang aplikasi"
-      className="fixed z-40 bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 sm:right-auto sm:w-[22rem]
-                 card p-4 shadow-lg border-l-4 border-l-[#0077FF]"
+      aria-labelledby="judul-pasang"
+      className="fixed z-50 inset-x-0 bottom-0 sm:inset-x-auto sm:left-4 sm:bottom-4 sm:w-[24rem]
+                 bg-white rounded-t-[28px] sm:rounded-[22px] px-5 pt-3 sm:pt-5
+                 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-5
+                 shadow-[0_-20px_40px_-20px_rgba(15,23,42,0.4)] sm:shadow-[0_20px_40px_-16px_rgba(15,23,42,0.35)]
+                 flex flex-col gap-4"
     >
-      <div className="flex items-start gap-3">
-        <img src="/icon-192.png" alt="" className="w-10 h-10 rounded-lg flex-shrink-0" />
+      <span aria-hidden="true" className="sm:hidden self-center w-11 h-[5px] rounded-full bg-[#D5D8E2]" />
+      <div className="flex items-center gap-3.5">
+        <img src="/icon-192.png" alt="" className="w-14 h-14 rounded-2xl border border-[#E2E4EC] flex-shrink-0" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-display font-semibold text-[#0F172A]">
-            Pasang Internal Backup
-          </p>
-          <p className="text-xs text-[#475569] mt-0.5">
-            {tersedia
-              ? 'Buka langsung dari layar utama, tanpa bilah alamat.'
-              : LANGKAH_IOS}
-          </p>
-
-          {tersedia ? (
-            <button
-              onClick={pasang}
-              className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 rounded-md
-                         bg-[#0077FF] hover:bg-[#0060CC] text-white text-sm font-medium
-                         transition-colors min-h-[40px]"
-            >
-              <Download className="w-4 h-4" />
-              Pasang
-            </button>
-          ) : (
-            <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-[#475569]">
-              <Share className="w-3.5 h-3.5 text-[#0077FF]" aria-hidden="true" />
-              Bagikan → Tambah ke Layar Utama
-            </p>
-          )}
+          <h2 id="judul-pasang" className="text-lg font-extrabold text-[#0F172A]">Pasang Perwira Backup</h2>
+          <p className="text-[13px] text-[#475569] mt-0.5">Buka langsung dari layar utama, layar penuh.</p>
         </div>
-
         <button
           onClick={tutup}
           aria-label="Tutup ajakan pasang"
-          className="p-1.5 -m-1 rounded-md text-[#475569] hover:text-[#0F172A]
-                     hover:bg-[#F8FAFC] transition-colors flex-shrink-0"
+          className="w-11 h-11 rounded-full bg-[#F1F2F7] text-[#334155] hover:text-[#0F172A] transition-colors flex items-center justify-center flex-shrink-0"
         >
-          <X className="w-4 h-4" />
+          <X className="w-[18px] h-[18px]" />
         </button>
       </div>
+
+      {tersedia ? (
+        <div className="flex gap-2.5">
+          <button
+            onClick={tutup}
+            className="flex-1 min-h-[52px] rounded-[14px] border border-[#DADDE8] bg-white text-[15px] font-bold text-[#0F172A] hover:bg-[#F4F5FA] transition-colors"
+          >
+            Nanti saja
+          </button>
+          <button
+            onClick={pasang}
+            className="flex-[1.6] min-h-[52px] rounded-[14px] bg-[#4255F0] hover:bg-[#3442D9] text-white text-[15px] font-bold
+                       shadow-[0_12px_24px_-12px_#4255F0CC] transition-colors inline-flex items-center justify-center gap-2"
+          >
+            <Download className="w-[18px] h-[18px]" />
+            Pasang
+          </button>
+        </div>
+      ) : (
+        <p className="flex gap-2.5 items-start bg-[#F4F5FA] rounded-[14px] px-3.5 py-3 text-[13px] text-[#334155] leading-relaxed">
+          <Share className="w-[18px] h-[18px] mt-0.5 flex-shrink-0 text-[#4255F0]" aria-hidden="true" />
+          {LANGKAH_IOS}
+        </p>
+      )}
     </div>
   )
 }

@@ -70,9 +70,9 @@ export default function TelegramPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-5 max-w-2xl">
       <div>
-        <h1 className="text-2xl font-display font-bold text-[#0F172A]">Bot Telegram</h1>
+        <h1 className="text-[28px] leading-tight font-extrabold text-[#0F172A]">Bot Telegram</h1>
         <p className="text-sm text-[#475569] mt-1">
           Notifikasi backup dan perintah cek keadaan lewat Telegram.
         </p>
@@ -83,18 +83,18 @@ export default function TelegramPage() {
       ) : (
         <>
           {/* Status ringkas */}
-          <div
-            className={`card p-4 flex items-start gap-3 ${
-              s?.siap ? 'border-l-4 border-l-[#16A34A]' : 'border-l-4 border-l-amber-400'
-            }`}
-          >
+          <div className="card p-5 flex items-start gap-3.5">
             {s?.siap ? (
-              <CheckCircle2 className="w-5 h-5 text-[#16A34A] flex-shrink-0 mt-0.5" />
+              <span className="w-10 h-10 rounded-xl bg-[#BBF7D0] text-[#14532D] flex items-center justify-center flex-shrink-0">
+                <CheckCircle2 className="w-5 h-5" strokeWidth={1.8} />
+              </span>
             ) : (
-              <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <span className="w-10 h-10 rounded-xl bg-[#FEF3C7] text-[#92400E] flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-5 h-5" strokeWidth={1.8} />
+              </span>
             )}
             <div className="text-sm">
-              <p className="font-medium text-[#0F172A]">
+              <p className="font-bold text-[15px] text-[#0F172A]">
                 {s?.siap ? 'Telegram aktif' : 'Belum lengkap'}
               </p>
               <p className="text-[#475569] mt-0.5">
@@ -111,7 +111,7 @@ export default function TelegramPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSimpan} className="card p-5 space-y-4">
+          <form onSubmit={handleSimpan} className="card p-5 md:p-6 space-y-4">
             <div>
               <Input
                 label="Token Bot"
@@ -165,11 +165,11 @@ export default function TelegramPage() {
             </div>
           </form>
 
-          <div className="card p-5 space-y-2">
-            <h2 className="text-sm font-display font-semibold text-[#0F172A]">
+          <div className="card p-5 md:p-6 space-y-3">
+            <h2 className="text-lg font-bold text-[#0F172A]">
               Perintah yang bisa dikirim ke bot
             </h2>
-            <ul className="text-sm text-[#475569] space-y-1">
+            <ul className="text-sm text-[#475569] space-y-2">
               {[
                 ['/status', 'ringkasan armada + kapasitas VPS'],
                 ['/gagal', 'node yang gagal beserta pesan errornya'],
@@ -178,10 +178,10 @@ export default function TelegramPage() {
                 ['/help', 'daftar perintah'],
               ].map(([cmd, ket]) => (
                 <li key={cmd} className="flex gap-2">
-                  <code className="font-mono text-xs bg-[#F1F5F9] text-[#0F172A] px-1.5 py-0.5 rounded flex-shrink-0">
+                  <code className="font-mono text-xs bg-[#F1F2F7] text-[#0F172A] px-2 py-1 rounded-lg flex-shrink-0">
                     {cmd}
                   </code>
-                  <span>— {ket}</span>
+                  <span className="pt-0.5">{ket}</span>
                 </li>
               ))}
             </ul>

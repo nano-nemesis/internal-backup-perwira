@@ -27,11 +27,11 @@ export function BackupProgress({
   return (
     <div className={className} role="status" aria-live="polite">
       <div className="flex items-center gap-2">
-        <div className="relative h-1 flex-1 min-w-[60px] rounded-full bg-[#DBEAFE] overflow-hidden">
-          <div className="absolute inset-y-0 left-0 w-full rounded-full bg-[#0077FF] animate-indeterminate" />
+        <div className="relative h-1 flex-1 min-w-[60px] rounded-full bg-[#E0E3FF] overflow-hidden">
+          <div className="absolute inset-y-0 left-0 w-full rounded-full bg-[#4255F0] animate-indeterminate" />
         </div>
         {detik !== null && (
-          <span className="text-[11px] font-mono text-[#0077FF] tabular-nums flex-shrink-0">
+          <span className="text-[11px] font-mono text-[#4255F0] tabular-nums flex-shrink-0">
             {format(detik)}
           </span>
         )}

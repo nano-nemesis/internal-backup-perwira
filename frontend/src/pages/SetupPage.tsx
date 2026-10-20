@@ -29,7 +29,7 @@ export default function SetupPage() {
       navigate('/login', { replace: true })
     } catch (err: any) {
       setError(
-        err.response?.data?.message ?? 'Setup failed. Please try again.'
+        err.response?.data?.message ?? 'Setup gagal. Coba lagi.'
       )
     } finally {
       setLoading(false)
@@ -38,26 +38,26 @@ export default function SetupPage() {
 
   if (checking) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#0f172a]">
-        <div className="text-slate-400 font-mono text-sm animate-pulse">
-          Checking setup status...
+      <div className="flex items-center justify-center min-h-[100dvh] bg-[#F4F5FA]">
+        <div className="text-[#475569] text-sm animate-pulse">
+          Memeriksa status setup...
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#0f172a] p-4">
-      <div className="w-full max-w-sm card p-8">
+    <div className="flex items-center justify-center min-h-[100dvh] bg-[#E8EAF2] p-4">
+      <div className="w-full max-w-sm card rounded-[22px] p-6 md:p-8">
         <div className="flex flex-col items-center mb-6">
-          <div className="p-3 bg-blue-900/40 border border-blue-800 rounded-full mb-4">
-            <Shield className="w-7 h-7 text-blue-400" />
-          </div>
-          <h1 className="text-xl font-mono font-bold text-white">
-            First Time Setup
+          <span className="w-14 h-14 rounded-2xl bg-[#4255F0] text-white flex items-center justify-center mb-4 shadow-[0_12px_24px_-12px_#4255F0CC]">
+            <Shield className="w-7 h-7" strokeWidth={1.8} />
+          </span>
+          <h1 className="text-2xl font-extrabold text-[#0F172A]">
+            Setup pertama
           </h1>
-          <p className="text-xs text-slate-500 mt-1 text-center">
-            Create the initial admin account to get started
+          <p className="text-sm text-[#475569] mt-1 text-center">
+            Buat akun admin pertama untuk mulai memakai Perwira Backup.
           </p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -85,19 +85,20 @@ export default function SetupPage() {
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             required
             minLength={8}
-            placeholder="min. 8 characters"
+            placeholder="minimal 8 karakter"
           />
           {error && (
-            <div className="text-sm text-red-400 font-mono px-3 py-2 bg-red-950/30 border border-red-900 rounded">
+            <div role="alert" className="text-sm text-[#991B1B] px-3.5 py-3 bg-[#FEE2E2] rounded-xl">
               {error}
             </div>
           )}
           <Button
             type="submit"
+            size="lg"
             className="w-full justify-center"
             loading={loading}
           >
-            Create Admin Account
+            Buat akun admin
           </Button>
         </form>
       </div>

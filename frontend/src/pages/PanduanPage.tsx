@@ -23,7 +23,7 @@ const SECTIONS = [
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
     <section id={id} className="scroll-mt-6">
-      <h2 className="text-lg font-display font-semibold text-[#0F172A] mb-3 pb-2 border-b border-[#E2E8F0]">
+      <h2 className="text-lg font-bold text-[#0F172A] mb-3 pb-2 border-b border-[#EEF0F6]">
         {title}
       </h2>
       <div className="space-y-3 text-sm text-[#334155] leading-relaxed">{children}</div>
@@ -34,24 +34,24 @@ function Section({ id, title, children }: { id: string; title: string; children:
 function Note({ children, tone = 'info' }: { children: ReactNode; tone?: 'info' | 'warn' }) {
   const cls =
     tone === 'warn'
-      ? 'border-amber-300 bg-amber-50 text-amber-900'
-      : 'border-[#BFDBFE] bg-[#EFF6FF] text-[#1E3A8A]'
-  return <div className={`rounded-md border px-4 py-3 text-sm ${cls}`}>{children}</div>
+      ? 'bg-[#FEF3C7] text-[#78350F]'
+      : 'bg-[#EEF0FE] text-[#1E2A78]'
+  return <div className={`rounded-xl px-4 py-3 text-sm ${cls}`}>{children}</div>
 }
 
 const K = ({ children }: { children: ReactNode }) => (
-  <code className="font-mono text-xs bg-[#F1F5F9] text-[#0F172A] px-1.5 py-0.5 rounded">
+  <code className="font-mono text-xs bg-[#F1F2F7] text-[#0F172A] px-1.5 py-0.5 rounded-md">
     {children}
   </code>
 )
 
 export default function PanduanPage() {
   return (
-    <div className="max-w-3xl space-y-8 pb-10">
+    <div className="max-w-3xl card px-5 py-7 md:px-10 md:py-10 space-y-8">
       {/* Kepala artikel */}
       <header className="space-y-3">
         <img src="/perwiramedia.png" alt="PerwiraMedia" className="h-10 w-auto" />
-        <h1 className="text-2xl font-display font-bold text-[#0F172A]">
+        <h1 className="text-[28px] leading-tight font-extrabold text-[#0F172A]">
           Panduan PerwiraBackup
         </h1>
         <p className="text-sm text-[#475569]">
@@ -62,12 +62,12 @@ export default function PanduanPage() {
       </header>
 
       {/* Daftar isi */}
-      <nav className="card p-4">
-        <p className="text-xs font-medium text-[#475569] uppercase tracking-wider mb-2">Isi</p>
+      <nav className="rounded-2xl bg-[#F4F5FA] p-5">
+        <p className="text-xs font-bold tracking-[0.08em] text-[#475569] mb-2">ISI</p>
         <ol className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-sm list-decimal list-inside">
           {SECTIONS.map(([id, title]) => (
             <li key={id}>
-              <a href={`#${id}`} className="text-[#0077FF] hover:underline">
+              <a href={`#${id}`} className="text-[#3442D9] font-medium hover:underline">
                 {title}
               </a>
             </li>

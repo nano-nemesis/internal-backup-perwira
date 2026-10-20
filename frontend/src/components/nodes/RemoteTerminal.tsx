@@ -93,9 +93,9 @@ export function RemoteTerminal({ nodeId, nodeName }: RemoteTerminalProps) {
   }
 
   return (
-    <div className="bg-slate-950 rounded-lg border border-slate-700 overflow-hidden">
+    <div className="bg-[#0B1120] rounded-[20px] overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-slate-900 border-b border-slate-700">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#111827] border-b border-white/5">
         <div className="flex items-center gap-2">
           <div className="flex gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-red-500/70" />
@@ -103,7 +103,7 @@ export function RemoteTerminal({ nodeId, nodeName }: RemoteTerminalProps) {
             <span className="w-2.5 h-2.5 rounded-full bg-green-500/70" />
           </div>
           <Terminal className="w-3.5 h-3.5 text-green-400 ml-1" />
-          <span className="text-xs font-mono text-slate-400">Remote Terminal</span>
+          <span className="text-xs font-semibold text-slate-300">Terminal</span>
           {/* Nama node target dibuat mencolok: allowlist backend menilai perintahnya,
               bukan apakah perintah itu ditujukan ke node yang benar. */}
           <span className="text-xs font-mono font-semibold text-amber-400 px-1.5 py-0.5 rounded bg-amber-950/60 border border-amber-800/60">

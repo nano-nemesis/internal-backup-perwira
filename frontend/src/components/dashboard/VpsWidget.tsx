@@ -16,14 +16,14 @@ function MetricRow({
 }) {
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center gap-2 text-xs text-[#475569]">
+      <div className="flex items-center gap-2 text-[13px] font-semibold text-[#334155]">
         <Icon className="w-3.5 h-3.5 flex-shrink-0" />
         <span>{label}</span>
-        <span className="ml-auto font-mono font-medium text-[#0F172A]">{value}</span>
+        <span className="ml-auto font-bold text-[#0F172A]">{value}</span>
       </div>
-      <div className="w-full bg-[#F1F5F9] rounded-full h-1.5">
+      <div className="w-full bg-[#F1F2F7] rounded-full h-2">
         <div
-          className="h-1.5 rounded-full transition-all duration-500"
+          className="h-2 rounded-full transition-all duration-500"
           style={{ width: `${Math.min(100, pct)}%`, backgroundColor: barColor }}
         />
       </div>
@@ -36,13 +36,13 @@ export function VpsWidget() {
   const latest = data?.latest
 
   if (isLoading) {
-    return <div className="card p-5 h-40 animate-pulse" />
+    return <div className="card p-5 h-64 animate-pulse" />
   }
 
   if (!latest) {
     return (
       <div className="card p-5 text-[#475569] text-sm">
-        No VPS metrics available yet. Collector runs every minute.
+        Belum ada metrik server. Pengumpul berjalan tiap menit.
       </div>
     )
   }
@@ -50,19 +50,22 @@ export function VpsWidget() {
   const memPct = (latest.memory_used_mb / latest.memory_total_mb) * 100
   const diskPct = (latest.disk_used_gb / latest.disk_total_gb) * 100
 
-  const cpuColor = latest.cpu_usage_percent > 80 ? '#E63000' : '#0077FF'
-  const memColor = memPct > 80 ? '#E63000' : '#FF8C00'
-  const diskColor = diskPct > 80 ? '#E63000' : '#16A34A'
+  const cpuColor = latest.cpu_usage_percent > 80 ? '#DC2626' : '#4255F0'
+  const memColor = memPct > 80 ? '#DC2626' : '#D97706'
+  const diskColor = diskPct > 80 ? '#DC2626' : '#16A34A'
 
   return (
-    <div className="card p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-display font-semibold text-[#0F172A]">VPS Monitor</h3>
-        <span className="text-xs text-[#475569]">
+    <section className="card p-5 md:p-6">
+      <div className="flex items-start justify-between gap-3 mb-5">
+        <div>
+          <h2 className="text-lg font-bold">Server backup</h2>
+          <p className="text-[13px] text-[#475569] mt-1">Pemakaian sumber daya saat ini</p>
+        </div>
+        <span className="pill bg-[#F1F2F7] text-[#334155]">
           {new Date(latest.recorded_at).toLocaleTimeString('id-ID')}
         </span>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+      <div className="grid grid-cols-1 gap-y-5">
         <MetricRow
           icon={Cpu}
           label="CPU"
@@ -92,6 +95,6 @@ export function VpsWidget() {
           barColor="#7C3AED"
         />
       </div>
-    </div>
+    </section>
   )
 }

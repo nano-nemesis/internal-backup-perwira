@@ -1,25 +1,50 @@
-import { useEffect, useState } from 'react'
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Play, Terminal } from 'lucide-react'
+import React, { useEffect, useState } from 'react'
+import { useParams, useSearchParams, Link } from 'react-router-dom'
+import { Play, Terminal } from 'lucide-react'
 import { useNode, useRefreshDevice, useTriggerBackup } from '../hooks/useNodes'
 import { useAuth } from '../context/AuthContext'
 import { useBackupWatcher, isRunning } from '../hooks/useBackupWatcher'
 import { BackupProgress } from '../components/nodes/BackupProgress'
 import { Button } from '../components/ui/button'
-import { Badge, StatusBadge } from '../components/ui/badge'
+import { Badge } from '../components/ui/badge'
 import { LogViewer } from '../components/logs/LogViewer'
 import { BackupFileList } from '../components/nodes/BackupFileList'
 import { RemoteTerminal } from '../components/nodes/RemoteTerminal'
 import { SimulasiPanel } from '../components/nodes/SimulasiPanel'
-import { DoctorPanel } from '../components/nodes/DoctorPanel'
+import { DoctorPanel, PeranBadges } from '../components/nodes/DoctorPanel'
 import { toast } from '../components/ui/toaster'
-import { formatDatetimeWIB, formatBytes, formatDuration } from '../lib/utils'
+import { cn, formatDatetimeWIB, formatBytes, formatDuration } from '../lib/utils'
+import type { BackupStatus } from '../types'
 
 type Tab = 'logs' | 'files' | 'doctor' | 'simulasi'
 
+const STATUS: Record<BackupStatus, { teks: string; gaya: string }> = {
+  success: { teks: 'Berhasil', gaya: 'bg-[#BBF7D0] text-[#14532D]' },
+  failed: { teks: 'Gagal', gaya: 'bg-[#DC2626] text-white' },
+  running: { teks: 'Berjalan', gaya: 'bg-[#E0E3FF] text-[#2E3AC2]' },
+  pending: { teks: 'Antre', gaya: 'bg-[#E0E3FF] text-[#2E3AC2]' },
+}
+
+function Kartu({ judul, pill, nilai, children }: {
+  judul: string
+  pill?: { teks: string; gaya: string } | null
+  nilai: React.ReactNode
+  children?: React.ReactNode
+}) {
+  return (
+    <section className="card p-5 flex flex-col gap-2.5 min-w-0">
+      <div className="flex justify-between items-center gap-2">
+        <h2 className="text-[15px] font-bold text-[#334155]">{judul}</h2>
+        {pill && <span className={cn('pill', pill.gaya)}>{pill.teks}</span>}
+      </div>
+      <span className="text-[22px] md:text-[26px] leading-tight font-extrabold tracking-tight break-words">{nilai}</span>
+      <div className="text-[13px] text-[#475569] leading-relaxed">{children}</div>
+    </section>
+  )
+}
+
 export default function NodeDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
   const { data, isLoading, error, refetch } = useNode(id!)
 
   // Respons detail menaruh riwayat di `logs`, bukan `latest_log`, jadi bentuknya
@@ -49,16 +74,16 @@ export default function NodeDetailPage() {
   const handleBackup = async () => {
     try {
       await trigger.mutateAsync(id!)
-      toast('Backup dimulai — statusnya diperbarui otomatis', 'info')
+      toast('Backup dimulai, statusnya diperbarui otomatis', 'info')
     } catch (err: any) {
-      toast(err.response?.data?.message ?? 'Failed to queue backup', 'error')
+      toast(err.response?.data?.message ?? 'Gagal memulai backup', 'error')
     }
   }
 
   if (isLoading) {
     return (
-      <div className="text-center py-16 text-[#475569] font-mono text-sm animate-pulse">
-        Loading node...
+      <div className="text-center py-16 text-[#475569] text-sm animate-pulse">
+        Memuat node...
       </div>
     )
   }
@@ -73,10 +98,10 @@ export default function NodeDetailPage() {
           : 'Gagal terhubung ke server. Periksa koneksi lalu coba lagi.'
     return (
       <div className="text-center py-16 space-y-3">
-        <p className="text-red-400 font-mono text-sm">{message}</p>
+        <p className="text-[#991B1B] text-sm">{message}</p>
         <button
           onClick={() => refetch()}
-          className="px-4 py-2 text-sm rounded-md border border-gray-300 hover:bg-gray-50 min-h-[44px]"
+          className="px-4 py-2 text-sm font-semibold rounded-[14px] bg-white border border-[#DADDE8] hover:bg-[#F4F5FA] min-h-[44px]"
         >
           Coba lagi
         </button>
@@ -86,167 +111,183 @@ export default function NodeDetailPage() {
 
   const node = data.data
   const latestLog = data.logs?.[0]
+  const suksesTerakhir = data.logs?.find((l) => l.status === 'success')
+
+  const ringkas = node.doctor_report?.ringkasan
+  const totalCek = ringkas ? ringkas.kritis + ringkas.peringatan + ringkas.info + ringkas.ok : 0
+  // Riwayat terbaru di kanan, seperti garis waktu.
+  const riwayat = (data.logs ?? []).slice(0, 30).reverse()
+  const gagal = riwayat.filter((l) => l.status === 'failed').length
 
   return (
-    <div className="space-y-6 max-w-screen-xl">
-      {/* Header */}
-      <div className="flex items-start gap-3">
-        <button
-          onClick={() => navigate('/devices')}
-          className="p-1.5 rounded hover:bg-[#F8FAFC] text-[#475569] hover:text-[#0F172A] transition-colors mt-0.5"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-display font-bold text-[#0F172A]">
-              {node.name}
-            </h1>
+    <div className="space-y-5 max-w-screen-2xl">
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-[13px] text-[#475569] mb-1.5">
+            <Link to="/devices" className="text-[#3442D9] hover:underline">Perangkat</Link> / {node.name}
+          </p>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-[28px] leading-tight font-extrabold break-all">{node.name}</h1>
             <Badge variant={node.type}>{node.type}</Badge>
-            <span
-              className={`w-2 h-2 rounded-full ${
-                node.is_active ? 'bg-emerald-500' : 'bg-slate-600'
-              }`}
-            />
-            <span className="text-xs text-[#475569] font-mono">
-              {node.is_active ? 'active' : 'inactive'}
-            </span>
+            {!node.is_active && <span className="pill bg-[#E5E7EB] text-[#374151]">nonaktif</span>}
+            <PeranBadges peran={node.doctor_report?.peran} />
           </div>
-          <p className="text-sm text-[#475569] font-mono mt-0.5">
+          <p className="text-[13px] text-[#475569] font-mono mt-1.5 break-all">
             {node.host}:{node.port}
             {node.ssh_user && ` · ssh ${node.ssh_user}`}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2.5 flex-wrap">
           {isAdmin && node.type === 'mikrotik' && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowTerminal((v) => !v)}
-            >
-              <Terminal className="w-3.5 h-3.5" />
-              {showTerminal ? 'Hide Terminal' : 'Terminal'}
+            <Button variant="secondary" onClick={() => setShowTerminal((v) => !v)}>
+              <Terminal className="w-4 h-4" />
+              {showTerminal ? 'Tutup terminal' : 'Terminal'}
             </Button>
           )}
           {isOperator && node.is_active && (
-            <Button
-              size="sm"
-              onClick={handleBackup}
-              loading={trigger.isPending}
-            >
-              <Play className="w-3.5 h-3.5" />
-              Backup Now
+            <Button onClick={handleBackup} loading={trigger.isPending}>
+              <Play className="w-4 h-4" />
+              Backup sekarang
             </Button>
           )}
         </div>
-      </div>
+      </header>
 
       {node.type === 'mikrotik' && (
-        <div className="flex items-center gap-x-3 gap-y-1 flex-wrap text-sm px-1">
-          <span className="font-mono text-[#0F172A]">
-            RouterOS {node.routeros_version ?? 'belum terbaca'}
-          </span>
+        <section className="card px-5 py-4 flex flex-wrap items-center gap-x-7 gap-y-3">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs text-[#475569]">RouterOS</span>
+            <span className="font-bold font-mono text-[15px]">{node.routeros_version ?? 'belum terbaca'}</span>
+          </div>
           {node.routeros_model && (
-            <span className="font-mono text-[#475569]">{node.routeros_model}</span>
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <span className="text-xs text-[#475569]">Model</span>
+              <span className="font-bold text-[15px] break-all">{node.routeros_model}</span>
+            </div>
           )}
-          <span className="text-xs text-[#475569]">
-            {refreshDevice.isPending
-              ? 'membaca dari router…'
-              : node.routeros_checked_at && `dibaca ${formatDatetimeWIB(node.routeros_checked_at)}`}
-          </span>
-          <button
-            onClick={() => refreshDevice.mutate(node.id)}
-            disabled={refreshDevice.isPending}
-            className="text-xs text-[#0077FF] hover:underline disabled:opacity-50 min-h-[44px]"
-          >
-            Cek sekarang
-          </button>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs text-[#475569]">Tipe backup</span>
+            <span className="font-bold text-[15px]">{node.backup_binary ? '.backup biner' : '.rsc export'}</span>
+          </div>
+          <div className="flex items-center gap-3 md:ml-auto flex-wrap">
+            <span className="text-[13px] text-[#475569]">
+              {refreshDevice.isPending
+                ? 'membaca dari router…'
+                : node.routeros_checked_at && `dibaca ${formatDatetimeWIB(node.routeros_checked_at)}`}
+            </span>
+            <button
+              onClick={() => refreshDevice.mutate(node.id)}
+              disabled={refreshDevice.isPending}
+              className="min-h-[40px] px-3.5 rounded-xl bg-[#EEF0FE] text-[#2E3AC2] text-[13px] font-semibold hover:bg-[#E0E3FF] disabled:opacity-50"
+            >
+              Cek sekarang
+            </button>
+          </div>
           {refreshDevice.isError && (
-            <span className="text-xs text-[#DC2626] break-words">
+            <span className="basis-full text-[13px] text-[#991B1B] break-words">
               {(refreshDevice.error as any)?.response?.data?.message ?? 'Gagal membaca router'}
             </span>
           )}
-        </div>
+        </section>
       )}
 
-      {/* Stats row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="card p-4">
-          <p className="text-xs text-[#475569] font-mono">Last Status</p>
-          <div className="mt-2">
-            <StatusBadge status={latestLog?.status} />
-          </div>
-          {isRunning(latestLog?.status) && (
-            <BackupProgress startedAt={latestLog?.created_at} className="mt-2" />
+      {/* Semua kartu membaca percobaan TERAKHIR (latestLog); umur sukses terakhir
+          dimunculkan terpisah justru saat itu penting: ketika percobaan terakhir tidak sukses. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+        <Kartu
+          judul="Backup"
+          pill={latestLog ? STATUS[latestLog.status] : { teks: 'Belum ada', gaya: 'bg-[#E5E7EB] text-[#374151]' }}
+          nilai={formatDatetimeWIB(latestLog?.created_at ?? node.last_backup_at)}
+        >
+          {isRunning(latestLog?.status) ? (
+            <BackupProgress startedAt={latestLog?.created_at} />
+          ) : (
+            <>
+              Percobaan terakhir. Jadwal tiap {node.schedule_interval_hours} jam
+              {node.schedule?.next_run_at && <>, berikutnya {formatDatetimeWIB(node.schedule.next_run_at)}</>}.
+              {latestLog && latestLog.status !== 'success' && (
+                <span className="block mt-1 font-semibold text-[#92400E]">
+                  {node.last_backup_at ? `Sukses terakhir ${formatDatetimeWIB(node.last_backup_at)}` : 'Belum pernah sukses'}
+                </span>
+              )}
+            </>
           )}
-        </div>
-        {/* Kartu ini dulu membaca node.last_backup_at (sukses TERAKHIR) sementara tiga
-            kartu tetangganya membaca latestLog (percobaan TERAKHIR) — dua sumber berbeda
-            berdampingan seolah menjelaskan kejadian yang sama. Sekarang seragam ke
-            percobaan terakhir, dan umur backup baik terakhir dimunculkan terpisah justru
-            saat itu penting: ketika percobaan terakhir tidak sukses. */}
-        <div className="card p-4">
-          <p className="text-xs text-[#475569] font-mono">Last Run</p>
-          <p className="text-sm font-mono text-[#0F172A] mt-1">
-            {formatDatetimeWIB(latestLog?.created_at ?? node.last_backup_at)}
-          </p>
-          {latestLog && latestLog.status !== 'success' && (
-            <p className="text-xs font-mono text-amber-400/90 mt-1">
-              {node.last_backup_at
-                ? `sukses terakhir: ${formatDatetimeWIB(node.last_backup_at)}`
-                : 'belum pernah sukses'}
-            </p>
-          )}
-        </div>
-        <div className="card p-4">
-          <p className="text-xs text-[#475569] font-mono">File Size</p>
-          <p className="text-sm font-mono text-[#0F172A] mt-1">
-            {formatBytes(latestLog?.file_size)}
-          </p>
-        </div>
-        <div className="card p-4">
-          <p className="text-xs text-[#475569] font-mono">Duration · Interval</p>
-          <p className="text-sm font-mono text-[#0F172A] mt-1">
-            {formatDuration(latestLog?.duration_seconds)} · {node.schedule_interval_hours}h
-          </p>
-        </div>
+        </Kartu>
+        {/* Dari backup SUKSES terakhir: percobaan gagal tidak menghasilkan berkas. */}
+        <Kartu
+          judul="Berkas terakhir"
+          nilai={suksesTerakhir ? formatBytes(suksesTerakhir.file_size) : 'Belum ada'}
+        >
+          {suksesTerakhir ? (
+            <>
+              {formatDatetimeWIB(suksesTerakhir.created_at)}, durasi {formatDuration(suksesTerakhir.duration_seconds)}
+              {suksesTerakhir.routeros_version && <>, RouterOS <span className="font-mono">{suksesTerakhir.routeros_version}</span></>}.
+            </>
+          ) : 'Belum ada backup yang berhasil.'}
+        </Kartu>
+        {node.type === 'mikrotik' && (
+          <Kartu
+            judul="Konfigurasi"
+            pill={ringkas ? (ringkas.kritis ? { teks: `${ringkas.kritis} kritis`, gaya: 'bg-[#DC2626] text-white' } : { teks: 'Aman', gaya: 'bg-[#BBF7D0] text-[#14532D]' }) : null}
+            nilai={ringkas ? `${ringkas.ok} dari ${totalCek} lulus` : node.doctor_report?.galat ? 'Gagal diperiksa' : 'Belum diperiksa'}
+          >
+            {ringkas
+              ? <>{ringkas.peringatan} perhatian. Diperiksa Doctor {formatDatetimeWIB(node.doctor_checked_at)}.</>
+              : 'Doctor berjalan otomatis tiap backup berhasil.'}
+          </Kartu>
+        )}
       </div>
 
-      {/* Next run */}
-      {node.schedule?.next_run_at && (
-        <div className="text-xs text-[#475569] font-mono px-1">
-          Next scheduled run:{' '}
-          <span className="text-[#475569]">
-            {formatDatetimeWIB(node.schedule.next_run_at)}
-          </span>
-        </div>
+      {riwayat.length > 1 && (
+        <section className="card p-5 md:p-6 flex flex-col gap-3.5">
+          <div className="flex justify-between items-start gap-3 flex-wrap">
+            <div>
+              <h2 className="text-lg font-bold">{riwayat.length} backup terakhir</h2>
+              <p className="text-[13px] text-[#475569] mt-1">Satu blok satu percobaan, terbaru di kanan</p>
+            </div>
+            <div className="flex gap-4 text-[13px] text-[#334155]">
+              <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-[3px] bg-[#4255F0]" />Berhasil {riwayat.length - gagal}</span>
+              <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-[3px] bg-[#DC2626]" />Gagal {gagal}</span>
+            </div>
+          </div>
+          <div role="img" aria-label={`${riwayat.length - gagal} berhasil, ${gagal} gagal`} className="flex gap-1 h-10">
+            {riwayat.map((l) => (
+              <span
+                key={l.id}
+                title={`${formatDatetimeWIB(l.created_at)} · ${STATUS[l.status].teks}`}
+                className={cn('flex-1 max-w-[28px] rounded-[5px]', l.status === 'failed' ? 'bg-[#DC2626]' : l.status === 'success' ? 'bg-[#4255F0]' : 'bg-[#C7CCFB]')}
+              />
+            ))}
+          </div>
+        </section>
       )}
 
-      {/* Terminal */}
       {showTerminal && isAdmin && node.type === 'mikrotik' && (
         <RemoteTerminal nodeId={node.id} nodeName={node.name} />
       )}
 
-      {/* Tabs */}
-      <div className="card">
-        <div className="flex border-b border-[#E2E8F0] overflow-x-auto">
+      <section className="card overflow-hidden">
+        <div role="tablist" className="flex gap-1.5 px-3 pt-2.5 border-b border-[#EEF0F6] overflow-x-auto">
           {(node.type === 'mikrotik' ? (['logs', 'files', 'doctor', 'simulasi'] as const) : (['logs', 'files'] as const)).map((tab) => (
             <button
               key={tab}
+              role="tab"
+              aria-selected={activeTab === tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-5 py-3 text-sm font-mono whitespace-nowrap transition-colors ${
+              className={cn(
+                'px-4 min-h-[48px] text-sm whitespace-nowrap border-b-[3px] -mb-px transition-colors',
                 activeTab === tab
-                  ? 'text-[#0077FF] border-b-2 border-blue-500'
-                  : 'text-[#475569] hover:text-[#0F172A]'
-              }`}
+                  ? 'text-[#2E3AC2] font-bold border-[#4255F0]'
+                  : 'text-[#475569] font-semibold border-transparent hover:text-[#0F172A]',
+              )}
             >
-              {tab === 'logs' && <>Backup Logs ({data.logs?.length ?? 0})</>}
-              {tab === 'files' && <>Backup Files ({data.backup_files?.length ?? 0})</>}
+              {tab === 'logs' && <>Riwayat ({data.logs?.length ?? 0})</>}
+              {tab === 'files' && <>Berkas ({data.backup_files?.length ?? 0})</>}
               {tab === 'doctor' && (
                 <>
                   Doctor
-                  {(node.doctor_report?.ringkasan?.kritis ?? 0) > 0 && (
-                    <span className="ml-1.5 text-[#DC2626]">({node.doctor_report!.ringkasan!.kritis})</span>
+                  {(ringkas?.kritis ?? 0) > 0 && (
+                    <span className="pill ml-1.5 bg-[#DC2626] text-white text-[11px]">{ringkas!.kritis}</span>
                   )}
                 </>
               )}
@@ -271,7 +312,7 @@ export default function NodeDetailPage() {
             <SimulasiPanel nodeId={node.id} files={data.backup_files ?? []} />
           )}
         </div>
-      </div>
+      </section>
     </div>
   )
 }

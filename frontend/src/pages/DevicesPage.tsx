@@ -29,41 +29,41 @@ export default function DevicesPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-screen-xl">
+    <div className="space-y-5 max-w-screen-2xl">
       {loadFailed && (
-        <div className="rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 flex items-center justify-between gap-4">
+        <div role="alert" className="rounded-2xl bg-[#FEE2E2] px-4 py-3 text-sm text-[#991B1B] flex items-center justify-between gap-4">
           <span>
-            Gagal memuat daftar node — angka di bawah mungkin tidak mencerminkan keadaan
+            Gagal memuat daftar node, angka di bawah mungkin tidak mencerminkan keadaan
             sebenarnya. Jangan simpulkan node hilang dari daftar kosong.
           </span>
           <button
             onClick={() => refetch()}
-            className="px-3 py-1.5 rounded-md border border-red-300 hover:bg-red-100 whitespace-nowrap min-h-[44px]"
+            className="px-4 rounded-xl bg-white font-semibold hover:bg-[#FEF2F2] whitespace-nowrap min-h-[44px]"
           >
             Coba lagi
           </button>
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-display font-bold text-[#0F172A]">Devices</h1>
+          <h1 className="text-[28px] leading-tight font-extrabold text-[#0F172A]">Perangkat</h1>
           <p className="text-sm text-[#475569] mt-1">
-            {data ? `${data.data.length} nodes configured` : 'jumlah node tidak diketahui'}
+            {data ? `${data.data.length} node terdaftar` : 'jumlah node tidak diketahui'}
           </p>
         </div>
         {isOperator && (
           <Button onClick={() => setShowForm(true)}>
             <Plus className="w-4 h-4" />
-            Add Node
+            Tambah node
           </Button>
         )}
       </div>
 
-      <div className="card">
+      <div className="card overflow-hidden lg:pt-5">
         {isLoading ? (
-          <div className="p-8 text-center text-[#475569] font-mono text-sm animate-pulse">
-            Loading nodes...
+          <div className="p-8 text-center text-[#475569] text-sm animate-pulse">
+            Memuat node...
           </div>
         ) : data ? (
           <NodeTable nodes={data.data} onEdit={handleEdit} />
