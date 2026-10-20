@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Server, HardDrive, Users, FileJson, BookOpen, Send, ScrollText, X, Download, Sparkles } from 'lucide-react'
+import { LayoutDashboard, Server, HardDrive, Users, FileJson, BookOpen, Send, ScrollText, X, Download, Sparkles, Stethoscope } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
 import { semver, build } from '../../lib/versi'
@@ -16,6 +16,7 @@ const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/devices', icon: Server, label: 'Devices' },
   { to: '/backup-files', icon: HardDrive, label: 'Backup Files' },
+  { to: '/doctor', icon: Stethoscope, label: 'Doctor' },
   { to: '/panduan', icon: BookOpen, label: 'Panduan' },
 ]
 

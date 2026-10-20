@@ -5,6 +5,17 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.6.0',
+    tanggal: '2026-10-20',
+    judul: 'Doctor: standar router MikroTik Perwira',
+    poin: [
+      'Menu baru Doctor: memeriksa setiap MikroTik terhadap standar keamanan, lisensi CHR, PPPoE, VPN/IP publik, dan sistem — lengkap dengan perintah perbaikannya.',
+      'Peran router dideteksi otomatis (CHR, IP Publik, Server VPN, PPPoE Server); laporan diperbarui setiap backup, atau lewat Periksa sekarang / Periksa semua.',
+      'Ringkasan doctor tampil di Dashboard, dan tiap node punya tab Doctor.',
+      'Doctor hanya membaca konfigurasi; router tidak diubah.',
+    ],
+  },
+  {
     versi: '1.5.0',
     tanggal: '2026-10-20',
     judul: 'Versi RouterOS & simulasi pemulihan',

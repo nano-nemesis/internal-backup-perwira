@@ -32,9 +32,13 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     // Perintah baca tetap (versi + model), tanpa input pengguna.
     Route::post('/nodes/{id}/device-info', [NodeController::class, 'deviceInfo'])
         ->middleware('throttle:backup-trigger');
+    Route::post('/nodes/{id}/doctor', [NodeController::class, 'doctor'])
+        ->middleware('throttle:backup-trigger');
 
     Route::middleware('role:admin,operator')->group(function () {
         Route::post('/nodes/{id}/backup', [NodeController::class, 'triggerBackup'])
+            ->middleware('throttle:backup-trigger');
+        Route::post('/doctor/run-all', [NodeController::class, 'doctorAll'])
             ->middleware('throttle:backup-trigger');
         // Mengirim notifikasi Telegram sungguhan dan memerahkan status node.
         Route::post('/nodes/{id}/simulate-failure', [NodeController::class, 'simulateFailure'])

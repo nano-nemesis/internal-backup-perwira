@@ -30,6 +30,7 @@ class Node extends Model
         'db_name', 'db_user', 'db_password',
         'schedule_interval_hours', 'is_active', 'last_backup_at', 'backup_binary',
         'routeros_version', 'routeros_model', 'routeros_checked_at',
+        'doctor_report', 'doctor_checked_at',
     ];
 
     protected $hidden = ['ssh_password', 'db_password'];
@@ -39,6 +40,8 @@ class Node extends Model
         'backup_binary'           => 'boolean',
         'last_backup_at'          => 'datetime',
         'routeros_checked_at'     => 'datetime',
+        'doctor_report'           => 'array',
+        'doctor_checked_at'       => 'datetime',
         'port'                    => 'integer',
         'schedule_interval_hours' => 'integer',
     ];

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/axios'
-import type { NodesResponse, NodeDetailResponse, NodeFormData, RestoreCheckResult, SkenarioGangguan } from '../types'
+import type { DoctorReport, NodesResponse, NodeDetailResponse, NodeFormData, RestoreCheckResult, SkenarioGangguan } from '../types'
 import { pollInterval } from './useBackupWatcher'
 
 export function useNodes() {
@@ -46,6 +46,25 @@ export function useRefreshDevice() {
       qc.invalidateQueries({ queryKey: ['nodes'] })
       qc.invalidateQueries({ queryKey: ['node', nodeId] })
     },
+  })
+}
+
+export function useRunDoctor() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (nodeId: string) =>
+      api.post<{ data: DoctorReport }>(`/nodes/${nodeId}/doctor`).then((r) => r.data.data),
+    // Juga saat gagal: galat router tak terjangkau ikut tersimpan di laporan node.
+    onSettled: (_, __, nodeId) => {
+      qc.invalidateQueries({ queryKey: ['nodes'] })
+      qc.invalidateQueries({ queryKey: ['node', nodeId] })
+    },
+  })
+}
+
+export function useRunDoctorAll() {
+  return useMutation({
+    mutationFn: () => api.post<{ message: string }>('/doctor/run-all').then((r) => r.data),
   })
 }
 

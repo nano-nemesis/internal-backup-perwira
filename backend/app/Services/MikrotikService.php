@@ -3,6 +3,9 @@ namespace App\Services;
 
 use App\Models\ActivityLog;
 use App\Models\Node;
+use App\Support\RouterDoctor;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 class MikrotikService
 {
@@ -149,6 +152,51 @@ class MikrotikService
         ]);
 
         return ['version' => $version, 'model' => $model];
+    }
+
+    /**
+     * Doctor: satu sesi SSH berisi perintah baca saja, dinilai RouterDoctor, disimpan di node.
+     * Kalau router tak terjangkau, galatnya ikut disimpan supaya dashboard tidak menampilkan
+     * laporan lama seolah masih berlaku.
+     */
+    public function runDoctor(Node $node): array
+    {
+        try {
+            $laporan = RouterDoctor::periksa(
+                RouterDoctor::parse($this->runSshCommand($node, RouterDoctor::script())),
+                $this->versiTerbaru(),
+            );
+        } catch (\RuntimeException $e) {
+            $node->update(['doctor_report' => ['galat' => $e->getMessage()], 'doctor_checked_at' => now()]);
+            throw $e;
+        }
+        $node->update(['doctor_report' => $laporan, 'doctor_checked_at' => now()]);
+
+        return $laporan;
+    }
+
+    /** Versi RouterOS terbaru per kanal dari server pembaruan MikroTik ("7.23.8 1791452776"), cache 6 jam. */
+    private function versiTerbaru(): array
+    {
+        if ($versi = Cache::get('routeros-terbaru')) {
+            return $versi;
+        }
+        $versi = [];
+        foreach (['a7.long-term', 'a7.stable', '6.long-term', '6.stable'] as $kanal) {
+            try {
+                $res = Http::timeout(5)->get("https://upgrade.mikrotik.com/routeros/NEWEST{$kanal}");
+                if ($res->ok() && preg_match('/^\d+\.[\d.]+(rc\d+|beta\d+)?/', trim($res->body()), $m)) {
+                    $versi[$kanal] = $m[0];
+                }
+            } catch (\Throwable) {
+            }
+        }
+        // Gagal total (internet putus) tidak di-cache, supaya pemeriksaan berikutnya mencoba lagi.
+        if ($versi) {
+            Cache::put('routeros-terbaru', $versi, now()->addHours(6));
+        }
+
+        return $versi;
     }
 
     public function execute(Node $node, string $command): string

@@ -11,6 +11,7 @@ const SECTIONS = [
   ['baca', 'Membaca dashboard'],
   ['berkas', 'Mengambil hasil backup'],
   ['simulasi', 'Simulasi & pemulihan MikroTik'],
+  ['doctor', 'Doctor: standar router Perwira'],
   ['terminal', 'Terminal MikroTik'],
   ['konfig', 'Cadangkan daftar node'],
   ['user', 'Pengguna dan hak akses'],
@@ -239,6 +240,46 @@ export default function PanduanPage() {
           <K>storage/app/backups/&lt;tipe&gt;/&lt;nama-node&gt;/</K> dengan nama berstempel
           waktu WIB.
         </p>
+      </Section>
+
+      <Section id="doctor" title="Doctor: standar router Perwira">
+        <p>
+          Menu <strong>Doctor</strong> membandingkan konfigurasi setiap MikroTik dengan standar di
+          bawah. Datanya diambil dengan perintah baca saja (satu sesi SSH) setiap backup berhasil,
+          lewat tombol <strong>Periksa sekarang</strong> di tab Doctor node, atau{' '}
+          <strong>Periksa semua</strong>. Doctor tidak mengubah router; setiap temuan disertai perintah
+          perbaikan untuk dijalankan manual. Peran router dideteksi otomatis: <K>CHR</K>,{' '}
+          <K>IP Publik</K> (punya alamat publik), <K>Server VPN</K> (L2TP/SSTP/PPTP/WireGuard), dan{' '}
+          <K>PPPoE Server</K>.
+        </p>
+        <p><strong>Keamanan</strong></p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Telnet, FTP, dan www (HTTP) mati — ketiganya mengirim password tanpa enkripsi.</li>
+          <li>Winbox, SSH, dan API dibatasi <K>address</K> ke alamat NOC.</li>
+          <li>
+            Router ber-IP publik wajib punya <strong>drop menyeluruh</strong> di chain input, setelah
+            accept untuk koneksi balik, NOC, ICMP, dan port VPN yang memang dilayani. Perbaikan yang
+            disarankan disusun dari layanan VPN aktif router itu; jalankan dalam Safe Mode (Ctrl+X).
+          </li>
+          <li>Kalau DNS melayani permintaan luar, port 53 dari internet harus tertutup (bukan open resolver).</li>
+          <li>Bandwidth-test server, SOCKS, dan web proxy mati (atau btest berautentikasi).</li>
+          <li>SNMP community bukan <K>public</K> dan dibatasi alamat.</li>
+          <li>MAC server dan neighbor discovery tidak aktif di semua interface pada router ber-IP publik.</li>
+          <li>Tidak memakai PPTP; L2TP sebaiknya dengan IPsec.</li>
+        </ul>
+        <p><strong>Sistem &amp; CHR</strong></p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>RouterOS versi terbaru di kanalnya (dicek ke server MikroTik); RouterOS 6 direncanakan migrasi ke v7.</li>
+          <li>NTP client aktif, CPU di bawah 80%, RAM dan disk bebas di atas 10%, ada rute default.</li>
+          <li>FastTrack tidak aktif bersama queue/limit pelanggan (paket fasttrack melewati queue).</li>
+          <li>CHR memakai lisensi P1 ke atas — lisensi free membatasi upload 1 Mbps per interface.</li>
+        </ul>
+        <p><strong>PPPoE server</strong></p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Profil PPP memakai <K>change-tcp-mss</K> (tanpanya situs tertentu menggantung).</li>
+          <li><K>one-session-per-host=yes</K> supaya tidak ada sesi ganda.</li>
+          <li>Kalau <K>use-radius=yes</K>: server RADIUS ada, dan <K>interim-update</K> diisi (mis. 5m).</li>
+        </ul>
       </Section>
 
       <Section id="simulasi" title="Simulasi & pemulihan MikroTik">

@@ -11,6 +11,7 @@ use App\Support\RestoreCheck;
 use App\Support\RouterOsCommandPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class NodeController extends Controller
@@ -34,6 +35,8 @@ class NodeController extends Controller
                 'routeros_version' => $node->routeros_version,
                 'routeros_model' => $node->routeros_model,
                 'routeros_checked_at' => $node->routeros_checked_at,
+                'doctor' => $node->doctor_report ? Arr::only($node->doctor_report, ['peran', 'ringkasan', 'utama', 'galat']) : null,
+                'doctor_checked_at' => $node->doctor_checked_at,
                 'last_backup_at' => $node->last_backup_at,
                 'latest_log' => $node->latestBackupLog ? [
                     'id' => $node->latestBackupLog->id,
@@ -99,6 +102,8 @@ class NodeController extends Controller
                 'routeros_version' => $node->routeros_version,
                 'routeros_model' => $node->routeros_model,
                 'routeros_checked_at' => $node->routeros_checked_at,
+                'doctor_report' => $node->doctor_report,
+                'doctor_checked_at' => $node->doctor_checked_at,
                 'last_backup_at' => $node->last_backup_at,
                 'schedule' => $node->load('schedule')->schedule,
             ],
@@ -194,6 +199,42 @@ class NodeController extends Controller
         }
 
         return response()->json(['data' => $info + ['checked_at' => $node->routeros_checked_at]]);
+    }
+
+    /** Jalankan doctor sekarang untuk satu router (perintah baca saja). */
+    public function doctor(string $id): JsonResponse
+    {
+        $node = Node::findOrFail($id);
+        if ($node->type !== 'mikrotik') {
+            return response()->json(['message' => 'Doctor hanya untuk node MikroTik'], 422);
+        }
+
+        try {
+            return response()->json(['data' => app(MikrotikService::class)->runDoctor($node)]);
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 502);
+        }
+    }
+
+    /** Antrekan doctor untuk semua MikroTik aktif — berjalan berurutan di antrean backup. */
+    public function doctorAll(): JsonResponse
+    {
+        $ids = Node::where('type', 'mikrotik')->where('is_active', true)->pluck('id');
+        foreach ($ids as $nodeId) {
+            dispatch(function () use ($nodeId) {
+                $node = Node::find($nodeId);
+                if ($node) {
+                    try {
+                        app(MikrotikService::class)->runDoctor($node);
+                    } catch (\RuntimeException) {
+                        // Galatnya sudah tersimpan di laporan node oleh runDoctor().
+                    }
+                }
+            })->onQueue('backup');
+        }
+        ActivityLog::info('doctor', 'doctor.semua', "Doctor dijalankan untuk {$ids->count()} router MikroTik.", []);
+
+        return response()->json(['message' => "Doctor diantrekan untuk {$ids->count()} router"]);
     }
 
     /** Simulasi restore satu berkas — hanya membaca header berkas, router tidak disentuh. */

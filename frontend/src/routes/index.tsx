@@ -11,6 +11,7 @@ import PanduanPage from '../pages/PanduanPage'
 import TelegramPage from '../pages/TelegramPage'
 import BackupFilesPage from '../pages/BackupFilesPage'
 import LogSistemPage from '../pages/LogSistemPage'
+import DoctorPage from '../pages/DoctorPage'
 import AppShell from '../components/layout/AppShell'
 
 export default function AppRoutes() {
@@ -30,6 +31,7 @@ export default function AppRoutes() {
         <Route path="/devices" element={<DevicesPage />} />
         <Route path="/devices/:id" element={<NodeDetailPage />} />
         <Route path="/backup-files" element={<BackupFilesPage />} />
+        <Route path="/doctor" element={<DoctorPage />} />
         <Route path="/panduan" element={<PanduanPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/admin/node-config" element={<NodeConfigPage />} />

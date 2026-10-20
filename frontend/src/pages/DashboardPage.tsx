@@ -7,6 +7,8 @@ import { VpsMetricsChart } from '../components/charts/VpsMetricsChart'
 import { NodeTable } from '../components/nodes/NodeTable'
 import { NodeForm } from '../components/nodes/NodeForm'
 import { useNodes } from '../hooks/useNodes'
+import { Link } from 'react-router-dom'
+import { hitungDoctor } from '../components/nodes/DoctorPanel'
 import type { Node } from '../types'
 
 export default function DashboardPage() {
@@ -20,6 +22,8 @@ export default function DashboardPage() {
 
   const stats = data?.stats ?? { total: 0, success: 0, failed: 0, unknown: 0 }
   const statValue = (n: number) => (data ? n : '—')
+  const doctor = hitungDoctor(data?.data ?? [])
+  const doctorTeratas = doctor.urut.filter((n) => n.doctor?.galat || n.doctor?.ringkasan?.kritis).slice(0, 3)
 
   return (
     <div className="space-y-6 max-w-screen-xl">
@@ -76,6 +80,38 @@ export default function DashboardPage() {
           iconBg="#F8FAFC"
         />
       </div>
+
+      {/* Doctor: kesehatan konfigurasi router, di dashboard yang sama dengan backup */}
+      {doctor.urut.length > 0 && (
+        <Link to="/doctor" className="card p-5 block hover:border-[#0077FF] transition-colors">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h3 className="text-sm font-display font-semibold text-[#0F172A]">Doctor konfigurasi MikroTik</h3>
+              <p className="text-xs text-[#475569] mt-0.5">
+                Standar keamanan, lisensi CHR, PPPoE, dan VPN — diperbarui tiap backup
+              </p>
+            </div>
+            <div className="flex gap-4 text-sm flex-wrap">
+              <span className="text-[#DC2626]"><span className="font-mono font-semibold">{doctor.kritis}</span> kritis</span>
+              <span className="text-amber-600"><span className="font-mono font-semibold">{doctor.perhatian}</span> perhatian</span>
+              <span className="text-[#16A34A]"><span className="font-mono font-semibold">{doctor.sehat}</span> sesuai</span>
+              {doctor.belum > 0 && (
+                <span className="text-[#475569]"><span className="font-mono font-semibold">{doctor.belum}</span> belum diperiksa</span>
+              )}
+            </div>
+          </div>
+          {doctorTeratas.length > 0 && (
+            <ul className="mt-3 space-y-1 text-sm">
+              {doctorTeratas.map((n) => (
+                <li key={n.id} className="text-[#475569] break-words">
+                  <span className="font-medium text-[#0F172A]">{n.name}</span> —{' '}
+                  {n.doctor?.galat ? 'tidak bisa diperiksa' : n.doctor?.utama}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Link>
+      )}
 
       {/* Charts row */}
       <div className="flex flex-col md:flex-row gap-4">

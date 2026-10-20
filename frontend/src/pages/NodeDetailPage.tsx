@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Play, Terminal } from 'lucide-react'
 import { useNode, useRefreshDevice, useTriggerBackup } from '../hooks/useNodes'
 import { useAuth } from '../context/AuthContext'
@@ -11,10 +11,11 @@ import { LogViewer } from '../components/logs/LogViewer'
 import { BackupFileList } from '../components/nodes/BackupFileList'
 import { RemoteTerminal } from '../components/nodes/RemoteTerminal'
 import { SimulasiPanel } from '../components/nodes/SimulasiPanel'
+import { DoctorPanel } from '../components/nodes/DoctorPanel'
 import { toast } from '../components/ui/toaster'
 import { formatDatetimeWIB, formatBytes, formatDuration } from '../lib/utils'
 
-type Tab = 'logs' | 'files' | 'simulasi'
+type Tab = 'logs' | 'files' | 'doctor' | 'simulasi'
 
 export default function NodeDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -29,7 +30,9 @@ export default function NodeDetailPage() {
   const { isAdmin, isOperator } = useAuth()
   const trigger = useTriggerBackup()
   const [showTerminal, setShowTerminal] = useState(false)
-  const [activeTab, setActiveTab] = useState<Tab>('logs')
+  // ?tab=doctor dipakai halaman Doctor supaya langsung membuka laporan node ini.
+  const [searchParams] = useSearchParams()
+  const [activeTab, setActiveTab] = useState<Tab>((searchParams.get('tab') as Tab | null) ?? 'logs')
   const refreshDevice = useRefreshDevice()
 
   // Versi RouterOS dibaca langsung dari router saat halaman dibuka, kecuali baru saja
@@ -227,7 +230,7 @@ export default function NodeDetailPage() {
       {/* Tabs */}
       <div className="card">
         <div className="flex border-b border-[#E2E8F0] overflow-x-auto">
-          {(node.type === 'mikrotik' ? (['logs', 'files', 'simulasi'] as const) : (['logs', 'files'] as const)).map((tab) => (
+          {(node.type === 'mikrotik' ? (['logs', 'files', 'doctor', 'simulasi'] as const) : (['logs', 'files'] as const)).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -239,6 +242,14 @@ export default function NodeDetailPage() {
             >
               {tab === 'logs' && <>Backup Logs ({data.logs?.length ?? 0})</>}
               {tab === 'files' && <>Backup Files ({data.backup_files?.length ?? 0})</>}
+              {tab === 'doctor' && (
+                <>
+                  Doctor
+                  {(node.doctor_report?.ringkasan?.kritis ?? 0) > 0 && (
+                    <span className="ml-1.5 text-[#DC2626]">({node.doctor_report!.ringkasan!.kritis})</span>
+                  )}
+                </>
+              )}
               {tab === 'simulasi' && <>Simulasi &amp; Pemulihan</>}
             </button>
           ))}
@@ -252,6 +263,9 @@ export default function NodeDetailPage() {
               files={data.backup_files ?? []}
               nodeId={node.id}
             />
+          )}
+          {activeTab === 'doctor' && node.type === 'mikrotik' && (
+            <DoctorPanel nodeId={node.id} laporan={node.doctor_report} dicek={node.doctor_checked_at} />
           )}
           {activeTab === 'simulasi' && node.type === 'mikrotik' && (
             <SimulasiPanel nodeId={node.id} files={data.backup_files ?? []} />

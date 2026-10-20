@@ -150,6 +150,9 @@ Backup dikoordinasi oleh [`BackupService`](backend/app/Services/BackupService.ph
      Setiap backup MikroTik yang berhasil juga membaca versi + model RouterOS (disimpan di node
      dan di baris `backup_logs`), dasar **simulasi restore** (`App\Support\RestoreCheck`) yang
      menilai keutuhan berkas dan kecocokan model/versi tanpa menyentuh router.
+     Sesudahnya **doctor** (`App\Support\RouterDoctor`) membaca konfigurasi router dengan satu sesi
+     SSH berisi perintah baca saja dan menilainya terhadap standar Perwira (keamanan, lisensi CHR,
+     PPPoE, VPN, sistem); laporannya disimpan di `nodes.doctor_report` dan tampil di menu Doctor.
 
      > ⚠️ `show-sensitive` membuat file `.rsc` berisi **kredensial pelanggan plaintext**
      > (PPPoE secret, RADIUS secret, WiFi PSK). Tanpa flag ini backup tidak cukup untuk

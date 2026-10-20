@@ -37,6 +37,9 @@ export interface Node {
   routeros_version?: string | null  // terakhir dibaca dari router, mis. "7.23.5 (long-term)"
   routeros_model?: string | null
   routeros_checked_at?: string | null
+  doctor?: DoctorRingkas | null       // di daftar node: ringkasan saja
+  doctor_report?: DoctorReport | null // di detail node: laporan lengkap
+  doctor_checked_at?: string | null
   last_backup_at?: string | null
   latest_log?: BackupLog | null
   next_run_at?: string | null
@@ -177,4 +180,28 @@ export interface RestoreCheckResult {
   cek: { status: CekStatus; judul: string; detail: string }[]
   langkah: string[]
   dicek_pada: string | null
+}
+
+export type DoctorStatus = 'kritis' | 'peringatan' | 'info' | 'ok'
+
+export interface DoctorCek {
+  id: string
+  kategori: string
+  status: DoctorStatus
+  judul: string
+  detail: string
+  perbaikan?: string
+}
+
+/** Laporan doctor (App\Support\RouterDoctor). `galat` terisi kalau router tak terjangkau. */
+export interface DoctorRingkas {
+  peran?: string[]
+  ringkasan?: Record<DoctorStatus, number>
+  utama?: string | null
+  galat?: string
+}
+
+export interface DoctorReport extends DoctorRingkas {
+  versi?: string | null
+  cek?: DoctorCek[]
 }

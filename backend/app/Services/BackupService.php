@@ -64,6 +64,11 @@ class BackupService
                     $this->mikrotik->refreshDeviceInfo($node);
                 } catch (\RuntimeException) {
                 }
+                // Laporan doctor ikut diperbarui tiap backup, jadi dashboard selalu sesegar backup terakhir.
+                try {
+                    $this->mikrotik->runDoctor($node);
+                } catch (\RuntimeException) {
+                }
             }
 
             $log->update([
