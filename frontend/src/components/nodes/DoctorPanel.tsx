@@ -69,7 +69,8 @@ const TITIK = {
 
 function keadaan(l: Layanan, nanti: boolean): [keyof typeof TITIK, string] {
   if (l.nanti === 'vpn') return ['biru', 'terbuka, dipakai VPN pelanggan']
-  if (nanti) return l.nanti === 'noc' ? ['hijau', 'hanya dari NOC'] : ['abu', 'tertutup']
+  if (nanti && l.nanti === 'noc') return ['hijau', 'hanya dari NOC']
+  if (nanti && l.nanti === 'tutup') return ['abu', 'tertutup']
   return l.kini === 'dibatasi' ? ['kuning', 'hanya alamat tertentu'] : ['merah', 'terbuka untuk siapa saja']
 }
 
@@ -103,7 +104,7 @@ function GambarJalur({ jalur }: { jalur: Jalur }) {
         <>
           <Panah>semua lalu lintas masuk</Panah>
           <Simpul icon={Shield} gelap>
-            Firewall input: terima NOC ({jalur.noc.split(',').join(', ')}) dan port VPN, sisanya di-drop
+            {jalur.gerbang}
           </Simpul>
           <Panah>hanya yang diizinkan</Panah>
         </>

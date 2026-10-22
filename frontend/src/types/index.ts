@@ -224,7 +224,8 @@ export interface DoctorCek {
   standar?: string
   dampak?: string
   perbaikan?: string
-  jalur?: { wan: string; noc: string; layanan: { nama: string; port: string; kini: 'terbuka' | 'dibatasi'; nanti: 'noc' | 'vpn' | 'tutup' }[] }
+  /** Gambar internet ke router. gerbang = penyaring setelah perbaikan; nanti 'tetap' = tidak berubah oleh perbaikan ini. */
+  jalur?: { wan: string; gerbang: string; layanan: { nama: string; port: string; kini: 'terbuka' | 'dibatasi'; nanti: 'noc' | 'vpn' | 'tutup' | 'tetap' }[] }
   meter?: { label: string; nilai: number; batas: number; arah: 'maks' | 'min' }[]
 }
 

@@ -158,11 +158,12 @@ final class RouterDoctor
 
         // Urutan = prioritas di antara status yang sama: akar masalah (lisensi, firewall) lebih dulu.
         $noc = $s['noc'] ? implode(',', $s['noc']) : self::alamatNoc($layanan);
+        $pintu = self::pintu($d, $kv);
         $cek = array_values(array_filter([
             $k['chr'] ? self::lisensi($kv, $s['lisensi_min']) : null,
-            self::firewallInput($k, $kv, $d, $publik, $input, $noc),
+            self::firewallInput($k, $kv, $d, $publik, $input, $noc, $pintu),
             self::dnsTerbuka($kv, $k, $input, $publik),
-            self::aksesManajemen($layanan, $k, $s['layanan_dibatasi'], $noc),
+            self::aksesManajemen($layanan, $k, $s['layanan_dibatasi'], $noc, $publik, $pintu),
             self::layananPolos($layanan, $terpapar, $s['layanan_mati']),
             self::bandwidthServer($kv, $k, $terpapar),
             self::proxyTerbuka($kv, $terpapar),
@@ -180,7 +181,12 @@ final class RouterDoctor
         ]));
         // Standar: pemeriksaan yang dimatikan dibuang; tingkat temuan bisa dipaksa (mis. versi jadi info).
         $cek = array_values(array_filter($cek, fn ($c) => DoctorStandar::aktif($s, $c['id'])));
+        // Satu gambar jalur cukup: kalau temuan firewall tampil dengan gambarnya, akses-manajemen tidak mengulangnya.
+        $gambarFirewall = in_array('firewall-input', array_column(array_filter($cek, fn ($c) => isset($c['jalur'])), 'id'), true);
         foreach ($cek as &$c) {
+            if ($gambarFirewall && $c['id'] === 'akses-manajemen') {
+                unset($c['jalur']);
+            }
             $tingkat = $s['cek'][$c['id']]['tingkat'] ?? 'otomatis';
             if ($c['status'] !== 'ok' && $tingkat !== 'otomatis') {
                 $c['status'] = $tingkat;
@@ -232,7 +238,7 @@ final class RouterDoctor
                 . ($kritis ? 'Saat ini siapa pun di internet juga bisa mencoba login lewat layanan ini.' : 'Setiap layanan yang menyala adalah satu pintu login lagi yang harus dijaga.'));
     }
 
-    private static function aksesManajemen(array $layanan, array $k, array $dibatasi, string $noc): ?array
+    private static function aksesManajemen(array $layanan, array $k, array $dibatasi, string $noc, array $publik, array $pintu): ?array
     {
         if (!$dibatasi) {
             return null;
@@ -248,16 +254,19 @@ final class RouterDoctor
 
         return self::item('akses-manajemen', 'Keamanan', $k['drop'] ? 'info' : 'kritis', $judul,
             'Kolom address kosong (menerima login dari alamat mana pun): ' . self::daftarPort($terbuka, $layanan) . '. '
-            . ($k['drop'] ? 'Firewall input sudah men-drop akses dari internet, jadi batas address ini lapis kedua.' : 'Router ber-IP publik dan firewall input tidak men-drop apa pun (lihat temuan firewall).'),
+            . ($k['drop'] ? 'Firewall input sudah men-drop akses dari internet, jadi batas address ini lapis kedua.' : 'Router ber-IP publik dan firewall input tidak men-drop akses dari internet.'),
             implode("\n", array_map(fn ($n) => "/ip service set [find name={$n}] address={$noc}", $terbuka)),
             masalah: "Login {$nama} belum dibatasi ke alamat NOC",
-            standar: "Kolom address di /ip service diisi alamat NOC ({$noc}). Login dari alamat lain ditolak walau firewall salah atur.",
+            standar: 'Kolom address di /ip service diisi alamat NOC (' . str_replace(',', ', ', $noc) . '). Login dari alamat lain ditolak walau firewall salah atur.',
             dampak: $k['drop']
                 ? 'Kalau suatu hari aturan firewall terhapus atau salah urut, login router langsung terbuka ke internet.'
-                : 'Bot di internet terus menebak password Winbox dan SSH. Satu password lemah cukup untuk mengambil alih router.');
+                : 'Bot di internet terus menebak password Winbox dan SSH. Satu password lemah cukup untuk mengambil alih router.',
+            // Setelah batas address: yang diperbaiki hanya dari NOC, layanan lain tetap seperti sekarang.
+            jalur: $k['drop'] ? null : self::jalur($publik, 'Kolom address /ip service: login ' . $nama . ' hanya diterima dari NOC (' . str_replace(',', ', ', $noc) . ')',
+                array_map(fn ($p) => ['nanti' => $p['vpn'] ? 'vpn' : (in_array($p['id'], $terbuka, true) ? 'noc' : 'tetap')] + $p, $pintu)));
     }
 
-    private static function firewallInput(array $k, array $kv, array $d, array $publik, array $input, string $noc): ?array
+    private static function firewallInput(array $k, array $kv, array $d, array $publik, array $input, string $noc, array $pintu): ?array
     {
         if (!$k['publik']) {
             return null;
@@ -280,36 +289,19 @@ final class RouterDoctor
         $baris[] = 'add chain=input src-address-list=NOC action=accept comment="doctor: NOC"';
         $baris[] = 'add chain=input protocol=icmp action=accept comment="doctor: ping"';
 
-        // Gambar "sekarang vs setelah perbaikan": tiap layanan yang mendengarkan di router dan nasibnya setelah drop dipasang.
-        $jalur = [];
-        foreach ($d['service'] ?? [] as $s) {
-            $n = $s['name'] ?? '';
-            // Entri dinamis (D) = koneksi yang sedang berjalan atau port VPN (ditangani di bawah); reverse-proxy = SSTP pelanggan.
-            if (preg_match('/[XDI]/', $s['_flags']) || $n === '' || $n === 'reverse-proxy') {
-                continue;
-            }
-            $jalur[] = ['nama' => DoctorStandar::LAYANAN[$n] ?? $n, 'port' => 'tcp ' . ($s['port'] ?? '?'),
-                'kini' => ($s['address'] ?? '') === '' ? 'terbuka' : 'dibatasi', 'nanti' => 'noc'];
-        }
         if (($kv['l2tp'] ?? '') === 'true') {
             $baris[] = 'add chain=input protocol=udp dst-port=500,1701,4500 action=accept comment="doctor: L2TP/IPsec"';
             $baris[] = 'add chain=input protocol=ipsec-esp action=accept comment="doctor: IPsec"';
-            $jalur[] = ['nama' => 'L2TP/IPsec', 'port' => 'udp 500,1701,4500', 'kini' => 'terbuka', 'nanti' => 'vpn'];
         }
         if (($kv['sstp'] ?? '') === 'true') {
             $port = ctype_digit($kv['sstp-port'] ?? '') ? $kv['sstp-port'] : '443';
             $baris[] = "add chain=input protocol=tcp dst-port={$port} action=accept comment=\"doctor: SSTP\"";
-            $jalur[] = ['nama' => 'SSTP', 'port' => "tcp {$port}", 'kini' => 'terbuka', 'nanti' => 'vpn'];
         }
         // Port WireGuard terlihat dari entri dinamis /ip service ("wireguard-<nama>").
         foreach ($d['service'] ?? [] as $s) {
             if (str_starts_with($s['name'] ?? '', 'wireguard') && ctype_digit($s['port'] ?? '')) {
                 $baris[] = "add chain=input protocol=udp dst-port={$s['port']} action=accept comment=\"doctor: WireGuard\"";
-                $jalur[] = ['nama' => 'WireGuard', 'port' => "udp {$s['port']}", 'kini' => 'terbuka', 'nanti' => 'vpn'];
             }
-        }
-        if (($kv['pptp'] ?? '') === 'true') {
-            $jalur[] = ['nama' => 'PPTP', 'port' => 'tcp 1723', 'kini' => 'terbuka', 'nanti' => 'tutup'];
         }
         $wan = array_unique(array_column($publik, 'interface'));
         foreach ($wan as $w) {
@@ -323,7 +315,9 @@ final class RouterDoctor
             masalah: 'Router terbuka ke internet: firewall input tanpa aturan drop',
             standar: 'Chain input hanya menerima koneksi balik, alamat NOC, ping, dan port VPN yang dipakai pelanggan. Sisanya dari internet di-drop. Perintah di bawah disusun dari VPN yang aktif di router ini.',
             dampak: 'Semua layanan di router ini bisa dijangkau dari internet. Siapa pun bisa mencoba login Winbox atau SSH, menebak password, atau memakai celah RouterOS.',
-            jalur: ['wan' => implode(', ', $wan), 'noc' => $noc, 'layanan' => $jalur]);
+            // Setelah drop: layanan router hanya dari NOC, port VPN tetap terbuka, PPTP (tak diberi accept) ikut tertutup.
+            jalur: self::jalur($publik, 'Firewall input: terima NOC (' . str_replace(',', ', ', $noc) . ') dan port VPN, sisanya di-drop',
+                array_map(fn ($p) => ['nanti' => $p['id'] === 'pptp' ? 'tutup' : ($p['vpn'] ? 'vpn' : 'noc')] + $p, $pintu)));
     }
 
     private static function dnsTerbuka(array $kv, array $k, array $input, array $publik): array
@@ -663,6 +657,50 @@ final class RouterDoctor
             masalah: 'FastTrack bisa melewati limit pelanggan',
             standar: 'FastTrack mati, atau dibatasi hanya untuk trafik yang memang tidak perlu dilimit.',
             dampak: 'Paket yang di-fasttrack tidak melewati queue. Pelanggan bisa mendapat kecepatan di atas paketnya, dan pemakaian tidak terhitung adil.');
+    }
+
+    /**
+     * Pintu masuk router untuk gambar jalur: /ip service yang aktif dan port VPN yang menyala.
+     * Entri dinamis (D) = koneksi yang sedang berjalan atau port VPN (ditangani terpisah); reverse-proxy = SSTP pelanggan.
+     */
+    private static function pintu(array $d, array $kv): array
+    {
+        $pintu = [];
+        foreach ($d['service'] ?? [] as $s) {
+            $n = $s['name'] ?? '';
+            if (preg_match('/[XDI]/', $s['_flags']) || $n === '' || $n === 'reverse-proxy') {
+                continue;
+            }
+            $pintu[] = ['id' => $n, 'nama' => DoctorStandar::LAYANAN[$n] ?? $n, 'port' => 'tcp ' . ($s['port'] ?? '?'),
+                'kini' => ($s['address'] ?? '') === '' ? 'terbuka' : 'dibatasi', 'vpn' => false];
+        }
+        $vpn = fn (string $id, string $nama, string $port) => ['id' => $id, 'nama' => $nama, 'port' => $port, 'kini' => 'terbuka', 'vpn' => true];
+        if (($kv['l2tp'] ?? '') === 'true') {
+            $pintu[] = $vpn('l2tp', 'L2TP/IPsec', 'udp 500,1701,4500');
+        }
+        if (($kv['sstp'] ?? '') === 'true') {
+            $pintu[] = $vpn('sstp', 'SSTP', 'tcp ' . (ctype_digit($kv['sstp-port'] ?? '') ? $kv['sstp-port'] : '443'));
+        }
+        foreach ($d['service'] ?? [] as $s) {
+            if (str_starts_with($s['name'] ?? '', 'wireguard') && ctype_digit($s['port'] ?? '')) {
+                $pintu[] = $vpn('wireguard', 'WireGuard', "udp {$s['port']}");
+            }
+        }
+        if (($kv['pptp'] ?? '') === 'true') {
+            $pintu[] = $vpn('pptp', 'PPTP', 'tcp 1723');
+        }
+
+        return $pintu;
+    }
+
+    /** Data gambar "sekarang vs setelah perbaikan" di panel Doctor. */
+    private static function jalur(array $publik, string $gerbang, array $layanan): array
+    {
+        return [
+            'wan'     => implode(', ', array_unique(array_column($publik, 'interface'))),
+            'gerbang' => $gerbang,
+            'layanan' => array_map(fn ($p) => array_intersect_key($p, array_flip(['nama', 'port', 'kini', 'nanti'])), $layanan),
+        ];
     }
 
     /** "winbox (tcp 8291), ssh (tcp 22)" dari /ip service. */

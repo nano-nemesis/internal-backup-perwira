@@ -222,6 +222,14 @@ $vpn = array_column(array_filter($jalur['layanan'] ?? [], fn ($l) => $l['nanti']
 if (!$jalur || $jalur['wan'] !== 'VLAN618-UPLINK' || $vpn !== ['L2TP/IPsec', 'SSTP', 'WireGuard'] || count($jalur['layanan']) !== 5) {
     $gagal[] = 'chrIpPublik: gambar jalur firewall salah ' . json_encode($jalur);
 }
+if (isset(array_column($a['cek'], 'jalur', 'id')['akses-manajemen'])) $gagal[] = 'chrIpPublik: gambar jalur dobel di akses-manajemen';
+$tanpaFw = D::periksa(D::parse($chrIpPublik), $terbaru, ['cek' => ['firewall-input' => ['aktif' => false]]]);
+$jalurAm = array_column($tanpaFw['cek'], 'jalur', 'id')['akses-manajemen'] ?? null;
+if (array_column($jalurAm['layanan'] ?? [], 'nanti', 'nama') !== ['SSH' => 'tetap', 'Winbox' => 'noc', 'L2TP/IPsec' => 'vpn', 'SSTP' => 'vpn', 'WireGuard' => 'vpn']
+    || !str_contains($jalurAm['gerbang'] ?? '', 'Kolom address')) {
+    $gagal[] = 'tanpa firewall: gambar jalur akses-manajemen salah ' . json_encode($jalurAm);
+}
+if (str_contains(json_encode($tanpaFw), 'lihat temuan firewall')) $gagal[] = 'tanpa firewall: masih merujuk temuan firewall';
 if (empty(array_column($b['cek'], 'meter', 'id')['sumber-daya'])) $gagal[] = 'chrPppoe: batang sumber daya tidak ada';
 
 // 3. Router sehat

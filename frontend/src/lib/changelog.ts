@@ -5,6 +5,15 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.10.1',
+    tanggal: '2026-10-22',
+    judul: 'Gambar Doctor juga saat cek firewall dimatikan',
+    poin: [
+      'Gambar alur internet ke router kini juga muncul di temuan "Login Winbox, SSH, dan API belum dibatasi ke alamat NOC", jadi tetap tampil walau pemeriksaan firewall dimatikan di Standar.',
+      'Temuan itu tidak lagi menyuruh melihat temuan firewall yang sedang dimatikan.',
+    ],
+  },
+  {
     versi: '1.10.0',
     tanggal: '2026-10-22',
     judul: 'Doctor lebih mudah dipahami',
