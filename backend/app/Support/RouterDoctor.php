@@ -35,6 +35,9 @@ final class RouterDoctor
         'ntp'           => '/system ntp client get enabled',
         'radius-ppp'    => '/ppp aaa get use-radius',
         'interim'       => '/ppp aaa get interim-update',
+        'radius-acct'   => '/ppp aaa get accounting',
+        'tz-name'       => '/system clock get time-zone-name',
+        'tz-offset'     => '/system clock get gmt-offset',
         'queues'        => '/queue simple print count-only',
         'fasttrack'     => '/ip firewall filter print count-only where action=fasttrack-connection disabled=no',
         'radius'        => '/radius print count-only',
@@ -171,13 +174,15 @@ final class RouterDoctor
             self::layananPolos($layanan, $terpapar, $s['layanan_mati']),
             self::bandwidthServer($kv, $k, $terpapar),
             self::proxyTerbuka($kv, $terpapar),
-            $nyala('snmp') ? self::snmp($aktif('snmpc')) : null,
+            self::snmp($kv, $aktif('snmpc')),
+            self::portWinbox($layanan, $s['winbox_port']),
             self::macDanNeighbor($kv, $k),
             self::vpn($kv),
             self::versiTerbatas(self::versi($kv, $k, $terbaru, $s['kanal']), $k['terbatas']),
             self::ntp($kv, $k, $s['ntp']),
             self::sumberDaya($kv, $s['cpu_maks'], $s['ram_min'], $s['disk_min']),
             self::ruteDefault($kv),
+            self::zonaWaktu($kv, $s['zona_waktu']),
             $k['pppoe'] ? self::mss($aktif('profile')) : null,
             $k['pppoe'] ? self::satuSesi($aktif('pppoe')) : null,
             $nyala('radius-ppp') ? self::radius($kv, $s['interim']) : null,
@@ -389,13 +394,28 @@ final class RouterDoctor
             dampak: 'Proxy yang bisa dijangkau dari luar dipakai orang untuk spam dan serangan. Yang tercatat di log korban adalah IP Perwira.');
     }
 
-    private static function snmp(array $komunitas): array
+    private static function snmp(array $kv, array $komunitas): ?array
     {
-        $judul = 'SNMP community dibatasi alamat';
+        $judul = 'SNMP aktif, community dibatasi alamat';
+        $pantau = 'SNMP aktif dengan community yang dibatasi ke server monitoring NOC, seperti router Perwira lainnya.';
+        $dampak = 'Router tidak terpantau di monitoring NOC (mis. LibreNMS): trafik, CPU, dan status interface tidak tergambar, dan gangguan baru ketahuan dari keluhan pelanggan.';
+        $perbaikan = "/snmp set enabled=yes\n/snmp community add name=<community> addresses=<IP-NMS> read-access=yes write-access=no";
+        if (($kv['snmp'] ?? '?') === '?') {
+            return null;
+        }
+        if ($kv['snmp'] !== 'true') {
+            return self::item('snmp', 'Keamanan', 'peringatan', $judul, '/snmp enabled=no.', $perbaikan,
+                masalah: 'SNMP mati: router tidak terpantau', standar: $pantau, dampak: $dampak);
+        }
+        if (!$komunitas) {
+            return self::item('snmp', 'Keamanan', 'peringatan', $judul, 'SNMP menyala, tetapi tidak ada community aktif di /snmp community.',
+                '/snmp community add name=<community> addresses=<IP-NMS> read-access=yes write-access=no',
+                masalah: 'SNMP menyala tanpa community aktif', standar: $pantau, dampak: $dampak);
+        }
         $longgar = array_filter($komunitas, fn ($c) => ($c['name'] ?? '') === 'public'
             || in_array($c['addresses'] ?? '', ['', '0.0.0.0/0', '::/0'], true));
         if (!$longgar) {
-            return self::item('snmp', 'Keamanan', 'ok', $judul, $komunitas ? 'Semua community aktif punya batas alamat.' : 'Tidak ada community aktif.');
+            return self::item('snmp', 'Keamanan', 'ok', $judul, 'SNMP aktif, semua community punya batas alamat.');
         }
         $nama = array_column($longgar, 'name');
 
@@ -554,6 +574,49 @@ final class RouterDoctor
             meter: $meter);
     }
 
+    private static function portWinbox(array $layanan, int $port): ?array
+    {
+        if (!isset($layanan['winbox'])) {
+            return null;
+        }
+        $kini = $layanan['winbox']['port'] ?? '?';
+        $judul = "Winbox di port {$port}";
+        if ((string) $kini === (string) $port) {
+            return self::item('winbox-port', 'Keamanan', 'ok', $judul, "Winbox di port {$kini}.");
+        }
+
+        return self::item('winbox-port', 'Keamanan', 'peringatan', $judul,
+            "Winbox di port {$kini}" . ($kini === '8291' ? ' (bawaan MikroTik).' : '.'),
+            "# Koneksi Winbox yang sedang terbuka akan terputus; sambung ulang ke port {$port}.\n/ip service set [find name=winbox] port={$port}",
+            masalah: 'Winbox tidak di port standar Perwira',
+            standar: "Winbox di port {$port}, sama di semua router Perwira.",
+            dampak: 'Port bawaan 8291 adalah yang pertama dicoba bot pemindai Winbox. Port yang berbeda dari router lain juga membuat bookmark Winbox NOC dan aturan firewall yang menyebut port ini tidak berlaku di sini.');
+    }
+
+    private static function zonaWaktu(array $kv, string $zona): ?array
+    {
+        $nama = $kv['tz-name'] ?? '?';
+        if ($nama === '?' || $nama === '') {
+            return null;
+        }
+        $judul = "Zona waktu {$zona}";
+        $standar = self::offset($zona);
+        // Zona manual (mis. +07:00) yang offset-nya sama dengan standar dianggap setara.
+        $router = $nama === 'manual' ? self::offsetTeks($kv['tz-offset'] ?? '') : self::offset($nama);
+        if ($nama === $zona || ($nama === 'manual' && $router === $standar)) {
+            return self::item('zona-waktu', 'Sistem', 'ok', $judul, $nama === 'manual' ? "Zona manual {$kv['tz-offset']}, sama dengan {$zona}." : "time-zone-name={$nama}.");
+        }
+        $selisih = $router === null || $standar === null || $router === $standar ? ''
+            : ' Jam router ' . self::durasi(abs($router - $standar)) . ($router > $standar ? ' lebih maju' : ' lebih lambat') . " dari {$zona}.";
+
+        return self::item('zona-waktu', 'Sistem', 'peringatan', $judul,
+            "time-zone-name={$nama}" . ($nama === 'manual' ? " (gmt-offset {$kv['tz-offset']})" : '') . ".{$selisih}",
+            "/system clock set time-zone-autodetect=no time-zone-name={$zona}",
+            masalah: 'Zona waktu router berbeda dari standar',
+            standar: "time-zone-name={$zona}, autodetect dimatikan supaya tidak berubah mengikuti lokasi IP.",
+            dampak: 'Jam di log, scheduler, dan grafik router tidak sama dengan jam NOC dan aplikasi backup. Saat menelusuri gangguan, waktu log harus dihitung ulang dan mudah salah.');
+    }
+
     private static function ruteDefault(array $kv): ?array
     {
         if (!ctype_digit($kv['default-route'] ?? '')) {
@@ -658,6 +721,14 @@ final class RouterDoctor
                 standar: 'Ada minimal satu server di /radius dengan service=ppp.',
                 dampak: 'Pelanggan yang tidak punya secret lokal di router gagal login PPPoE.');
         }
+        if (in_array($kv['radius-acct'] ?? '', ['false', 'no'], true)) {
+            return self::item('radius', 'PPPoE', 'info', $judul,
+                '/ppp aaa use-radius=yes, accounting=no.',
+                "/ppp aaa set accounting=yes interim-update={$interim}",
+                masalah: 'RADIUS accounting mati',
+                standar: "accounting=yes dengan interim-update={$interim}, supaya RADIUS mencatat setiap sesi.",
+                dampak: 'RADIUS hanya dipakai untuk login. Sesi online, lama sambung, dan pemakaian tidak tercatat, dan batas login ganda (simultaneous-use) di RADIUS tidak bisa ditegakkan.');
+        }
         if (in_array($kv['interim'] ?? '', ['00:00:00', '0s'], true)) {
             return self::item('radius', 'PPPoE', 'info', $judul,
                 '/ppp aaa interim-update=0 (mati).',
@@ -731,6 +802,38 @@ final class RouterDoctor
             'gerbang' => $gerbang,
             'layanan' => array_map(fn ($p) => array_intersect_key($p, array_flip(['nama', 'port', 'kini', 'nanti'])), $layanan),
         ];
+    }
+
+    /** Offset UTC sebuah zona IANA saat ini, dalam detik; null kalau namanya tak dikenal. */
+    private static function offset(string $zona): ?int
+    {
+        try {
+            return (new \DateTimeZone($zona))->getOffset(new \DateTimeImmutable('now'));
+        } catch (\Exception) {
+            return null;
+        }
+    }
+
+    /** gmt-offset RouterOS: "+07:00" (v7), "+07:00:00", atau detik "25200" (v6). */
+    private static function offsetTeks(string $s): ?int
+    {
+        if (preg_match('/^-?\d+$/', $s)) {
+            return (int) $s;
+        }
+        if (preg_match('/^([+-]?)(\d{1,2}):(\d{2})/', $s, $m)) {
+            return ($m[1] === '-' ? -1 : 1) * ((int) $m[2] * 3600 + (int) $m[3] * 60);
+        }
+
+        return null;
+    }
+
+    /** 12600 → "3 jam 30 menit" */
+    private static function durasi(int $detik): string
+    {
+        $jam = intdiv($detik, 3600);
+        $menit = intdiv($detik % 3600, 60);
+
+        return trim(($jam ? "{$jam} jam" : '') . ($menit ? " {$menit} menit" : ''));
     }
 
     /** "winbox (tcp 8291), ssh (tcp 22)" dari /ip service. */

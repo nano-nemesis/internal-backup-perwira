@@ -45,6 +45,9 @@ class DoctorStandarController extends Controller
             'ram_min'            => 'required|integer|min:1|max:50',
             'disk_min'           => 'required|integer|min:1|max:50',
             'interim'            => ['required', 'string', 'regex:/^(\d+[smhd]?|\d{2}:\d{2}:\d{2})$/'],
+            // sometimes: klien lama (sebelum v1.12) belum mengirim dua kunci ini; rapikan() mengisi bawaannya.
+            'winbox_port'        => 'sometimes|integer|min:1|max:65535',
+            'zona_waktu'         => 'sometimes|timezone:all',
             'cek'                => 'array',
             'cek.*.aktif'        => 'boolean',
             'cek.*.tingkat'      => 'in:' . implode(',', DoctorStandar::TINGKAT),

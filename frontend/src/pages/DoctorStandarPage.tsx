@@ -22,6 +22,8 @@ interface Standar {
   ram_min: number
   disk_min: number
   interim: string
+  winbox_port: number
+  zona_waktu: string
   cek: Record<string, { aktif: boolean; tingkat: Tingkat }>
 }
 
@@ -46,6 +48,11 @@ const alamatSah = (a: string) =>
   && a.split('/')[0].split('.').every((o) => Number(o) <= 255)
 
 const daftarDari = (teks: string) => teks.split(/[\s,]+/).map((x) => x.trim()).filter(Boolean)
+
+const ZONA: [string, string][] = [
+  ['Asia/Jakarta', 'Asia/Jakarta (WIB)'], ['Asia/Makassar', 'Asia/Makassar (WITA)'], ['Asia/Jayapura', 'Asia/Jayapura (WIT)'],
+  ['Asia/Singapore', 'Asia/Singapore'], ['UTC', 'UTC'],
+]
 
 const TINGKAT: [Tingkat, string][] = [['otomatis', 'Otomatis'], ['kritis', 'Kritis'], ['peringatan', 'Perhatian'], ['info', 'Info']]
 
@@ -286,6 +293,23 @@ export default function DoctorStandarPage() {
                 </div>
               </div>
             ))}
+            <label className="flex items-center justify-between gap-3 text-sm font-semibold flex-wrap">
+              <span>
+                Port Winbox
+                <span className="block text-xs font-normal text-[#475569]">Sama di semua router. Bawaan MikroTik 8291.</span>
+              </span>
+              <input
+                type="number"
+                min={1}
+                max={65535}
+                value={form.winbox_port}
+                disabled={kunci}
+                onChange={(e) => ubah('winbox_port', Number(e.target.value))}
+                onBlur={() => ubah('winbox_port', Math.max(1, Math.min(65535, Math.round(form.winbox_port) || 2805)))}
+                aria-label="Port Winbox"
+                className="w-28 h-10 px-3 rounded-[10px] border border-[#DADDE8] bg-white font-mono text-sm focus:outline-none focus:border-[#4255F0] focus:ring-4 focus:ring-[#4255F0]/15 disabled:opacity-70"
+              />
+            </label>
           </Bagian>
 
           <Bagian judul="Sistem dan CHR">
@@ -314,6 +338,15 @@ export default function DoctorStandarPage() {
                 ))}
               </div>
             </div>
+            <label className="flex items-center justify-between gap-3 text-sm font-semibold flex-wrap">
+              <span>
+                Zona waktu router
+                <span className="block text-xs font-normal text-[#475569]">Supaya jam log router sama dengan NOC.</span>
+              </span>
+              <select value={form.zona_waktu} onChange={(e) => ubah('zona_waktu', e.target.value)} disabled={kunci} aria-label="Zona waktu router" className="pilih disabled:opacity-50">
+                {ZONA.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </label>
             <label className="flex flex-col gap-1.5 text-sm font-semibold">
               Server NTP
               <input

@@ -306,14 +306,14 @@ export default function PanduanPage() {
               <H3>Keamanan</H3>
               <Daftar>
                 <li>Telnet, FTP, dan www (HTTP) mati, karena ketiganya mengirim password tanpa enkripsi.</li>
-                <li>Winbox, SSH, dan API dibatasi <K>address</K> ke alamat NOC.</li>
+                <li>Winbox, SSH, dan API dibatasi <K>address</K> ke alamat NOC. Winbox di port standar (bawaan 2805), sama di semua router.</li>
                 <li>
                   Router ber-IP publik wajib punya <strong>drop menyeluruh</strong> di chain input, setelah accept untuk
                   koneksi balik, NOC, ICMP, dan port VPN yang memang dilayani.
                 </li>
                 <li>Kalau DNS melayani permintaan luar, port 53 dari internet harus tertutup (bukan open resolver).</li>
                 <li>Bandwidth-test server, SOCKS, dan web proxy mati (atau btest berautentikasi).</li>
-                <li>SNMP community bukan <K>public</K> dan dibatasi alamat.</li>
+                <li>SNMP aktif supaya router terpantau, community bukan <K>public</K> dan dibatasi alamat.</li>
                 <li>MAC server dan neighbor discovery tidak aktif di semua interface pada router ber-IP publik.</li>
                 <li>Tidak memakai PPTP; L2TP sebaiknya dengan IPsec.</li>
               </Daftar>
@@ -329,7 +329,7 @@ add chain=input in-interface=ether1-uplink action=drop`}</Kode>
               <H3>Sistem, CHR, dan PPPoE</H3>
               <Daftar>
                 <li>RouterOS versi terbaru di kanalnya (dicek ke server MikroTik); RouterOS 6 direncanakan migrasi ke v7.</li>
-                <li>NTP client aktif, CPU di bawah 80%, RAM dan disk bebas di atas 10%, ada rute default.</li>
+                <li>NTP client aktif, zona waktu Asia/Jakarta, CPU di bawah 80%, RAM dan disk bebas di atas 10%, ada rute default.</li>
                 <li>FastTrack tidak aktif bersama queue atau limit pelanggan, karena paket fasttrack melewati queue.</li>
                 <li>
                   CHR memakai lisensi P1 ke atas. Lisensi free membatasi upload 1 Mbps per interface. Kalau{' '}
@@ -340,7 +340,7 @@ add chain=input in-interface=ether1-uplink action=drop`}</Kode>
                   Profil PPP memakai <K>change-tcp-mss</K> (tanpanya situs tertentu menggantung) dan server PPPoE{' '}
                   <K>one-session-per-host=yes</K>.
                 </li>
-                <li>Kalau <K>use-radius=yes</K>: server RADIUS ada, dan <K>interim-update</K> diisi (mis. 5m).</li>
+                <li>Kalau <K>use-radius=yes</K>: server RADIUS ada, <K>accounting=yes</K>, dan <K>interim-update</K> diisi (mis. 5m).</li>
               </Daftar>
               <H3>Mengatur standarnya</H3>
               <p>

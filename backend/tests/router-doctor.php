@@ -18,6 +18,7 @@ mem-total=4294967296
 hdd-free=2073792512
 hdd-total=2095116288
 license=p1
+tz-name=Asia/Jakarta
 dns-remote=false
 bw-enabled=true
 bw-auth=true
@@ -76,6 +77,7 @@ mem-total=4127195136
 hdd-free=2100260864
 hdd-total=2137124864
 license=free
+tz-name=Asia/Tehran
 dns-remote=true
 bw-enabled=true
 bw-auth=false
@@ -131,7 +133,9 @@ bw-enabled=false
 bw-auth=true
 socks=false
 proxy=false
-snmp=false
+snmp=true
+tz-name=manual
+tz-offset=+07:00
 mac-telnet=LAN
 mac-winbox=LAN
 neighbor=LAN
@@ -146,7 +150,7 @@ wg=0
 default-route=1
 ##service
  0  X  name=telnet port=23 proto=tcp address= vrf=main
- 1     name=winbox port=8291 proto=tcp address= vrf=main
+ 1     name=winbox port=2805 proto=tcp address= vrf=main
 ##addr
  0    address=192.0.2.1/30 network=192.0.2.0 interface=sfp1-WAN actual-interface=sfp1-WAN vrf=main
 ##filter
@@ -157,6 +161,7 @@ default-route=1
 ##pppoe
 ##profile
 ##snmpc
+ 0    name=nms-noc addresses=10.0.0.0/8 security=none read-access=yes write-access=no
 TXT;
 
 $gagal = [];
@@ -200,7 +205,14 @@ $harap('chrPppoe', $b, [
     'mss' => 'peringatan', 'satu-sesi' => 'peringatan', 'fasttrack' => 'peringatan', 'vpn' => 'peringatan',
     'sumber-daya' => 'peringatan', 'versi' => 'peringatan', 'ntp' => 'ok', 'mac-neighbor' => 'peringatan',
 ]);
-if (array_key_exists('snmp', array_column($b['cek'], 'status', 'id'))) $gagal[] = 'chrPppoe: SNMP mati tapi tetap dicek';
+$harap('chrPppoe-armada', $b, ['snmp' => 'peringatan', 'winbox-port' => 'peringatan', 'zona-waktu' => 'peringatan']);
+if (!str_contains(array_column($b['cek'], 'detail', 'id')['zona-waktu'] ?? '', '3 jam 30 menit lebih lambat')) $gagal[] = 'chrPppoe: selisih zona waktu salah';
+$harap('chrIpPublik-armada', $a, ['snmp' => 'ok', 'winbox-port' => 'ok', 'zona-waktu' => 'ok']);
+$akun = D::periksa(D::parse(str_replace(["radius=0\n", "interim=00:00:00\n"], ["radius=1\n", "interim=00:00:00\nradius-acct=false\n"], $chrPppoe)), $terbaru);
+$harap('accounting', $akun, ['radius' => 'info']);
+if ((array_column($akun['cek'], 'masalah', 'id')['radius'] ?? '') !== 'RADIUS accounting mati') $gagal[] = 'accounting: temuan salah';
+$harap('standar-armada', D::periksa(D::parse($chrPppoe), $terbaru, ['winbox_port' => 8291, 'zona_waktu' => 'Asia/Tehran']),
+    ['winbox-port' => 'ok', 'zona-waktu' => 'ok']);
 if (!str_contains($perbaikan($b, 'layanan-polos'), '[find name=ftp]') || str_contains($perbaikan($b, 'layanan-polos'), 'telnet')) {
     $gagal[] = 'chrPppoe: telnet yang mati (XI) ikut disuruh dimatikan, atau ftp terlewat';
 }

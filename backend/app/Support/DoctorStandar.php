@@ -28,17 +28,19 @@ final class DoctorStandar
         'layanan-polos'    => ['Layanan yang wajib mati', 'Keamanan', ['Semua']],
         'bandwidth-server' => ['Bandwidth test server mati atau berautentikasi', 'Keamanan', ['Semua']],
         'proxy'            => ['SOCKS dan web proxy mati', 'Keamanan', ['Semua']],
-        'snmp'             => ['SNMP community dibatasi alamat', 'Keamanan', ['SNMP aktif']],
+        'snmp'             => ['SNMP aktif, community dibatasi alamat', 'Keamanan', ['Semua']],
+        'winbox-port'      => ['Winbox di port standar Perwira', 'Keamanan', ['Semua']],
         'mac-neighbor'     => ['MAC server & neighbor discovery dibatasi', 'Keamanan', ['IP Publik']],
         'vpn'              => ['Server VPN memakai protokol yang aman', 'VPN', ['Server VPN']],
         'versi'            => ['RouterOS versi terbaru di kanalnya', 'Sistem', ['Semua']],
         'ntp'              => ['Jam router disinkronkan NTP', 'Sistem', ['Semua']],
         'sumber-daya'      => ['CPU, RAM, dan disk cukup longgar', 'Sistem', ['Semua']],
         'rute-default'     => ['Ada rute default yang aktif', 'Sistem', ['Semua']],
+        'zona-waktu'       => ['Zona waktu sesuai standar', 'Sistem', ['Semua']],
         'fasttrack'        => ['FastTrack tidak melewati limit bandwidth', 'Sistem', ['FastTrack aktif']],
         'mss'              => ['Profil PPP mengubah TCP MSS', 'PPPoE', ['PPPoE Server']],
         'satu-sesi'        => ['PPPoE server: satu sesi per perangkat', 'PPPoE', ['PPPoE Server']],
-        'radius'           => ['PPP RADIUS lengkap', 'PPPoE', ['PPPoE + RADIUS']],
+        'radius'           => ['PPP RADIUS lengkap (server, accounting, interim)', 'PPPoE', ['PPP + RADIUS']],
     ];
 
     public const BAWAAN = [
@@ -54,6 +56,10 @@ final class DoctorStandar
         'ram_min'          => 10,
         'disk_min'         => 10,
         'interim'          => '5m',
+        // Port Winbox yang sama di semua router Perwira (bukan bawaan 8291).
+        'winbox_port'      => 2805,
+        // Jam log & jadwal router disamakan dengan NOC dan aplikasi ini (WIB).
+        'zona_waktu'       => 'Asia/Jakarta',
         // id => ['aktif' => bool, 'tingkat' => otomatis|kritis|peringatan|info]
         'cek'              => [],
     ];
@@ -81,6 +87,8 @@ final class DoctorStandar
         $s['cpu_maks'] = max(50, min(100, (int) $s['cpu_maks']));
         $s['ram_min'] = max(1, min(50, (int) $s['ram_min']));
         $s['disk_min'] = max(1, min(50, (int) $s['disk_min']));
+        $s['winbox_port'] = (int) $s['winbox_port'] >= 1 && (int) $s['winbox_port'] <= 65535 ? (int) $s['winbox_port'] : 2805;
+        $s['zona_waktu'] = in_array($s['zona_waktu'], \DateTimeZone::listIdentifiers(), true) ? $s['zona_waktu'] : 'Asia/Jakarta';
         $s['interim'] = preg_match('/^(\d+[smhd]?|\d{2}:\d{2}:\d{2})$/', (string) $s['interim']) ? (string) $s['interim'] : '5m';
 
         $cek = [];
@@ -154,6 +162,10 @@ final class DoctorStandar
                 $b[] = "/ip service set [find name={$l}] address={$noc}";
             }
         }
+        if ($on('winbox-port')) {
+            array_push($b, '', '# Winbox di port standar (koneksi Winbox yang terbuka akan terputus, sambung ulang ke port ini)',
+                "/ip service set [find name=winbox] port={$s['winbox_port']}");
+        }
         if ($on('firewall-input')) {
             array_push($b, '',
                 '# Firewall input: interface internet dikumpulkan di interface list WAN',
@@ -181,6 +193,9 @@ final class DoctorStandar
             // RouterOS 7; di RouterOS 6 parameternya server-dns-names=.
             $on('ntp') && $s['ntp'] ? '/system ntp client set enabled=yes servers=' . implode(',', $s['ntp']) : null,
             $on('versi') && $s['kanal'] !== 'ikuti' ? "/system package update set channel={$s['kanal']}" : null,
+            $on('zona-waktu') ? "/system clock set time-zone-autodetect=no time-zone-name={$s['zona_waktu']}" : null,
+            $on('snmp') ? '/snmp set enabled=yes' : null,
+            $on('snmp') ? '/snmp community add name=<community> addresses=<IP-NMS> read-access=yes write-access=no' : null,
         ]);
         if ($sistem) {
             array_push($b, '', '# Layanan sampingan dan sistem', ...$sistem);
@@ -192,7 +207,7 @@ final class DoctorStandar
         $pppoe = array_filter([
             $on('mss') ? '/ppp profile set [find] change-tcp-mss=yes' : null,
             $on('satu-sesi') ? '/interface pppoe-server server set [find] one-session-per-host=yes' : null,
-            $on('radius') ? "/ppp aaa set interim-update={$s['interim']}" : null,
+            $on('radius') ? "/ppp aaa set accounting=yes interim-update={$s['interim']}" : null,
         ]);
         if ($pppoe) {
             array_push($b, '', '# Khusus PPPoE server', ...$pppoe);

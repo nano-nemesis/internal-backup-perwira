@@ -5,6 +5,17 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.12.0',
+    tanggal: '2026-10-22',
+    judul: 'Doctor: empat pemeriksaan standar armada',
+    poin: [
+      'Winbox di port standar Perwira (bawaan 2805, bisa diubah di Standar). Router yang masih di port lain, termasuk 8291, ditandai perhatian.',
+      'Zona waktu router dibandingkan dengan standar (bawaan Asia/Jakarta), lengkap dengan selisih jamnya. Zona manual +07:00 dianggap sama.',
+      'SNMP yang mati, atau menyala tanpa community, kini ditandai karena router tidak terpantau monitoring.',
+      'RADIUS accounting yang mati dicatat sebagai info, dan skrip dasar router baru ikut memuat keempat setelan ini.',
+    ],
+  },
+  {
     versi: '1.11.0',
     tanggal: '2026-10-22',
     judul: 'Limited Upgrades CHR dan legenda Standar',
