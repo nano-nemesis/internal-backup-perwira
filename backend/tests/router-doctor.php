@@ -232,6 +232,15 @@ if (array_column($jalurAm['layanan'] ?? [], 'nanti', 'nama') !== ['SSH' => 'teta
 if (str_contains(json_encode($tanpaFw), 'lihat temuan firewall')) $gagal[] = 'tanpa firewall: masih merujuk temuan firewall';
 if (empty(array_column($b['cek'], 'meter', 'id')['sumber-daya'])) $gagal[] = 'chrPppoe: batang sumber daya tidak ada';
 
+// Limited Upgrades tercentang di CHR berbayar: lisensi dan versi hanya catatan, tanpa perintah upgrade.
+$lu = D::periksa(D::parse(str_replace("license=p1\n", "license=p1\nlicense-limited=true\n", $chrIpPublik)), $terbaru);
+$harap('limited-upgrades', $lu, ['lisensi' => 'info', 'versi' => 'info']);
+if (isset(array_column($lu['cek'], 'perbaikan', 'id')['versi'])) $gagal[] = 'limited-upgrades: perintah upgrade masih disarankan';
+$luFree = D::periksa(D::parse(str_replace("license=free\n", "license=free\nlicense-limited=true\n", $chrPppoe)), $terbaru);
+$harap('limited-upgrades-free', $luFree, ['lisensi' => 'kritis']);
+$harap('limited-upgrades-tidak', D::periksa(D::parse(str_replace("license=p1\n", "license=p1\nlicense-limited=false\n", $chrIpPublik)), $terbaru),
+    ['lisensi' => 'ok', 'versi' => 'peringatan']);
+
 // 3. Router sehat
 $c = D::periksa(D::parse($sehat), $terbaru);
 if ($c['ringkasan']['kritis'] || $c['ringkasan']['peringatan'] || $c['utama'] !== null) {

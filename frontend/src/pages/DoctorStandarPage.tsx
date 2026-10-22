@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, RotateCcw } from 'lucide-react'
+import { Check, ChevronDown, Copy, RotateCcw } from 'lucide-react'
 import api from '../lib/axios'
 import { useAuth } from '../context/AuthContext'
 import { useRunDoctorAll } from '../hooks/useNodes'
@@ -65,6 +65,49 @@ function Saklar({ nyala, onUbah, label, mati }: { nyala: boolean; onUbah: (v: bo
     >
       <span className={cn('absolute top-[3px] left-[3px] w-5 h-5 rounded-full bg-white shadow transition-transform duration-200', nyala && 'translate-x-[18px]')} />
     </button>
+  )
+}
+
+/** Arti tanda di halaman ini: chip bercentang, saklar, dan pilihan tingkat. Contohnya tiruan statis, bukan tombol. */
+function Legenda() {
+  const saklar = (nyala: boolean) => (
+    <span className={cn('relative inline-block w-11 h-[26px] rounded-full flex-shrink-0', nyala ? 'bg-[#4255F0]' : 'bg-[#CBD5E1]')}>
+      <span className={cn('absolute top-[3px] left-[3px] w-5 h-5 rounded-full bg-white shadow', nyala && 'translate-x-[18px]')} />
+    </span>
+  )
+  const isi: [React.ReactNode, React.ReactNode][] = [
+    [
+      <span className="chip" aria-pressed="true"><Check className="w-3.5 h-3.5" strokeWidth={3} />Telnet</span>,
+      <>Chip gelap bercentang = <b>dipilih</b>. Di "Wajib mati", Doctor menandai router yang layanan ini masih menyala.
+        Di "Wajib dibatasi alamat NOC", Doctor menandai yang menyala tanpa batas address.</>,
+    ],
+    [
+      <span className="chip">FTP</span>,
+      <>Chip putih tanpa centang = <b>tidak dipilih</b>: layanan ini tidak diperiksa di daftar tersebut.
+        Untuk lisensi dan kanal, chip gelap adalah pilihan yang sedang dipakai.</>,
+    ],
+    [
+      <span className="flex gap-2">{saklar(true)}{saklar(false)}</span>,
+      <>Saklar biru = pemeriksaan <b>dijalankan</b>. Saklar abu-abu = <b>dilewati</b>: tidak dinilai dan tidak muncul di hasil Doctor.</>,
+    ],
+    [
+      <span className="pilih inline-flex items-center gap-5">Otomatis<ChevronDown className="w-4 h-4 text-[#475569]" /></span>,
+      <><b>Otomatis</b> = Doctor memilih tingkat sesuai keadaan router (mis. kritis kalau terbuka ke internet).
+        Kritis, Perhatian, atau Info = temuan selalu dipasang di tingkat itu.</>,
+    ],
+  ]
+  return (
+    <section className="card p-5 md:p-6" aria-labelledby="legenda-standar">
+      <h2 id="legenda-standar" className="text-[15px] font-bold">Arti tanda di halaman ini</h2>
+      <dl className="grid sm:grid-cols-2 xl:grid-cols-4 gap-x-5 gap-y-4 mt-3">
+        {isi.map(([contoh, arti], i) => (
+          <div key={i} className="flex flex-col gap-2">
+            <dt aria-hidden="true">{contoh}</dt>
+            <dd className="text-[13px] text-[#475569] leading-relaxed">{arti}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   )
 }
 
@@ -182,6 +225,8 @@ export default function DoctorStandarPage() {
         </p>
       )}
 
+      <Legenda />
+
       {baruDisimpan && isOperator && (
         <div className="rounded-2xl bg-[#DCFCE7] text-[#14532D] px-4 py-3 flex items-center justify-between gap-3 flex-wrap animate-masuk">
           <span className="text-sm font-semibold">Standar baru disimpan. Laporan Doctor ikut berubah setelah router diperiksa ulang.</span>
@@ -253,7 +298,11 @@ export default function DoctorStandarPage() {
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-[#475569] mt-1.5">Lisensi free selalu kritis: upload dibatasi 1 Mbps per interface.</p>
+              <p className="text-xs text-[#475569] mt-1.5">
+                Lisensi free selalu kritis: upload dibatasi 1 Mbps per interface. Kalau Limited Upgrades tercentang di
+                System &gt; License, lisensi dan saran upgrade RouterOS hanya dicatat sebagai info: router tetap jalan,
+                tetapi RouterOS tidak bisa di-upgrade.
+              </p>
             </div>
             <div>
               <p className="text-sm font-semibold mb-2">Kanal RouterOS</p>

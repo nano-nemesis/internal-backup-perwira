@@ -5,6 +5,15 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.11.0',
+    tanggal: '2026-10-22',
+    judul: 'Limited Upgrades CHR dan legenda Standar',
+    poin: [
+      'Doctor membaca Limited Upgrades di System > License pada CHR. Kalau tercentang di CHR berlisensi P1, P10, atau Unlimited, temuan lisensi hanya dicatat sebagai info, begitu juga saran upgrade RouterOS (upgrade memang diblokir lisensi). Lisensi free tetap kritis.',
+      'Halaman Standar punya legenda: arti chip bercentang dan tanpa centang, saklar biru dan abu-abu, serta pilihan tingkat Otomatis.',
+    ],
+  },
+  {
     versi: '1.10.1',
     tanggal: '2026-10-22',
     judul: 'Gambar Doctor juga saat cek firewall dimatikan',

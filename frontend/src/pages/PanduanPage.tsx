@@ -331,7 +331,11 @@ add chain=input in-interface=ether1-uplink action=drop`}</Kode>
                 <li>RouterOS versi terbaru di kanalnya (dicek ke server MikroTik); RouterOS 6 direncanakan migrasi ke v7.</li>
                 <li>NTP client aktif, CPU di bawah 80%, RAM dan disk bebas di atas 10%, ada rute default.</li>
                 <li>FastTrack tidak aktif bersama queue atau limit pelanggan, karena paket fasttrack melewati queue.</li>
-                <li>CHR memakai lisensi P1 ke atas. Lisensi free membatasi upload 1 Mbps per interface.</li>
+                <li>
+                  CHR memakai lisensi P1 ke atas. Lisensi free membatasi upload 1 Mbps per interface. Kalau{' '}
+                  <K>limited-upgrades=yes</K> (Limited Upgrades tercentang di System &gt; License), lisensi dan saran
+                  upgrade hanya dicatat sebagai info: router tetap jalan, tetapi RouterOS tidak bisa di-upgrade.
+                </li>
                 <li>
                   Profil PPP memakai <K>change-tcp-mss</K> (tanpanya situs tertentu menggantung) dan server PPPoE{' '}
                   <K>one-session-per-host=yes</K>.

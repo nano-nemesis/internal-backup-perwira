@@ -21,6 +21,8 @@ final class RouterDoctor
         'hdd-free'      => '/system resource get free-hdd-space',
         'hdd-total'     => '/system resource get total-hdd-space',
         'license'       => '/system license get level',
+        // CHR ROS 7: "Limited Upgrades" di System > License (lisensi lewat tenggat / trial habis). Router lain → "?".
+        'license-limited' => '/system license get limited-upgrades',
         'dns-remote'    => '/ip dns get allow-remote-requests',
         'bw-enabled'    => '/tool bandwidth-server get enabled',
         'bw-auth'       => '/tool bandwidth-server get authenticate',
@@ -152,6 +154,8 @@ final class RouterDoctor
             'vpn'    => $nyala('l2tp') || $nyala('sstp') || $nyala('pptp') || (int) ($kv['wg'] ?? 0) > 0,
             'drop'   => self::dropMenyeluruh($input),
             'mayor'  => (int) ($kv['version'] ?? 0),
+            // Upgrade RouterOS & ubah paket diblokir lisensi; kecepatan tidak berubah.
+            'terbatas' => str_starts_with($kv['board'] ?? '', 'CHR') && in_array($kv['license-limited'] ?? '', ['true', 'yes'], true),
         ];
         // Router ber-IP publik tanpa drop menyeluruh = layanan yang terbuka benar-benar terjangkau dari internet.
         $terpapar = $k['publik'] && !$k['drop'];
@@ -160,7 +164,7 @@ final class RouterDoctor
         $noc = $s['noc'] ? implode(',', $s['noc']) : self::alamatNoc($layanan);
         $pintu = self::pintu($d, $kv);
         $cek = array_values(array_filter([
-            $k['chr'] ? self::lisensi($kv, $s['lisensi_min']) : null,
+            $k['chr'] ? self::lisensi($kv, $s['lisensi_min'], $k['terbatas']) : null,
             self::firewallInput($k, $kv, $d, $publik, $input, $noc, $pintu),
             self::dnsTerbuka($kv, $k, $input, $publik),
             self::aksesManajemen($layanan, $k, $s['layanan_dibatasi'], $noc, $publik, $pintu),
@@ -170,7 +174,7 @@ final class RouterDoctor
             $nyala('snmp') ? self::snmp($aktif('snmpc')) : null,
             self::macDanNeighbor($kv, $k),
             self::vpn($kv),
-            self::versi($kv, $k, $terbaru, $s['kanal']),
+            self::versiTerbatas(self::versi($kv, $k, $terbaru, $s['kanal']), $k['terbatas']),
             self::ntp($kv, $k, $s['ntp']),
             self::sumberDaya($kv, $s['cpu_maks'], $s['ram_min'], $s['disk_min']),
             self::ruteDefault($kv),
@@ -484,6 +488,21 @@ final class RouterDoctor
             dampak: trim("Pembaruan memuat perbaikan celah keamanan dan bug. Router reboot saat dipasang, jadi kerjakan di luar jam sibuk. {$catatanV6}"));
     }
 
+    /** Upgrade diblokir lisensi (Limited Upgrades): saran pembaruan tidak bisa dijalankan, jadi cukup catatan. */
+    private static function versiTerbatas(?array $c, bool $terbatas): ?array
+    {
+        if (!$c || !$terbatas || $c['status'] !== 'peringatan') {
+            return $c;
+        }
+        unset($c['perbaikan']);
+
+        return array_merge($c, [
+            'status'  => 'info',
+            'masalah' => 'RouterOS belum terbaru, upgrade tertahan lisensi',
+            'dampak'  => 'Limited Upgrades tercentang di System > License, jadi router ini memang tidak bisa di-upgrade sampai lisensinya aktif kembali. Dicatat sebagai info saja.',
+        ]);
+    }
+
     private static function ntp(array $kv, array $k, array $server): array
     {
         $judul = 'Jam router disinkronkan NTP';
@@ -552,7 +571,7 @@ final class RouterDoctor
 
     // ─── CHR ─────────────────────────────────────────────────────────────────
 
-    private static function lisensi(array $kv, string $minimal = 'p1'): array
+    private static function lisensi(array $kv, string $minimal = 'p1', bool $terbatas = false): array
     {
         $level = $kv['license'] ?? '?';
         $judul = $minimal === 'p1' ? 'Lisensi CHR berbayar (P1 ke atas)' : 'Lisensi CHR minimal ' . strtoupper($minimal);
@@ -560,6 +579,17 @@ final class RouterDoctor
         $standar = 'Minimal ' . strtoupper($minimal) . (isset($batas[$minimal]) ? " (batas {$batas[$minimal]} per interface)." : ' (tanpa batas kecepatan).');
         $perbaikan = "/system license renew account=<akun-mikrotik> password=<password> level={$minimal}";
         $urutan = DoctorStandar::LISENSI;
+        // Lisensi berbayar yang memenuhi standar tapi "Limited Upgrades" tercentang: cukup catatan (keputusan Risaa).
+        if ($terbatas && isset($urutan[$level]) && $level !== 'free' && $urutan[$level] >= $urutan[$minimal]) {
+            return self::item('lisensi', 'CHR', 'info', $judul,
+                'Lisensi ' . strtoupper($level) . (isset($batas[$level]) ? " (batas {$batas[$level]} per interface)" : ' (tanpa batas kecepatan)')
+                . ', dan Limited Upgrades tercentang di System > License (limited-upgrades=yes).',
+                "# Lihat tenggat lisensi (deadline-at, next-renewal-at):\n/system license print\n"
+                . '# Router harus bisa menghubungi server lisensi MikroTik. Lisensi yang sudah kedaluwarsa hanya bisa diaktifkan lagi dengan Prepaid key.',
+                masalah: 'Lisensi CHR: Limited Upgrades tercentang',
+                standar: 'limited-upgrades=no: lisensi aktif dan tersambung ke server lisensi MikroTik.',
+                dampak: 'Router tetap berjalan dengan kecepatan lisensinya. Yang tertahan: RouterOS tidak bisa di-upgrade dan paket tidak bisa dipasang, diaktifkan, atau dimatikan. Dicatat sebagai info saja.');
+        }
         // Berbayar tapi di bawah minimal standar (mis. P1 saat standar P10): perhatian, bukan kritis.
         if (isset($urutan[$level]) && $level !== 'free' && $urutan[$level] < $urutan[$minimal]) {
             return self::item('lisensi', 'CHR', 'peringatan', $judul,
