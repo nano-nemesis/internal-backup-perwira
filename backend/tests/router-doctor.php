@@ -188,7 +188,7 @@ if (!str_contains($perbaikan($a, 'akses-manajemen'), '[find name=winbox] address
     $gagal[] = 'chrIpPublik: batas address winbox tidak disamakan dengan SSH';
 }
 if ($a['ringkasan']['kritis'] !== 2 || $a['utama'] === null) $gagal[] = 'chrIpPublik: ringkasan ' . json_encode($a['ringkasan']);
-if ($a['utama'] !== 'Firewall input menutup akses dari internet') $gagal[] = 'chrIpPublik: masalah utama harus firewall, dapat ' . $a['utama'];
+if ($a['utama'] !== 'Router terbuka ke internet: firewall input tanpa aturan drop') $gagal[] = 'chrIpPublik: masalah utama harus firewall, dapat ' . $a['utama'];
 
 
 // 2. CHR PPPoE ROS 6 serba salah
@@ -209,7 +209,20 @@ if (!str_contains($perbaikan($b, 'akses-manajemen'), 'address=10.0.0.0/8')) {
     $gagal[] = 'chrPppoe: batas address dari SSH ROS 6 tidak terbaca';
 }
 if ($b['cek'][0]['status'] !== 'kritis') $gagal[] = 'chrPppoe: urutan salah, yang kritis harus di atas';
-if ($b['utama'] !== 'Lisensi CHR berbayar (P1 ke atas)') $gagal[] = 'chrPppoe: masalah utama harus lisensi free, dapat ' . $b['utama'];
+if ($b['utama'] !== 'CHR memakai lisensi free') $gagal[] = 'chrPppoe: masalah utama harus lisensi free, dapat ' . $b['utama'];
+
+// Temuan kritis/perhatian wajib bisa dibaca orang awam: judul masalah, standar, dan akibatnya.
+foreach (array_merge($a['cek'], $b['cek']) as $x) {
+    if (in_array($x['status'], ['kritis', 'peringatan'], true) && (empty($x['masalah']) || empty($x['standar']) || empty($x['dampak']))) {
+        $gagal[] = "teks: {$x['id']} ({$x['status']}) tanpa masalah/standar/dampak";
+    }
+}
+$jalur = array_column($a['cek'], 'jalur', 'id')['firewall-input'] ?? null;
+$vpn = array_column(array_filter($jalur['layanan'] ?? [], fn ($l) => $l['nanti'] === 'vpn'), 'nama');
+if (!$jalur || $jalur['wan'] !== 'VLAN618-UPLINK' || $vpn !== ['L2TP/IPsec', 'SSTP', 'WireGuard'] || count($jalur['layanan']) !== 5) {
+    $gagal[] = 'chrIpPublik: gambar jalur firewall salah ' . json_encode($jalur);
+}
+if (empty(array_column($b['cek'], 'meter', 'id')['sumber-daya'])) $gagal[] = 'chrPppoe: batang sumber daya tidak ada';
 
 // 3. Router sehat
 $c = D::periksa(D::parse($sehat), $terbaru);

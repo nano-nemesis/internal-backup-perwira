@@ -160,7 +160,7 @@ final class RouterDoctor
         $noc = $s['noc'] ? implode(',', $s['noc']) : self::alamatNoc($layanan);
         $cek = array_values(array_filter([
             $k['chr'] ? self::lisensi($kv, $s['lisensi_min']) : null,
-            self::firewallInput($k, $kv, $d, $publik, $noc),
+            self::firewallInput($k, $kv, $d, $publik, $input, $noc),
             self::dnsTerbuka($kv, $k, $input, $publik),
             self::aksesManajemen($layanan, $k, $s['layanan_dibatasi'], $noc),
             self::layananPolos($layanan, $terpapar, $s['layanan_mati']),
@@ -201,7 +201,7 @@ final class RouterDoctor
             ])),
             'versi'     => $kv['version'] ?? null,
             'ringkasan' => $ringkasan,
-            'utama'     => $utama && in_array($utama['status'], ['kritis', 'peringatan'], true) ? $utama['judul'] : null,
+            'utama'     => $utama && in_array($utama['status'], ['kritis', 'peringatan'], true) ? $utama['masalah'] ?? $utama['judul'] : null,
             'cek'       => $cek,
         ];
     }
@@ -219,13 +219,17 @@ final class RouterDoctor
             return self::item('layanan-polos', 'Keamanan', 'ok', $judul, count($wajibMati) > 1 ? 'Semuanya mati.' : 'Sudah mati.');
         }
         $tanpaBatas = array_filter($nyala, fn ($n) => ($layanan[$n]['address'] ?? '') === '');
-        $polos = array_intersect($nyala, ['telnet', 'ftp', 'www']);
+        $polos = array_values(array_intersect($nyala, ['telnet', 'ftp', 'www']));
+        $kritis = $terpapar && $tanpaBatas;
 
-        return self::item('layanan-polos', 'Keamanan', $terpapar && $tanpaBatas ? 'kritis' : 'peringatan', $judul,
-            'Masih aktif: ' . implode(', ', $nyala) . '. Standar Perwira mewajibkan layanan ini mati'
-            . ($polos ? ' (' . implode(', ', $polos) . ' mengirim password tanpa enkripsi)' : '')
-            . ($terpapar && $tanpaBatas ? ', dan saat ini bisa dijangkau dari internet.' : '.'),
-            implode("\n", array_map(fn ($n) => "/ip service set [find name={$n}] disabled=yes", $nyala)));
+        return self::item('layanan-polos', 'Keamanan', $kritis ? 'kritis' : 'peringatan', $judul,
+            'Masih menyala di /ip service: ' . self::daftarPort($nyala, $layanan) . '.'
+            . ($kritis ? ' Tanpa batas address, dan router ini terbuka ke internet.' : ''),
+            implode("\n", array_map(fn ($n) => "/ip service set [find name={$n}] disabled=yes", $nyala)),
+            masalah: 'Layanan yang wajib mati masih menyala',
+            standar: DoctorStandar::namaLayanan($wajibMati) . ' berstatus disabled di /ip service. Router dikelola lewat Winbox atau SSH saja.',
+            dampak: ($polos ? DoctorStandar::namaLayanan($polos) . ' mengirim username dan password tanpa enkripsi: siapa pun di jalur yang sama bisa membacanya. ' : '')
+                . ($kritis ? 'Saat ini siapa pun di internet juga bisa mencoba login lewat layanan ini.' : 'Setiap layanan yang menyala adalah satu pintu login lagi yang harus dijaga.'));
     }
 
     private static function aksesManajemen(array $layanan, array $k, array $dibatasi, string $noc): ?array
@@ -233,22 +237,27 @@ final class RouterDoctor
         if (!$dibatasi) {
             return null;
         }
-        $judul = $dibatasi === DoctorStandar::BAWAAN['layanan_dibatasi']
-            ? 'Winbox, SSH, dan API dibatasi alamat NOC'
-            : DoctorStandar::namaLayanan($dibatasi) . ' dibatasi alamat NOC';
+        $nama = $dibatasi === DoctorStandar::BAWAAN['layanan_dibatasi'] ? 'Winbox, SSH, dan API' : DoctorStandar::namaLayanan($dibatasi);
+        $judul = "{$nama} dibatasi alamat NOC";
         $terbuka = array_values(array_filter($dibatasi,
             fn ($n) => isset($layanan[$n]) && ($layanan[$n]['address'] ?? '') === ''));
         if (!$terbuka || !$k['publik']) {
             return self::item('akses-manajemen', 'Keamanan', 'ok', $judul,
                 $terbuka ? 'Tidak ada IP publik, jadi layanan tanpa batas alamat hanya terjangkau dari jaringan dalam.' : 'Semua layanan manajemen yang aktif sudah punya batas address.');
         }
+
         return self::item('akses-manajemen', 'Keamanan', $k['drop'] ? 'info' : 'kritis', $judul,
-            'Tanpa batas address: ' . implode(', ', $terbuka) . '. '
-            . ($k['drop'] ? 'Saat ini dilindungi aturan drop di firewall; batas address jadi lapis kedua.' : 'Router ber-IP publik tanpa firewall input: siapa pun di internet bisa mencoba login.'),
-            implode("\n", array_map(fn ($n) => "/ip service set [find name={$n}] address={$noc}", $terbuka)));
+            'Kolom address kosong (menerima login dari alamat mana pun): ' . self::daftarPort($terbuka, $layanan) . '. '
+            . ($k['drop'] ? 'Firewall input sudah men-drop akses dari internet, jadi batas address ini lapis kedua.' : 'Router ber-IP publik dan firewall input tidak men-drop apa pun (lihat temuan firewall).'),
+            implode("\n", array_map(fn ($n) => "/ip service set [find name={$n}] address={$noc}", $terbuka)),
+            masalah: "Login {$nama} belum dibatasi ke alamat NOC",
+            standar: "Kolom address di /ip service diisi alamat NOC ({$noc}). Login dari alamat lain ditolak walau firewall salah atur.",
+            dampak: $k['drop']
+                ? 'Kalau suatu hari aturan firewall terhapus atau salah urut, login router langsung terbuka ke internet.'
+                : 'Bot di internet terus menebak password Winbox dan SSH. Satu password lemah cukup untuk mengambil alih router.');
     }
 
-    private static function firewallInput(array $k, array $kv, array $d, array $publik, string $noc): ?array
+    private static function firewallInput(array $k, array $kv, array $d, array $publik, array $input, string $noc): ?array
     {
         if (!$k['publik']) {
             return null;
@@ -270,28 +279,51 @@ final class RouterDoctor
         $baris[] = 'add chain=input connection-state=invalid action=drop comment="doctor: invalid"';
         $baris[] = 'add chain=input src-address-list=NOC action=accept comment="doctor: NOC"';
         $baris[] = 'add chain=input protocol=icmp action=accept comment="doctor: ping"';
+
+        // Gambar "sekarang vs setelah perbaikan": tiap layanan yang mendengarkan di router dan nasibnya setelah drop dipasang.
+        $jalur = [];
+        foreach ($d['service'] ?? [] as $s) {
+            $n = $s['name'] ?? '';
+            // Entri dinamis (D) = koneksi yang sedang berjalan atau port VPN (ditangani di bawah); reverse-proxy = SSTP pelanggan.
+            if (preg_match('/[XDI]/', $s['_flags']) || $n === '' || $n === 'reverse-proxy') {
+                continue;
+            }
+            $jalur[] = ['nama' => DoctorStandar::LAYANAN[$n] ?? $n, 'port' => 'tcp ' . ($s['port'] ?? '?'),
+                'kini' => ($s['address'] ?? '') === '' ? 'terbuka' : 'dibatasi', 'nanti' => 'noc'];
+        }
         if (($kv['l2tp'] ?? '') === 'true') {
             $baris[] = 'add chain=input protocol=udp dst-port=500,1701,4500 action=accept comment="doctor: L2TP/IPsec"';
             $baris[] = 'add chain=input protocol=ipsec-esp action=accept comment="doctor: IPsec"';
+            $jalur[] = ['nama' => 'L2TP/IPsec', 'port' => 'udp 500,1701,4500', 'kini' => 'terbuka', 'nanti' => 'vpn'];
         }
         if (($kv['sstp'] ?? '') === 'true') {
             $port = ctype_digit($kv['sstp-port'] ?? '') ? $kv['sstp-port'] : '443';
             $baris[] = "add chain=input protocol=tcp dst-port={$port} action=accept comment=\"doctor: SSTP\"";
+            $jalur[] = ['nama' => 'SSTP', 'port' => "tcp {$port}", 'kini' => 'terbuka', 'nanti' => 'vpn'];
         }
         // Port WireGuard terlihat dari entri dinamis /ip service ("wireguard-<nama>").
         foreach ($d['service'] ?? [] as $s) {
             if (str_starts_with($s['name'] ?? '', 'wireguard') && ctype_digit($s['port'] ?? '')) {
                 $baris[] = "add chain=input protocol=udp dst-port={$s['port']} action=accept comment=\"doctor: WireGuard\"";
+                $jalur[] = ['nama' => 'WireGuard', 'port' => "udp {$s['port']}", 'kini' => 'terbuka', 'nanti' => 'vpn'];
             }
         }
-        foreach (array_unique(array_column($publik, 'interface')) as $wan) {
-            $baris[] = "add chain=input in-interface={$wan} action=drop comment=\"doctor: drop sisa dari internet\"";
+        if (($kv['pptp'] ?? '') === 'true') {
+            $jalur[] = ['nama' => 'PPTP', 'port' => 'tcp 1723', 'kini' => 'terbuka', 'nanti' => 'tutup'];
         }
+        $wan = array_unique(array_column($publik, 'interface'));
+        foreach ($wan as $w) {
+            $baris[] = "add chain=input in-interface={$w} action=drop comment=\"doctor: drop sisa dari internet\"";
+        }
+        $ip = implode(', ', array_map(fn ($a) => $a['address'] . (isset($a['interface']) ? " di {$a['interface']}" : ''), $publik));
 
         return self::item('firewall-input', 'Keamanan', 'kritis', $judul,
-            'Router punya IP publik (' . implode(', ', array_column($publik, 'address')) . ') tetapi chain input tidak punya aturan drop menyeluruh: '
-            . 'semua layanan router terbuka ke internet. Perbaikan di bawah disusun dari layanan VPN yang aktif di router ini.',
-            implode("\n", $baris));
+            "IP publik {$ip}. Chain input " . ($input ? 'berisi ' . count($input) . ' aturan aktif, tidak satu pun yang membuang sisa lalu lintas dari internet.' : 'kosong, tidak ada aturan sama sekali.'),
+            implode("\n", $baris),
+            masalah: 'Router terbuka ke internet: firewall input tanpa aturan drop',
+            standar: 'Chain input hanya menerima koneksi balik, alamat NOC, ping, dan port VPN yang dipakai pelanggan. Sisanya dari internet di-drop. Perintah di bawah disusun dari VPN yang aktif di router ini.',
+            dampak: 'Semua layanan di router ini bisa dijangkau dari internet. Siapa pun bisa mencoba login Winbox atau SSH, menebak password, atau memakai celah RouterOS.',
+            jalur: ['wan' => implode(', ', $wan), 'noc' => $noc, 'layanan' => $jalur]);
     }
 
     private static function dnsTerbuka(array $kv, array $k, array $input, array $publik): array
@@ -310,10 +342,13 @@ final class RouterDoctor
         $wan = $publik[0]['interface'] ?? '<interface-WAN>';
 
         return self::item('dns-terbuka', 'Keamanan', 'kritis', $judul,
-            'allow-remote-requests=yes di router ber-IP publik tanpa penutup port 53: router bisa dipakai untuk serangan DNS amplification dan IP-nya masuk daftar hitam.',
+            "/ip dns allow-remote-requests=yes, router ber-IP publik ({$publik[0]['address']}), dan tidak ada aturan firewall yang menutup port 53 dari internet.",
             "/ip firewall filter add chain=input in-interface={$wan} protocol=udp dst-port=53 action=drop comment=\"doctor: tutup DNS\"\n"
             . "/ip firewall filter add chain=input in-interface={$wan} protocol=tcp dst-port=53 action=drop comment=\"doctor: tutup DNS\"\n"
-            . '# atau, kalau router tidak melayani DNS pelanggan: /ip dns set allow-remote-requests=no');
+            . '# atau, kalau router tidak melayani DNS pelanggan: /ip dns set allow-remote-requests=no',
+            masalah: 'DNS router bisa dipakai siapa saja di internet (open resolver)',
+            standar: 'DNS router hanya menjawab pelanggan di jaringan dalam. Port 53 dari internet di-drop.',
+            dampak: 'Penyerang memakai router ini untuk memperbesar serangan DDoS ke pihak lain (DNS amplification). IP Perwira lalu masuk daftar hitam dan bisa diblokir upstream.');
     }
 
     private static function bandwidthServer(array $kv, array $k, bool $terpapar): array
@@ -323,26 +358,37 @@ final class RouterDoctor
             return self::item('bandwidth-server', 'Keamanan', 'ok', $judul, 'Mati.');
         }
         $perbaikan = '/tool bandwidth-server set enabled=no';
+        $standar = 'Bandwidth test server mati, dinyalakan hanya selama uji kecepatan.';
         if (($kv['bw-auth'] ?? '') !== 'true') {
             return self::item('bandwidth-server', 'Keamanan', $terpapar ? 'kritis' : 'peringatan', $judul,
-                'Aktif tanpa autentikasi: siapa pun yang menjangkau router bisa menyedot bandwidth lewat btest.', $perbaikan);
+                '/tool bandwidth-server enabled=yes, authenticate=no.' . ($terpapar ? ' Router ini terbuka ke internet.' : ''), $perbaikan,
+                masalah: 'Bandwidth test server menyala tanpa password',
+                standar: $standar,
+                dampak: 'Siapa pun yang bisa menjangkau router dapat menjalankan btest ke sini dan menghabiskan bandwidth uplink.');
         }
 
         return self::item('bandwidth-server', 'Keamanan', $k['publik'] ? 'info' : 'ok', $judul,
-            'Aktif dengan autentikasi.' . ($k['publik'] ? ' Matikan kalau tidak rutin dipakai.' : ''), $k['publik'] ? $perbaikan : null);
+            $k['publik'] ? '/tool bandwidth-server enabled=yes, authenticate=yes.' : 'Aktif dengan autentikasi.', $k['publik'] ? $perbaikan : null,
+            masalah: $k['publik'] ? 'Bandwidth test server menyala' : null,
+            standar: $k['publik'] ? $standar : null,
+            dampak: $k['publik'] ? 'Sudah berpassword, tapi tetap satu layanan lagi yang menerima koneksi dari luar. Matikan kalau tidak rutin dipakai.' : null);
     }
 
     private static function proxyTerbuka(array $kv, bool $terpapar): array
     {
         $judul = 'SOCKS dan web proxy mati';
+        $nama = ['socks' => 'SOCKS (/ip socks)', 'proxy' => 'web proxy (/ip proxy)'];
         $nyala = array_keys(array_filter(['socks' => $kv['socks'] ?? '', 'proxy' => $kv['proxy'] ?? ''], fn ($v) => $v === 'true'));
         if (!$nyala) {
             return self::item('proxy', 'Keamanan', 'ok', $judul, 'Keduanya mati.');
         }
 
         return self::item('proxy', 'Keamanan', $terpapar ? 'kritis' : 'peringatan', $judul,
-            'Aktif: ' . implode(', ', $nyala) . '. Proxy terbuka dipakai orang lain untuk spam/serangan atas nama IP Perwira.',
-            implode("\n", array_map(fn ($n) => "/ip {$n} set enabled=no", $nyala)));
+            'Menyala: ' . implode(' dan ', array_map(fn ($n) => $nama[$n], $nyala)) . '.' . ($terpapar ? ' Router ini terbuka ke internet.' : ''),
+            implode("\n", array_map(fn ($n) => "/ip {$n} set enabled=no", $nyala)),
+            masalah: 'SOCKS atau web proxy menyala',
+            standar: '/ip socks dan /ip proxy mati.',
+            dampak: 'Proxy yang bisa dijangkau dari luar dipakai orang untuk spam dan serangan. Yang tercatat di log korban adalah IP Perwira.');
     }
 
     private static function snmp(array $komunitas): array
@@ -356,8 +402,11 @@ final class RouterDoctor
         $nama = array_column($longgar, 'name');
 
         return self::item('snmp', 'Keamanan', 'peringatan', $judul,
-            'Community terlalu longgar: ' . implode(', ', $nama) . ' (nama "public" atau address terbuka). Isinya membocorkan topologi dan trafik.',
-            implode("\n", array_map(fn ($n) => "/snmp community set [find name=\"{$n}\"] addresses=<IP-NMS>", $nama)));
+            'Community terlalu longgar: ' . implode(', ', array_map(fn ($c) => ($c['name'] ?? '?') . ' (addresses=' . (($c['addresses'] ?? '') ?: 'kosong') . ')', $longgar)) . '.',
+            implode("\n", array_map(fn ($n) => "/snmp community set [find name=\"{$n}\"] addresses=<IP-NMS>", $nama)),
+            masalah: 'SNMP community terlalu longgar',
+            standar: 'Setiap community bernama selain "public", dan addresses diisi IP server monitoring (NMS).',
+            dampak: 'Siapa pun yang menebak nama community bisa membaca daftar interface, IP, rute, dan grafik trafik router.');
     }
 
     private static function macDanNeighbor(array $kv, array $k): array
@@ -368,6 +417,7 @@ final class RouterDoctor
             'mac-winbox' => '/tool mac-server mac-winbox set allowed-interface-list=none',
             'neighbor'   => '/ip neighbor discovery-settings set discover-interface-list=none',
         ];
+        $nama = ['mac-telnet' => 'MAC Telnet', 'mac-winbox' => 'MAC Winbox', 'neighbor' => 'neighbor discovery'];
         $semua = array_keys(array_filter($setelan, fn ($_, $kunci) => ($kv[$kunci] ?? '') === 'all', ARRAY_FILTER_USE_BOTH));
         if (!$semua || !$k['publik']) {
             return self::item('mac-neighbor', 'Keamanan', 'ok', $judul,
@@ -375,21 +425,30 @@ final class RouterDoctor
         }
 
         return self::item('mac-neighbor', 'Keamanan', 'peringatan', $judul,
-            'Aktif di semua interface: ' . implode(', ', $semua) . '. Di segmen bersama (VLAN datacenter/upstream) perangkat lain bisa melihat dan me-Winbox router lewat MAC. '
-            . 'Ganti "none" dengan interface list LAN kalau masih butuh akses MAC dari dalam.',
-            implode("\n", array_map(fn ($kunci) => $setelan[$kunci], $semua)));
+            'Bernilai "all" (aktif di semua interface, termasuk WAN): ' . implode(', ', array_map(fn ($kunci) => $nama[$kunci], $semua)) . '.',
+            implode("\n", array_map(fn ($kunci) => $setelan[$kunci], $semua)),
+            masalah: 'MAC Winbox atau neighbor discovery aktif di semua interface',
+            standar: 'Interface list "none", atau interface list LAN kalau akses lewat MAC dari dalam masih dibutuhkan.',
+            dampak: 'Perangkat lain di segmen yang sama (VLAN datacenter, upstream) bisa melihat router ini dan membuka Winbox lewat MAC, tanpa melewati firewall IP.');
     }
 
     private static function vpn(array $kv): ?array
     {
+        $judul = 'Server VPN memakai protokol yang aman';
         if (($kv['pptp'] ?? '') === 'true') {
-            return self::item('vpn', 'VPN', 'peringatan', 'Server VPN memakai protokol yang aman',
-                'PPTP server aktif. Enkripsinya (MPPE/MS-CHAPv2) sudah bisa dibobol; pindahkan klien ke L2TP/IPsec, SSTP, atau WireGuard.',
-                '/interface pptp-server server set enabled=no');
+            return self::item('vpn', 'VPN', 'peringatan', $judul,
+                '/interface pptp-server enabled=yes.',
+                '/interface pptp-server server set enabled=no',
+                masalah: 'Server PPTP masih menyala',
+                standar: 'VPN memakai L2TP/IPsec, SSTP, atau WireGuard. PPTP mati. Pindahkan klien dulu sebelum mematikannya.',
+                dampak: 'Enkripsi PPTP (MS-CHAPv2) sudah bisa dibobol dalam hitungan jam: password dan isi tunnel bisa dibaca.');
         }
         if (($kv['l2tp'] ?? '') === 'true' && ($kv['l2tp-ipsec'] ?? '') === 'no') {
-            return self::item('vpn', 'VPN', 'info', 'Server VPN memakai protokol yang aman',
-                'L2TP tanpa IPsec: lalu lintas tunnel tidak terenkripsi. Wajar untuk layanan IP publik yang mengutamakan kompatibilitas, tapi jangan untuk akses manajemen.');
+            return self::item('vpn', 'VPN', 'info', $judul,
+                '/interface l2tp-server enabled=yes, use-ipsec=no.',
+                masalah: 'L2TP berjalan tanpa IPsec',
+                standar: 'Wajar untuk layanan IP publik pelanggan yang mengutamakan kompatibilitas. Untuk akses manajemen pakai L2TP dengan IPsec, SSTP, atau WireGuard.',
+                dampak: 'Isi tunnel tidak dienkripsi: siapa pun di jalur internet antara klien dan router bisa membacanya.');
         }
 
         return null;
@@ -406,22 +465,29 @@ final class RouterDoctor
         $judul = 'RouterOS versi terbaru di kanalnya';
         if ($kanalStandar !== 'ikuti' && $kanal !== $kanalStandar && in_array($kanal, ['long-term', 'stable', 'testing', 'development'], true)) {
             return self::item('versi', 'Sistem', 'peringatan', $judul,
-                "Terpasang {$v} di kanal {$kanal}; standar Perwira memakai kanal {$kanalStandar}. "
-                . 'Ganti kanal lalu periksa pembaruan; pindah ke versi yang lebih lama butuh /system package downgrade.',
-                "/system package update set channel={$kanalStandar}\n/system package update check-for-updates");
+                "Terpasang {$v} di kanal {$kanal}.",
+                "/system package update set channel={$kanalStandar}\n/system package update check-for-updates",
+                masalah: 'RouterOS di kanal yang berbeda dari standar',
+                standar: "Kanal {$kanalStandar}. Kalau versi di kanal itu lebih lama, pindahnya lewat /system package downgrade.",
+                dampak: 'Kanal menentukan seberapa cepat perbaikan datang dan seberapa stabil versinya. Router di kanal berbeda sulit diseragamkan.');
         }
         $baru = $terbaru[($k['mayor'] >= 7 ? 'a7.' : '6.') . $kanal] ?? null;
         if (!$baru) {
-            return self::item('versi', 'Sistem', 'info', $judul, "Terpasang {$v} ({$kanal}); versi terbaru tidak bisa dicek dari server MikroTik.");
+            return self::item('versi', 'Sistem', 'info', $judul, "Terpasang {$v} ({$kanal}). Versi terbaru tidak bisa dicek dari server MikroTik.",
+                masalah: 'Versi terbaru RouterOS tidak bisa dicek');
         }
-        $catatanV6 = $k['mayor'] < 7 ? ' RouterOS 6 tinggal menerima perbaikan; rencanakan migrasi ke v7.' : '';
+        $catatanV6 = $k['mayor'] < 7 ? 'RouterOS 6 tinggal menerima perbaikan kecil; fitur dan perbaikan keamanan baru hanya ada di v7. Rencanakan migrasi.' : '';
         if (version_compare($v, $baru, '>=')) {
-            return self::item('versi', 'Sistem', $catatanV6 ? 'info' : 'ok', $judul, "Terpasang {$v}, sudah terbaru di kanal {$kanal}.{$catatanV6}");
+            return self::item('versi', 'Sistem', $catatanV6 ? 'info' : 'ok', $judul, "Terpasang {$v}, sudah terbaru di kanal {$kanal}.",
+                masalah: $catatanV6 ? 'Masih RouterOS 6' : null, standar: $catatanV6 ? 'RouterOS 7.' : null, dampak: $catatanV6 ?: null);
         }
 
         return self::item('versi', 'Sistem', 'peringatan', $judul,
-            "Terpasang {$v}, terbaru di kanal {$kanal}: {$baru}. Pembaruan biasanya memuat perbaikan keamanan.{$catatanV6} Pasang di luar jam sibuk karena router akan reboot.",
-            "/system package update set channel={$kanal}\n/system package update install");
+            "Terpasang {$v}. Terbaru di kanal {$kanal}: {$baru}.",
+            "/system package update set channel={$kanal}\n/system package update install",
+            masalah: 'RouterOS belum versi terbaru',
+            standar: "Versi terbaru di kanal {$kanal}.",
+            dampak: trim("Pembaruan memuat perbaikan celah keamanan dan bug. Router reboot saat dipasang, jadi kerjakan di luar jam sibuk. {$catatanV6}"));
     }
 
     private static function ntp(array $kv, array $k, array $server): array
@@ -430,11 +496,15 @@ final class RouterDoctor
         if (($kv['ntp'] ?? '') === 'true') {
             return self::item('ntp', 'Sistem', 'ok', $judul, 'NTP client aktif.');
         }
+        $server = $server ?: DoctorStandar::BAWAAN['ntp'];
 
         return self::item('ntp', 'Sistem', 'peringatan', $judul,
-            'NTP client mati: jam meleset membuat log, jadwal script, dan validasi sertifikat (SSTP) salah.',
+            '/system ntp client enabled=no.',
             ($k['mayor'] >= 7 ? '/system ntp client set enabled=yes servers=' : '/system ntp client set enabled=yes server-dns-names=')
-            . implode(',', $server ?: DoctorStandar::BAWAAN['ntp']));
+            . implode(',', $server),
+            masalah: 'Jam router tidak disinkronkan',
+            standar: 'NTP client aktif ke ' . implode(', ', $server) . '.',
+            dampak: 'Jam router meleset. Waktu di log tidak cocok saat menelusuri gangguan, script terjadwal jalan di jam yang salah, dan SSTP bisa gagal karena sertifikat dianggap kedaluwarsa.');
     }
 
     private static function sumberDaya(array $kv, int $cpuMaks = 80, int $ramMin = 10, int $diskMin = 10): ?array
@@ -452,9 +522,23 @@ final class RouterDoctor
             $disk !== null && $disk < $diskMin ? "disk bebas {$disk}% (minimal {$diskMin}%)" : null,
         ]);
         $detail = "CPU {$kv['cpu']}%, RAM bebas " . ($ram ?? '?') . '%, disk bebas ' . ($disk ?? '?') . '%.';
+        if (!$masalah) {
+            return self::item('sumber-daya', 'Sistem', 'ok', 'CPU, RAM, dan disk cukup longgar', $detail);
+        }
 
-        return self::item('sumber-daya', 'Sistem', $masalah ? 'peringatan' : 'ok', 'CPU, RAM, dan disk cukup longgar',
-            $masalah ? 'Menipis: ' . implode(', ', $masalah) . ". {$detail}" : $detail);
+        // Batang: CPU dinilai dari yang terpakai (maksimal), RAM & disk dari yang bebas (minimal).
+        $meter = array_values(array_filter([
+            ['label' => 'CPU terpakai', 'nilai' => (int) $kv['cpu'], 'batas' => $cpuMaks, 'arah' => 'maks'],
+            $ram === null ? null : ['label' => 'RAM bebas', 'nilai' => $ram, 'batas' => $ramMin, 'arah' => 'min'],
+            $disk === null ? null : ['label' => 'Disk bebas', 'nilai' => $disk, 'batas' => $diskMin, 'arah' => 'min'],
+        ]));
+
+        return self::item('sumber-daya', 'Sistem', 'peringatan', 'CPU, RAM, dan disk cukup longgar',
+            'Menipis: ' . implode(', ', $masalah) . ". Lengkapnya: {$detail}",
+            masalah: 'CPU, RAM, atau disk router menipis',
+            standar: "CPU di bawah {$cpuMaks}%, RAM bebas minimal {$ramMin}%, disk bebas minimal {$diskMin}%.",
+            dampak: 'CPU atau RAM yang habis membuat ping naik dan paket hilang di jam sibuk. Disk penuh membuat backup dan pembaruan RouterOS gagal.',
+            meter: $meter);
     }
 
     private static function ruteDefault(array $kv): ?array
@@ -466,7 +550,10 @@ final class RouterDoctor
         return (int) $kv['default-route'] > 0
             ? self::item('rute-default', 'Sistem', 'ok', 'Ada rute default yang aktif', 'Rute 0.0.0.0/0 aktif.')
             : self::item('rute-default', 'Sistem', 'info', 'Ada rute default yang aktif',
-                'Tidak ada rute 0.0.0.0/0 yang aktif: router tidak bisa ke internet (cek pembaruan, NTP, DNS). Abaikan kalau memang disengaja.');
+                'Tidak ada rute 0.0.0.0/0 yang berstatus active.',
+                masalah: 'Tidak ada rute default yang aktif',
+                standar: 'Ada satu rute default aktif, kecuali router ini memang sengaja tanpa internet.',
+                dampak: 'Router sendiri tidak bisa ke internet: cek pembaruan, NTP, dan DNS dari router gagal.');
     }
 
     // ─── CHR ─────────────────────────────────────────────────────────────────
@@ -475,22 +562,29 @@ final class RouterDoctor
     {
         $level = $kv['license'] ?? '?';
         $judul = $minimal === 'p1' ? 'Lisensi CHR berbayar (P1 ke atas)' : 'Lisensi CHR minimal ' . strtoupper($minimal);
+        $batas = ['free' => '1 Mbps', 'p1' => '1 Gbps', 'p10' => '10 Gbps'];
+        $standar = 'Minimal ' . strtoupper($minimal) . (isset($batas[$minimal]) ? " (batas {$batas[$minimal]} per interface)." : ' (tanpa batas kecepatan).');
+        $perbaikan = "/system license renew account=<akun-mikrotik> password=<password> level={$minimal}";
         $urutan = DoctorStandar::LISENSI;
         // Berbayar tapi di bawah minimal standar (mis. P1 saat standar P10): perhatian, bukan kritis.
         if (isset($urutan[$level]) && $level !== 'free' && $urutan[$level] < $urutan[$minimal]) {
             return self::item('lisensi', 'CHR', 'peringatan', $judul,
-                'Lisensi ' . strtoupper($level) . ', standar Perwira minimal ' . strtoupper($minimal) . '.',
-                "/system license renew account=<akun-mikrotik> password=<password> level={$minimal}");
+                'Lisensi ' . strtoupper($level) . " (batas {$batas[$level]} per interface).", $perbaikan,
+                masalah: 'Lisensi CHR di bawah standar',
+                standar: $standar,
+                dampak: "Trafik di atas {$batas[$level]} per interface dipotong lisensi, walau server dan uplink mampu lebih.");
         }
 
         return match ($level) {
-            'free' => self::item('lisensi', 'CHR', 'kritis', $judul,
-                'Lisensi free membatasi upload 1 Mbps per interface: pelanggan di belakang CHR ini praktis tidak bisa dipakai.',
-                "/system license renew account=<akun-mikrotik> password=<password> level={$minimal}"),
+            'free' => self::item('lisensi', 'CHR', 'kritis', $judul, 'Lisensi free (batas 1 Mbps per interface).', $perbaikan,
+                masalah: 'CHR memakai lisensi free',
+                standar: $standar,
+                dampak: 'Lisensi free membatasi kecepatan 1 Mbps per interface: pelanggan di belakang CHR ini praktis tidak bisa dipakai.'),
             'p1' => self::item('lisensi', 'CHR', 'ok', $judul, 'Lisensi P1 (batas 1 Gbps per interface).'),
             'p10' => self::item('lisensi', 'CHR', 'ok', $judul, 'Lisensi P10 (batas 10 Gbps per interface).'),
             'unlimited', 'p-unlimited' => self::item('lisensi', 'CHR', 'ok', $judul, 'Lisensi unlimited.'),
-            default => self::item('lisensi', 'CHR', 'info', $judul, "Level lisensi tidak terbaca ({$level}); cek /system license print."),
+            default => self::item('lisensi', 'CHR', 'info', $judul, "Level lisensi terbaca \"{$level}\". Cek manual dengan /system license print.",
+                masalah: 'Level lisensi CHR tidak terbaca'),
         };
     }
 
@@ -505,8 +599,11 @@ final class RouterDoctor
         }
 
         return self::item('mss', 'PPPoE', 'peringatan', $judul,
-            'change-tcp-mss=no di profil: ' . implode(', ', $tanpa) . '. MTU PPPoE lebih kecil dari Ethernet; tanpa MSS clamping sebagian situs (HTTPS, aplikasi) menggantung saat dibuka.',
-            implode("\n", array_map(fn ($n) => "/ppp profile set [find name=\"{$n}\"] change-tcp-mss=yes", $tanpa)));
+            'change-tcp-mss=no di profil: ' . implode(', ', $tanpa) . '.',
+            implode("\n", array_map(fn ($n) => "/ppp profile set [find name=\"{$n}\"] change-tcp-mss=yes", $tanpa)),
+            masalah: 'Profil PPP tanpa MSS clamping',
+            standar: 'change-tcp-mss=yes (atau default) di semua profil PPP.',
+            dampak: 'MTU PPPoE lebih kecil dari Ethernet (1500). Tanpa MSS clamping, sebagian situs dan aplikasi (HTTPS, m-banking) macet saat dibuka walau ping lancar. Keluhan khasnya "bisa WhatsApp tapi web tertentu tidak kebuka".');
     }
 
     private static function satuSesi(array $server): array
@@ -519,8 +616,11 @@ final class RouterDoctor
         }
 
         return self::item('satu-sesi', 'PPPoE', 'peringatan', $judul,
-            'one-session-per-host=no di server: ' . implode(', ', $longgar) . '. Router pelanggan yang reconnect bisa meninggalkan sesi ganda yang memakan IP pool dan memecah limit.',
-            '/interface pppoe-server server set [find] one-session-per-host=yes');
+            'one-session-per-host=no di PPPoE server: ' . implode(', ', $longgar) . '.',
+            '/interface pppoe-server server set [find] one-session-per-host=yes',
+            masalah: 'PPPoE server mengizinkan sesi ganda per perangkat',
+            standar: 'one-session-per-host=yes di semua PPPoE server.',
+            dampak: 'Saat router pelanggan reconnect, sesi lamanya bisa tertinggal. Sesi ganda memakan IP pool dan membuat limit kecepatan pelanggan terpecah.');
     }
 
     private static function radius(array $kv, string $interim = '5m'): array
@@ -528,13 +628,19 @@ final class RouterDoctor
         $judul = 'PPP RADIUS lengkap';
         if ((int) ($kv['radius'] ?? 0) === 0) {
             return self::item('radius', 'PPPoE', 'kritis', $judul,
-                'use-radius=yes tetapi tidak ada server RADIUS: pelanggan yang tidak punya secret lokal gagal login.',
-                '/radius add service=ppp address=<IP-RADIUS> secret=<secret>');
+                '/ppp aaa use-radius=yes, tetapi daftar /radius kosong.',
+                '/radius add service=ppp address=<IP-RADIUS> secret=<secret>',
+                masalah: 'PPP memakai RADIUS tapi server RADIUS belum diisi',
+                standar: 'Ada minimal satu server di /radius dengan service=ppp.',
+                dampak: 'Pelanggan yang tidak punya secret lokal di router gagal login PPPoE.');
         }
         if (in_array($kv['interim'] ?? '', ['00:00:00', '0s'], true)) {
             return self::item('radius', 'PPPoE', 'info', $judul,
-                'interim-update=0: RADIUS hanya tahu sesi mulai/selesai, pemakaian & status online tidak diperbarui berkala.',
-                "/ppp aaa set interim-update={$interim}");
+                '/ppp aaa interim-update=0 (mati).',
+                "/ppp aaa set interim-update={$interim}",
+                masalah: 'RADIUS tanpa interim-update',
+                standar: "interim-update={$interim}.",
+                dampak: 'RADIUS hanya tahu kapan sesi mulai dan selesai. Status online dan pemakaian pelanggan tidak diperbarui selama sesi berjalan.');
         }
 
         return self::item('radius', 'PPPoE', 'ok', $judul, 'RADIUS terpasang dan interim-update aktif.');
@@ -543,15 +649,27 @@ final class RouterDoctor
     private static function fasttrack(array $kv): array
     {
         $judul = 'FastTrack tidak melewati limit bandwidth';
-        $limit = (int) ($kv['queues'] ?? 0) > 0 || ($kv['radius-ppp'] ?? '') === 'true';
+        $limit = array_filter([
+            (int) ($kv['queues'] ?? 0) > 0 ? "{$kv['queues']} simple queue" : null,
+            ($kv['radius-ppp'] ?? '') === 'true' ? 'limit PPP dari RADIUS' : null,
+        ]);
         if (!$limit) {
             return self::item('fasttrack', 'Sistem', 'ok', $judul, 'FastTrack aktif dan tidak ada queue yang bisa terlewati.');
         }
 
         return self::item('fasttrack', 'Sistem', 'peringatan', $judul,
-            'FastTrack aktif bersama queue/limit pelanggan. Paket yang di-fasttrack melewati queue, sehingga limit bisa tidak berlaku. '
-            . 'Matikan, atau batasi fasttrack hanya untuk trafik yang memang tidak perlu dilimit.',
-            '/ip firewall filter disable [find action=fasttrack-connection]');
+            "{$kv['fasttrack']} aturan fasttrack-connection aktif, bersama " . implode(' dan ', $limit) . '.',
+            '/ip firewall filter disable [find action=fasttrack-connection]',
+            masalah: 'FastTrack bisa melewati limit pelanggan',
+            standar: 'FastTrack mati, atau dibatasi hanya untuk trafik yang memang tidak perlu dilimit.',
+            dampak: 'Paket yang di-fasttrack tidak melewati queue. Pelanggan bisa mendapat kecepatan di atas paketnya, dan pemakaian tidak terhitung adil.');
+    }
+
+    /** "winbox (tcp 8291), ssh (tcp 22)" dari /ip service. */
+    private static function daftarPort(array $nama, array $layanan): string
+    {
+        return implode(', ', array_map(fn ($n) => (DoctorStandar::LAYANAN[$n] ?? $n)
+            . (isset($layanan[$n]['port']) ? " (tcp {$layanan[$n]['port']})" : ''), $nama));
     }
 
     // ─── Pembantu ────────────────────────────────────────────────────────────
@@ -612,8 +730,15 @@ final class RouterDoctor
         return (ip2long($ip) & 0xFFC00000) !== ip2long('100.64.0.0');
     }
 
-    private static function item(string $id, string $kategori, string $status, string $judul, string $detail, ?string $perbaikan = null): array
+    /**
+     * judul = bunyi standarnya (dipakai saat lolos), masalah = bunyi pelanggarannya (judul temuan & "utama"),
+     * detail = apa yang terbaca di router ini, standar = yang diminta Perwira, dampak = akibatnya kalau dibiarkan.
+     * jalur/meter = data gambar di panel Doctor.
+     */
+    private static function item(string $id, string $kategori, string $status, string $judul, string $detail, ?string $perbaikan = null,
+        ?string $masalah = null, ?string $standar = null, ?string $dampak = null, ?array $jalur = null, ?array $meter = null): array
     {
-        return array_filter(compact('id', 'kategori', 'status', 'judul', 'detail', 'perbaikan'), fn ($v) => $v !== null);
+        return array_filter(compact('id', 'kategori', 'status', 'judul', 'masalah', 'detail', 'standar', 'dampak', 'perbaikan', 'jalur', 'meter'),
+            fn ($v) => $v !== null);
     }
 }

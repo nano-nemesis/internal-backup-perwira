@@ -124,7 +124,7 @@ class TelegramNotifier
             return;
         }
         // Judul dibersihkan dari karakter Markdown supaya Telegram tidak menolak pesannya.
-        $daftar = implode("\n", array_map(fn ($c) => '• ' . str_replace(['*', '_', '`', '['], '', $c['judul']), $temuan));
+        $daftar = implode("\n", array_map(fn ($c) => '• ' . str_replace(['*', '_', '`', '['], '', $c['masalah'] ?? $c['judul']), $temuan));
 
         $this->send("🩺 *Doctor: temuan kritis baru*\n\n"
             . "📦 Node: `{$node->name}`\n🖥 Host: `{$node->host}`\n\n"

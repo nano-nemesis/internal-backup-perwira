@@ -5,6 +5,18 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.10.0',
+    tanggal: '2026-10-22',
+    judul: 'Doctor lebih mudah dipahami',
+    poin: [
+      'Setiap temuan Doctor sekarang ditulis sebagai masalahnya, misalnya "Router terbuka ke internet: firewall input tanpa aturan drop", bukan lagi bunyi standarnya.',
+      'Rincian temuan dibagi jelas: apa yang terbaca di router ini, apa yang diminta standar Perwira, akibatnya kalau dibiarkan, lalu perintah perbaikannya.',
+      'Gambar alur internet ke router untuk temuan firewall: layanan mana yang sekarang terbuka untuk siapa saja, dan bagaimana keadaannya setelah perbaikan.',
+      'Batang CPU, RAM, dan disk dengan garis batas standar saat sumber daya menipis.',
+      'Arti tingkat Kritis, Perhatian, dan Info ditampilkan di halaman Doctor. Notifikasi Telegram juga memakai kalimat masalah yang baru.',
+    ],
+  },
+  {
     versi: '1.9.1',
     tanggal: '2026-10-21',
     judul: 'Perbaikan tampilan di HP',

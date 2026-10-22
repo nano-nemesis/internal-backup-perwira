@@ -215,9 +215,17 @@ export interface DoctorCek {
   id: string
   kategori: string
   status: DoctorStatus
+  /** Bunyi standarnya, dipakai saat lolos. */
   judul: string
+  /** Bunyi pelanggarannya. Laporan lama (sebelum v1.10) tidak punya, pakai judul. */
+  masalah?: string
+  /** Yang terbaca di router ini. */
   detail: string
+  standar?: string
+  dampak?: string
   perbaikan?: string
+  jalur?: { wan: string; noc: string; layanan: { nama: string; port: string; kini: 'terbuka' | 'dibatasi'; nanti: 'noc' | 'vpn' | 'tutup' }[] }
+  meter?: { label: string; nilai: number; batas: number; arah: 'maks' | 'min' }[]
 }
 
 /** Laporan doctor (App\Support\RouterDoctor). `galat` terisi kalau router tak terjangkau. */

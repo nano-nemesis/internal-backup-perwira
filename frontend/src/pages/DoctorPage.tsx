@@ -3,7 +3,7 @@ import { useNodes, useRunDoctorAll } from '../hooks/useNodes'
 import { useAuth } from '../context/AuthContext'
 import { Button } from '../components/ui/button'
 import { toast } from '../components/ui/toaster'
-import { PeranBadges, hitungDoctor } from '../components/nodes/DoctorPanel'
+import { ArtiStatus, PeranBadges, hitungDoctor } from '../components/nodes/DoctorPanel'
 import { cn, formatDatetimeWIB } from '../lib/utils'
 import { Hitung } from '../components/ui/hitung'
 
@@ -60,9 +60,10 @@ export default function DoctorPage() {
         <div className="max-w-3xl">
           <h1 className="text-[28px] leading-tight font-extrabold text-[#0F172A]">Doctor</h1>
           <p className="text-sm text-[#475569] mt-1">
-            Kesehatan konfigurasi router MikroTik terhadap{' '}
-            <Link to="/doctor/standar" className="font-semibold text-[#3442D9] hover:underline">standar Perwira</Link>: keamanan,
-            lisensi CHR, PPPoE, VPN/IP publik, dan sistem. Diperbarui otomatis setiap backup.
+            Doctor memeriksa konfigurasi setiap router MikroTik terhadap{' '}
+            <Link to="/doctor/standar" className="font-semibold text-[#3442D9] hover:underline">standar Perwira</Link> (keamanan,
+            lisensi CHR, PPPoE, VPN, dan sistem), lalu menuliskan apa yang salah, akibatnya, dan perintah perbaikannya.
+            Buka router untuk melihat rinciannya. Hasil diperbarui setiap backup berhasil.
           </p>
         </div>
         {isOperator && (
@@ -89,7 +90,7 @@ export default function DoctorPage() {
         <section className="card p-5 md:p-6 space-y-3.5">
           <div>
             <h2 className="text-lg font-bold">Temuan utama terbanyak</h2>
-            <p className="text-[13px] text-[#475569] mt-1">Masalah paling berat tiap router, dikelompokkan</p>
+            <p className="text-[13px] text-[#475569] mt-1">Masalah paling berat di tiap router, dikelompokkan. Angka di kanan = jumlah router.</p>
           </div>
           {terbanyak.map(([teks, jml]) => (
             <div key={teks}>
@@ -104,6 +105,11 @@ export default function DoctorPage() {
           ))}
         </section>
       )}
+
+      <section className="card p-5 md:p-6 space-y-2.5">
+        <h2 className="text-[15px] font-bold">Arti tingkat temuan</h2>
+        <ArtiStatus />
+      </section>
 
       <section className="card divide-y divide-[#EEF0F6] overflow-hidden">
         {isLoading && <p className="p-5 text-sm text-[#475569] animate-pulse">Memuat…</p>}
