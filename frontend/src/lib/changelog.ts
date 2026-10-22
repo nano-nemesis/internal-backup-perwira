@@ -5,6 +5,12 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.12.1',
+    tanggal: '2026-10-22',
+    judul: 'Zona waktu lebih jelas',
+    poin: ['Zona manual ditulis sebagai UTC+07:00 atau UTC+00:00, bukan angka detik dari router.'],
+  },
+  {
     versi: '1.12.0',
     tanggal: '2026-10-22',
     judul: 'Doctor: empat pemeriksaan standar armada',

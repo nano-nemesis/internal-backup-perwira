@@ -604,13 +604,13 @@ final class RouterDoctor
         // Zona manual (mis. +07:00) yang offset-nya sama dengan standar dianggap setara.
         $router = $nama === 'manual' ? self::offsetTeks($kv['tz-offset'] ?? '') : self::offset($nama);
         if ($nama === $zona || ($nama === 'manual' && $router === $standar)) {
-            return self::item('zona-waktu', 'Sistem', 'ok', $judul, $nama === 'manual' ? "Zona manual {$kv['tz-offset']}, sama dengan {$zona}." : "time-zone-name={$nama}.");
+            return self::item('zona-waktu', 'Sistem', 'ok', $judul, $nama === 'manual' ? 'Zona manual ' . self::utc($router) . ", sama dengan {$zona}." : "time-zone-name={$nama}.");
         }
         $selisih = $router === null || $standar === null || $router === $standar ? ''
             : ' Jam router ' . self::durasi(abs($router - $standar)) . ($router > $standar ? ' lebih maju' : ' lebih lambat') . " dari {$zona}.";
 
         return self::item('zona-waktu', 'Sistem', 'peringatan', $judul,
-            "time-zone-name={$nama}" . ($nama === 'manual' ? " (gmt-offset {$kv['tz-offset']})" : '') . ".{$selisih}",
+            "time-zone-name={$nama}" . ($nama === 'manual' ? ' (' . self::utc($router) . ')' : '') . ".{$selisih}",
             "/system clock set time-zone-autodetect=no time-zone-name={$zona}",
             masalah: 'Zona waktu router berbeda dari standar',
             standar: "time-zone-name={$zona}, autodetect dimatikan supaya tidak berubah mengikuti lokasi IP.",
@@ -825,6 +825,12 @@ final class RouterDoctor
         }
 
         return null;
+    }
+
+    /** 25200 → "UTC+07:00" */
+    private static function utc(?int $detik): string
+    {
+        return $detik === null ? 'offset tak terbaca' : 'UTC' . ($detik < 0 ? '-' : '+') . gmdate('H:i', abs($detik));
     }
 
     /** 12600 → "3 jam 30 menit" */

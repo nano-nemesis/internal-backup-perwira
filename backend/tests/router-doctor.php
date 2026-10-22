@@ -135,7 +135,7 @@ socks=false
 proxy=false
 snmp=true
 tz-name=manual
-tz-offset=+07:00
+tz-offset=25200
 mac-telnet=LAN
 mac-winbox=LAN
 neighbor=LAN
@@ -211,6 +211,10 @@ $harap('chrIpPublik-armada', $a, ['snmp' => 'ok', 'winbox-port' => 'ok', 'zona-w
 $akun = D::periksa(D::parse(str_replace(["radius=0\n", "interim=00:00:00\n"], ["radius=1\n", "interim=00:00:00\nradius-acct=false\n"], $chrPppoe)), $terbaru);
 $harap('accounting', $akun, ['radius' => 'info']);
 if ((array_column($akun['cek'], 'masalah', 'id')['radius'] ?? '') !== 'RADIUS accounting mati') $gagal[] = 'accounting: temuan salah';
+$utc = D::periksa(D::parse(str_replace("tz-name=Asia/Tehran\n", "tz-name=manual\ntz-offset=0\n", $chrPppoe)), $terbaru);
+if ((array_column($utc['cek'], 'detail', 'id')['zona-waktu'] ?? '') !== 'time-zone-name=manual (UTC+00:00). Jam router 7 jam lebih lambat dari Asia/Jakarta.') {
+    $gagal[] = 'zona UTC: ' . (array_column($utc['cek'], 'detail', 'id')['zona-waktu'] ?? '-');
+}
 $harap('standar-armada', D::periksa(D::parse($chrPppoe), $terbaru, ['winbox_port' => 8291, 'zona_waktu' => 'Asia/Tehran']),
     ['winbox-port' => 'ok', 'zona-waktu' => 'ok']);
 if (!str_contains($perbaikan($b, 'layanan-polos'), '[find name=ftp]') || str_contains($perbaikan($b, 'layanan-polos'), 'telnet')) {
