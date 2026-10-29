@@ -5,6 +5,12 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.14.1',
+    tanggal: '2026-10-29',
+    judul: 'Node satu database ikut mencoba ulang saat login macet',
+    poin: ['Backup satu database yang tidak menerima data sama sekali dalam 30 detik kini dicoba ulang sampai lima kali, sama seperti mode semua database. Galat lain, seperti password salah atau database tidak ada, tetap langsung gagal tanpa diulang.'],
+  },
+  {
     versi: '1.14.0',
     tanggal: '2026-10-29',
     judul: 'Backup database bisa dibatalkan',

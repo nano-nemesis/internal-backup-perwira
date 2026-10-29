@@ -74,6 +74,8 @@ class DatabaseBackupService
 
     private const PUTARAN_ULANG = 5;
 
+    private const PESAN_MACET = 'kemungkinan login ke server macet';
+
     /**
      * @param ?\Closure(string): void $tahap dipanggil setiap pindah tahap, untuk tampilan realtime
      * @param ?\Closure(): ?string $batal nama yang meminta pembatalan, null = lanjut;
@@ -103,12 +105,16 @@ class DatabaseBackupService
         // Satu database lewat jalur yang sama dengan mode semua: ikut bisa dibatalkan
         // dan ikut dijaga MACET_LOGIN. Timeout di bawah BackupJob::$timeout (300)
         // supaya error-nya jelas, bukan job terbunuh.
-        $gagal = $this->dumpParalel(
-            $node, [(string) $node->db_name => $localPath],
-            $node->ssh_user ? $this->buildSsh($node) : null,
-            $node->ssh_user ? config('backup.ssh_timeout', 120) : 280,
-            $batal,
-        );
+        $tugas = [(string) $node->db_name => $localPath];
+        $ssh = $node->ssh_user ? $this->buildSsh($node) : null;
+        $timeout = $node->ssh_user ? config('backup.ssh_timeout', 120) : 280;
+        $gagal = $this->dumpParalel($node, $tugas, $ssh, $timeout, $batal);
+        // Ulang hanya untuk login macet: galat lain (password salah, DB tidak ada)
+        // akan sama persis kalau diulang.
+        for ($putaran = 1; $gagal && str_contains(reset($gagal), self::PESAN_MACET) && $putaran <= self::PUTARAN_ULANG; $putaran++) {
+            sleep(10);
+            $gagal = $this->dumpParalel($node, $tugas, $ssh, $timeout, $batal);
+        }
         if ($gagal) {
             throw new \RuntimeException(reset($gagal));
         }
@@ -241,7 +247,7 @@ class DatabaseBackupService
                         }
                         $d->process->stop(0);
                         throw new \RuntimeException('tidak ada data sama sekali dalam ' . self::MACET_LOGIN
-                            . ' detik, kemungkinan login ke server macet');
+                            . ' detik, ' . self::PESAN_MACET);
                     }
                 } catch (\RuntimeException $e) {
                     $galat = $e;
