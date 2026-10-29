@@ -4,9 +4,12 @@ namespace App\Services;
 
 use App\Models\ActivityLog;
 use App\Models\BackupLog;
+use App\Models\HasilVerifikasi;
 use App\Models\Node;
 use App\Support\BackupDibatalkan;
 use App\Support\BackupErrorSummary;
+use App\Support\BackupSebagian;
+use App\Support\VerifikasiBerkas;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -45,6 +48,10 @@ class BackupService
         // Tombol Batalkan menulis tanda ini; jalur dump database membacanya tiap detik.
         $batal = fn () => Cache::get(BackupDibatalkan::kunci($log->id));
 
+        // Berkas yang sudah tertulis walau run-nya gagal (struktur rusak, .tar sebagian):
+        // dicatat di log supaya bisa diverifikasi ulang, diunduh, dan ikut retensi.
+        $berkasGagal = null;
+
         try {
             $filePath = match ($node->type) {
                 'mikrotik'       => $this->mikrotik->backup($node, $tahap),
@@ -59,8 +66,21 @@ class BackupService
                 throw new \RuntimeException("Target simulasi {$node->host} ternyata menjawab, simulasi dibatalkan.");
             }
 
-            $duration = (int) (microtime(true) - $startTime);
             $tahap('periksa');
+            // Dibandingkan dengan backup berhasil SEBELUM ini; export MikroTik yang
+            // menyusut drastis tanda konfigurasi hilang atau export tidak lengkap.
+            $sebelumnya = BackupLog::where('node_id', $node->id)->where('status', 'success')
+                ->latest('created_at')->value('file_size');
+            $struktur = VerifikasiBerkas::periksa($filePath, $node->type !== 'virtualizor_db', $sebelumnya);
+            HasilVerifikasi::simpan($filePath, 'struktur', $struktur);
+            if ($struktur['status'] === 'gagal') {
+                $berkasGagal = $filePath;
+                $rusak = array_filter($struktur['cek'], fn ($c) => $c['status'] === 'gagal');
+                throw new \RuntimeException('Verifikasi berkas gagal: ' . implode(' | ',
+                    array_map(fn ($c) => "{$c['judul']}: {$c['detail']}", $rusak)));
+            }
+
+            $duration = (int) (microtime(true) - $startTime);
             $fileSize = file_exists($filePath) ? filesize($filePath) : 0;
 
             // Versi + model saat backup dibuat, syarat menilai apakah .backup bisa
@@ -115,6 +135,14 @@ class BackupService
         } catch (\Exception $e) {
             $duration = (int) (microtime(true) - $startTime);
             $error = ($simulasi ? '[SIMULASI] ' : '') . $e->getMessage();
+            if ($e instanceof BackupSebagian) {
+                $berkasGagal = $e->path;
+                try {
+                    HasilVerifikasi::simpan($e->path, 'struktur', VerifikasiBerkas::periksa($e->path));
+                } catch (\RuntimeException) {
+                    // Run-nya sudah gagal; verifikasi bisa diulang dari tombol.
+                }
+            }
 
             // tahap sengaja tidak dikosongkan: menunjukkan di tahap mana backup gagal.
             $log->update([
@@ -122,7 +150,7 @@ class BackupService
                 'error_message' => $error,
                 'duration_seconds' => $duration,
                 'finished_at' => now(),
-            ]);
+            ] + ($berkasGagal && is_file($berkasGagal) ? ['file_path' => $berkasGagal, 'file_size' => filesize($berkasGagal)] : []));
 
             // Pesan dibuka dengan SEBAB yang bisa ditindaklanjuti; error mentah tetap
             // disimpan utuh di konteks untuk penelusuran.
@@ -150,17 +178,31 @@ class BackupService
     {
         // Salinan di memori, tidak pernah disimpan (lihat penjaga di run()).
         $palsu = clone $node;
-        if ($skenario === 'login-ditolak') {
-            // sshd VPS sendiri menolak user yang tidak ada → "Permission denied" asli.
+        $ditolak = $skenario === 'login-ditolak';
+        if ($node->type === 'database' && !$node->ssh_user) {
+            // Mode MySQL langsung: MySQL lokal VPS ini sendiri. Port 1 tidak dilayani
+            // (ditolak seketika), user yang tidak ada → "Access denied" asli.
             $palsu->host = '127.0.0.1';
-            $palsu->port = 22;
-            $palsu->ssh_user = 'simulasi-perwira';
-        } else {
+            $palsu->port = $ditolak ? 3306 : 1;
+            $palsu->db_user = 'simulasi-perwira';
+        } elseif ($node->type === 'mikrotik') {
+            // sshd VPS sendiri menolak user yang tidak ada → "Permission denied" asli.
             // TEST-NET-1 (RFC 5737) tidak pernah dirutekan → timeout seperti router mati.
-            $palsu->host = '192.0.2.1';
+            $palsu->host = $ditolak ? '127.0.0.1' : '192.0.2.1';
+            $palsu->port = $ditolak ? 22 : $node->port;
+            $palsu->ssh_user = $ditolak ? 'simulasi-perwira' : $node->ssh_user;
+        } else {
+            // Lewat SSH (database mode SSH, Virtualizor). 127.0.0.2, bukan 127.0.0.1:
+            // spatie/ssh menjalankan perintah untuk 127.0.0.1 secara lokal tanpa SSH sama
+            // sekali. Port 1 ditolak seketika: TEST-NET-1 di sini baru terasa setelah
+            // pengawas login macet mengulang lima kali (±4 menit).
+            $palsu->host = '127.0.0.2';
+            $palsu->port = $ditolak ? 22 : 1;
+            $palsu->ssh_user = 'simulasi-perwira';
         }
-        // Password router asli tidak boleh ikut terkirim ke target palsu.
+        // Password asli tidak boleh ikut terkirim ke target palsu.
         $palsu->ssh_password = null;
+        $palsu->db_password = null;
 
         // Cooldown dibersihkan sebelum (agar notifikasi uji pasti terkirim) dan sesudah
         // (agar gangguan asli berikutnya tidak tertahan oleh cooldown dari simulasi).
@@ -197,6 +239,7 @@ class BackupService
                 if (is_file($file) && filemtime($file) < $cutoff) {
                     unlink($file);
                     BackupLog::where('file_path', $file)->delete();
+                    HasilVerifikasi::where('file_path', $file)->delete();
                     $dihapus[] = basename($file);
                 }
             }

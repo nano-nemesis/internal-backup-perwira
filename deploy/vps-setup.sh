@@ -178,6 +178,25 @@ FLUSH PRIVILEGES;
 SQL
 ok "Database '${DB_NAME}' dan user '${DB_USER}' siap"
 
+# User restore uji (verifikasi berkas backup): hanya database uji_restore_*, plus
+# SESSION_VARIABLES_ADMIN agar sesi impor bisa mematikan binlog-nya sendiri. Tanpa
+# log_bin_trust_function_creators, CREATE TRIGGER ditolak untuk user non-SUPER selama
+# binlog aktif (bawaan MySQL 8). Lihat backend/app/Services/UjiRestoreService.php.
+UJI_USER=backup_uji
+UJI_PASS=""
+[[ -f $ENV_FILE ]] && UJI_PASS=$(grep -E '^BACKUP_UJI_DB_PASSWORD=' "$ENV_FILE" | cut -d= -f2- || echo "")
+[[ -n $UJI_PASS ]] || UJI_PASS=$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)
+uesc=${UJI_PASS//\\/\\\\}; uesc=${uesc//\'/\\\'}
+mysql --defaults-extra-file="$MYCNF" <<SQL
+CREATE USER IF NOT EXISTS '${UJI_USER}'@'localhost' IDENTIFIED BY '${uesc}';
+ALTER USER '${UJI_USER}'@'localhost' IDENTIFIED BY '${uesc}';
+GRANT ALL PRIVILEGES ON \`uji\\_restore\\_%\`.* TO '${UJI_USER}'@'localhost';
+GRANT SESSION_VARIABLES_ADMIN ON *.* TO '${UJI_USER}'@'localhost';
+SET PERSIST log_bin_trust_function_creators = 1;
+FLUSH PRIVILEGES;
+SQL
+ok "User restore uji '${UJI_USER}' siap (hanya database uji_restore_*)"
+
 # ── 3. Konfigurasi .env ──────────────────────────────────────────────────────
 step "3/9  Konfigurasi .env"
 if [[ ! -f $ENV_FILE ]]; then
@@ -205,6 +224,8 @@ set_env APP_URL "http://${VPS_IP}"
 set_env DB_DATABASE "$DB_NAME"
 set_env DB_USERNAME "$DB_USER"
 set_env DB_PASSWORD "$DB_PASS"
+set_env BACKUP_UJI_DB_USERNAME "$UJI_USER"
+set_env BACKUP_UJI_DB_PASSWORD "$UJI_PASS"
 
 # INI YANG BIKIN LOGIN JALAN LEWAT IP.
 # Sanctum hanya memakai sesi cookie untuk domain yang terdaftar stateful; kalau IP

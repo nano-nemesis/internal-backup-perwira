@@ -3,12 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\BackupJob;
+use App\Jobs\VerifikasiJob;
 use App\Models\ActivityLog;
 use App\Models\BackupLog;
+use App\Models\HasilVerifikasi;
 use App\Models\Node;
+use App\Services\DatabaseBackupService;
 use App\Services\MikrotikService;
+use App\Services\VirtualizorBackupService;
 use App\Support\BackupDibatalkan;
 use App\Support\RestoreCheck;
+use App\Support\VerifikasiBerkas;
 use App\Support\RouterOsCommandPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -115,7 +120,7 @@ class NodeController extends Controller
                 'pulih' => $this->pulih($node->load('latestSuccessLog')),
             ],
             'logs' => $logs,
-            'simulasi_terakhir' => $node->type === 'mikrotik' ? $this->simulasiTerakhir($node) : null,
+            'simulasi_terakhir' => $this->simulasiTerakhir($node),
             'backup_files' => $backupFiles,
         ]);
     }
@@ -291,12 +296,60 @@ class NodeController extends Controller
         ) + ['dicek_pada' => $node->routeros_checked_at]]);
     }
 
+    /**
+     * Uji backup tanpa menyimpan berkas dan tanpa Telegram: login, izin, dump/export kecil.
+     * Sinkron (paling lama ±2 menit, di bawah fastcgi_read_timeout 300): antrean bisa
+     * sedang dipakai backup 45 menit, dan hasilnya ditunggu orang di depan layar.
+     */
+    public function ujiBackup(Request $request, string $id): JsonResponse
+    {
+        $node = Node::findOrFail($id);
+        $mulai = microtime(true);
+        $hasil = match ($node->type) {
+            'mikrotik' => app(MikrotikService::class)->uji($node),
+            'database' => app(DatabaseBackupService::class)->uji($node),
+            'virtualizor_db' => app(VirtualizorBackupService::class)->uji($node),
+        } + ['detik' => (int) (microtime(true) - $mulai), 'pada' => now()->toIso8601String()];
+
+        $pesan = "Uji backup {$node->name}: " . match ($hasil['status']) {
+            'ok' => 'semua langkah lolos', 'peringatan' => 'lolos dengan catatan', default => 'ada langkah yang gagal',
+        } . " ({$hasil['detik']} detik).";
+        ActivityLog::catat($hasil['status'] === 'gagal' ? 'warning' : 'info', 'verifikasi', 'verifikasi.uji-backup', $pesan,
+            ['oleh' => $request->user()->username, 'langkah' => $hasil['langkah']], $node);
+
+        return response()->json(['data' => $hasil]);
+    }
+
+    /**
+     * Verifikasi satu berkas: cek struktur langsung (semua tipe), lalu untuk dump database
+     * restore uji sungguhan di antrean. Hasilnya muncul di daftar berkas.
+     */
+    public function verifikasiBerkas(Request $request, string $id, string $filename): JsonResponse
+    {
+        $node = Node::findOrFail($id);
+        $path = $this->resolveBackupFile($node, $filename);
+        if (!$path) {
+            return response()->json(['message' => 'Berkas backup tidak ditemukan'], 404);
+        }
+
+        $struktur = VerifikasiBerkas::periksa($path, $node->type !== 'virtualizor_db');
+        HasilVerifikasi::simpan($path, 'struktur', $struktur);
+        $restore = (bool) preg_match('/\.(sql\.gz|tar)$/', $path);
+        if ($restore) {
+            HasilVerifikasi::simpan($path, 'restore', ['status' => 'berjalan', 'pada' => now()->toIso8601String(),
+                'oleh' => $request->user()->username]);
+            VerifikasiJob::dispatch($node->id, $path, $request->user()->username)->onQueue('backup');
+        }
+        ActivityLog::info('verifikasi', 'verifikasi.berkas', "Verifikasi {$filename} ({$node->name}) dijalankan: struktur {$struktur['status']}"
+            . ($restore ? ', restore uji masuk antrean.' : '.'), ['oleh' => $request->user()->username], $node);
+
+        return response()->json(['data' => HasilVerifikasi::where('file_path', $path)->first(['struktur', 'restore']),
+            'message' => $restore ? 'Struktur diperiksa; restore uji masuk antrean' : 'Struktur diperiksa']);
+    }
+
     public function simulateFailure(Request $request, string $id): JsonResponse
     {
         $node = Node::findOrFail($id);
-        if ($node->type !== 'mikrotik') {
-            return response()->json(['message' => 'Simulasi hanya untuk node MikroTik'], 422);
-        }
         $data = $request->validate(['skenario' => 'required|in:tak-terjangkau,login-ditolak']);
 
         BackupJob::dispatch($node->id, $request->user()->username, $data['skenario'])->onQueue('backup');
@@ -374,7 +427,7 @@ class NodeController extends Controller
 
         $baseDir = realpath(storage_path('app/backups'));
 
-        foreach (['mikrotik', 'database'] as $type) {
+        foreach (['mikrotik', 'database', 'virtualizor'] as $type) {
             $resolved = realpath($baseDir . DIRECTORY_SEPARATOR . $type
                 . DIRECTORY_SEPARATOR . $node->name
                 . DIRECTORY_SEPARATOR . $safeName);
@@ -396,8 +449,11 @@ class NodeController extends Controller
         $dirs = [
             "{$basePath}/mikrotik/{$node->name}",
             "{$basePath}/database/{$node->name}",
+            "{$basePath}/virtualizor/{$node->name}",
         ];
 
+        $verifikasi = HasilVerifikasi::where('file_path', 'like', '%/' . addcslashes($node->name, '%_\\') . '/%')
+            ->get(['file_path', 'struktur', 'restore'])->keyBy('file_path');
         $files = [];
         foreach ($dirs as $dir) {
             if (!is_dir($dir)) {
@@ -407,10 +463,12 @@ class NodeController extends Controller
                 if (!is_file($file)) {
                     continue;
                 }
+                $v = $verifikasi->get(realpath($file)) ?? $verifikasi->get($file);
                 $files[] = [
                     'filename' => basename($file),
                     'size' => filesize($file),
                     'modified_at' => date('Y-m-d H:i:s', filemtime($file)),
+                    'verifikasi' => $v ? ['struktur' => $v->struktur, 'restore' => $v->restore] : null,
                 ];
             }
         }

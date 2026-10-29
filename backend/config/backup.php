@@ -13,4 +13,9 @@ return [
     'alert_cooldown_minutes' => (int) env('ALERT_COOLDOWN_MINUTES', 30),
     'storage_path' => storage_path('app/backups'),
     'frontend_dir' => env('FRONTEND_DIR', '../frontend/dist'),
+    // User MySQL lokal untuk restore uji: hanya database uji_restore_* (lihat UjiRestoreService).
+    'uji_restore' => [
+        'user' => env('BACKUP_UJI_DB_USERNAME', 'backup_uji'),
+        'password' => env('BACKUP_UJI_DB_PASSWORD'),
+    ],
 ];

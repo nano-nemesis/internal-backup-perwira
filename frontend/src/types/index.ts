@@ -71,6 +71,37 @@ export interface BackupFile {
   filename: string
   size: number
   modified_at: string
+  /** null = belum pernah diverifikasi. */
+  verifikasi?: { struktur: HasilStruktur | null; restore: HasilRestore | null } | null
+}
+
+export interface ItemCek { status: CekStatus; judul: string; detail: string }
+
+/** Cek struktur berkas (App\Support\VerifikasiBerkas): otomatis tiap backup berhasil. */
+export interface HasilStruktur {
+  status: CekStatus
+  ringkasan: string
+  cek: ItemCek[]
+  pada: string
+}
+
+/** Restore uji ke database sementara (App\Services\UjiRestoreService). */
+export interface HasilRestore {
+  status: CekStatus | 'berjalan'
+  ringkasan?: string
+  database?: { db: string; status: CekStatus; detail: string; detik: number; tabel?: number; view?: number; trigger?: number; baris?: number }[]
+  galat?: string
+  pada: string
+  oleh?: string
+  detik?: number
+}
+
+/** Uji backup tanpa menyimpan berkas (uji() di service tiap tipe). */
+export interface HasilUjiBackup {
+  status: CekStatus
+  langkah: ItemCek[]
+  detik: number
+  pada: string
 }
 
 export interface BackupFileItem {

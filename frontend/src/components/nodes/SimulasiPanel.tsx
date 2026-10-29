@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useRestoreCheck, useSimulateFailure } from '../../hooks/useNodes'
+import { useRestoreCheck, useSimulateFailure, useUjiBackup } from '../../hooks/useNodes'
 import { useAuth } from '../../context/AuthContext'
-import type { BackupFile, CekStatus, HasilTelegram, NodeDetailResponse, RestoreCheckResult, SkenarioGangguan } from '../../types'
+import type { BackupFile, CekStatus, HasilTelegram, Node, NodeDetailResponse, RestoreCheckResult, SkenarioGangguan } from '../../types'
 import { Button } from '../ui/button'
 import { toast } from '../ui/toaster'
 import { cn, formatDatetimeWIB } from '../../lib/utils'
@@ -19,10 +19,27 @@ const PUTUSAN: Record<RestoreCheckResult['putusan'], { teks: string; kelas: stri
   'tidak-bisa': { teks: 'Tidak bisa di-restore apa adanya', kelas: 'bg-[#FEE2E2] text-[#991B1B]' },
 }
 
-const GANGGUAN: { skenario: SkenarioGangguan; label: string; catatan: string }[] = [
-  { skenario: 'tak-terjangkau', label: 'Router tak terjangkau', catatan: '±30 detik' },
-  { skenario: 'login-ditolak', label: 'Login SSH ditolak', catatan: 'instan' },
-]
+type NodeSimulasi = Pick<Node, 'type' | 'ssh_user'>
+
+/** Target palsu per tipe (lihat BackupService::simulate): label mengikuti apa yang sungguh terjadi. */
+function gangguan(n: NodeSimulasi): { skenario: SkenarioGangguan; label: string; catatan: string }[] {
+  if (n.type === 'mikrotik') {
+    return [
+      { skenario: 'tak-terjangkau', label: 'Router tak terjangkau', catatan: '±30 detik' },
+      { skenario: 'login-ditolak', label: 'Login SSH ditolak', catatan: 'instan' },
+    ]
+  }
+  if (n.type === 'database' && !n.ssh_user) {
+    return [
+      { skenario: 'tak-terjangkau', label: 'Server database menolak koneksi', catatan: 'instan' },
+      { skenario: 'login-ditolak', label: 'Login database ditolak', catatan: 'instan' },
+    ]
+  }
+  return [
+    { skenario: 'tak-terjangkau', label: 'Server menolak koneksi SSH', catatan: 'instan' },
+    { skenario: 'login-ditolak', label: 'Login SSH ditolak', catatan: 'instan' },
+  ]
+}
 
 const jam = (iso: string, detik = false) =>
   new Date(iso).toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', ...(detik && { second: '2-digit' }) })
@@ -77,14 +94,60 @@ function Jejak({ j }: { j: NonNullable<NodeDetailResponse['simulasi_terakhir']> 
   )
 }
 
-export function SimulasiPanel({ nodeId, files, jejak }: {
+function UjiBackup({ nodeId }: { nodeId: string }) {
+  const uji = useUjiBackup()
+  const h = uji.data
+  return (
+    <section className="space-y-3">
+      <div>
+        <h3 className="text-lg font-bold text-[#0F172A]">Uji backup</h3>
+        <p className="text-sm text-[#475569] mt-1">
+          Menjalankan langkah backup sungguhan ke target ini, yaitu login, cek hak akses, dan dump atau export kecil, tanpa
+          menyimpan berkas dan tanpa notifikasi Telegram. Pakai setelah menambah atau mengubah node, sebelum menunggu jadwal.
+        </p>
+      </div>
+      <Button onClick={() => uji.mutate(nodeId)} loading={uji.isPending}>
+        {uji.isPending ? 'Menguji…' : 'Uji backup sekarang'}
+      </Button>
+      {uji.isError && (
+        <p className="text-sm text-[#991B1B]">{(uji.error as any)?.response?.data?.message ?? 'Uji backup gagal dijalankan'}</p>
+      )}
+      {h && (
+        <div className="space-y-3">
+          <div role="status" className={`rounded-xl px-4 py-3 text-sm font-bold ${PUTUSAN[h.status === 'ok' ? 'siap' : h.status === 'peringatan' ? 'perhatian' : 'tidak-bisa'].kelas}`}>
+            {h.status === 'ok' ? 'Semua langkah lolos: backup sungguhan akan berjalan'
+              : h.status === 'peringatan' ? 'Lolos, dengan catatan di bawah'
+                : 'Ada langkah yang gagal: backup sungguhan akan gagal juga'}
+            <span className="font-normal"> · {h.detik} detik</span>
+          </div>
+          <ul className="divide-y divide-[#EEF0F6] border-y border-[#EEF0F6]">
+            {h.langkah.map((c, i) => (
+              <li key={i} className="py-3 flex gap-3 text-sm">
+                <span className="w-24 flex-shrink-0">
+                  <span className={`pill ${STATUS[c.status].kelas}`}>{STATUS[c.status].label}</span>
+                </span>
+                <div className="min-w-0">
+                  <p className="font-bold text-[#0F172A]">{c.judul}</p>
+                  <p className="text-[#475569] break-words">{c.detail}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  )
+}
+
+export function SimulasiPanel({ nodeId, node, files, jejak }: {
   nodeId: string
+  node: NodeSimulasi
   files: BackupFile[]
   jejak?: NodeDetailResponse['simulasi_terakhir']
 }) {
   const { isOperator } = useAuth()
   const restore = useRestoreCheck()
-  const gangguan = useSimulateFailure()
+  const simulasi = useSimulateFailure()
 
   const kandidat = files.filter((f) => /\.(rsc|backup)$/.test(f.filename))
   // ?berkas= dari menu Berkas Backup: langsung memilih berkas yang diklik di sana.
@@ -99,7 +162,7 @@ export function SimulasiPanel({ nodeId, files, jejak }: {
       `Jalankan simulasi "${label}"?\n\nNotifikasi Telegram sungguhan akan terkirim, dan status node ini merah sampai backup berikutnya berhasil.`,
     )) return
     try {
-      await gangguan.mutateAsync({ nodeId, skenario })
+      await simulasi.mutateAsync({ nodeId, skenario })
       toast('Simulasi masuk antrean. Pantau Riwayat, Log Sistem, dan Telegram', 'info')
     } catch (err: any) {
       toast(err.response?.data?.message ?? 'Gagal memulai simulasi', 'error')
@@ -108,7 +171,10 @@ export function SimulasiPanel({ nodeId, files, jejak }: {
 
   return (
     <div className="p-5 md:p-6 space-y-8">
-      <section className="space-y-3">
+      {isOperator && <UjiBackup nodeId={nodeId} />}
+
+      {node.type === 'mikrotik' && (
+      <section className={cn('space-y-3', isOperator && 'pt-6 border-t border-[#EEF0F6]')}>
         <div>
           <h3 className="text-lg font-bold text-[#0F172A]">Simulasi restore</h3>
           <p className="text-sm text-[#475569] mt-1">
@@ -185,25 +251,26 @@ export function SimulasiPanel({ nodeId, files, jejak }: {
           </div>
         )}
       </section>
+      )}
 
       {isOperator && (
         <section className="space-y-3 pt-6 border-t border-[#EEF0F6]">
           <div>
             <h3 className="text-lg font-bold text-[#0F172A]">Simulasi gangguan backup</h3>
             <p className="text-sm text-[#475569] mt-1">
-              Backup dikirim ke target palsu, bukan ke router ini, sehingga gagal sungguhan. Hasilnya
+              Backup dikirim ke target palsu, bukan ke {node.type === 'mikrotik' ? 'router' : 'server'} ini, sehingga gagal sungguhan. Hasilnya
               tercatat di Riwayat dan Log Sistem dengan tanda <span className="font-mono">[SIMULASI]</span>,
               notifikasi Telegram terkirim, dan status node merah sampai backup berikutnya berhasil; saat
               itu pesan pemulihan Telegram ikut teruji.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {GANGGUAN.map((g) => (
+            {gangguan(node).map((g) => (
               <Button
                 key={g.skenario}
                 variant="warning"
                 size="sm"
-                disabled={gangguan.isPending}
+                disabled={simulasi.isPending}
                 onClick={() => jalankanGangguan(g.skenario, g.label)}
               >
                 {`${g.label} (${g.catatan})`}

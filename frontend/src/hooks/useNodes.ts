@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../lib/axios'
-import type { DoctorReport, NodesResponse, NodeDetailResponse, NodeFormData, RestoreCheckResult, SkenarioGangguan } from '../types'
+import type { DoctorReport, HasilUjiBackup, NodesResponse, NodeDetailResponse, NodeFormData, RestoreCheckResult, SkenarioGangguan } from '../types'
 import { pollInterval } from './useBackupWatcher'
 import { catatManual } from '../lib/prosesBackup'
 
@@ -22,8 +22,11 @@ export function useNode(id: string) {
     queryFn: () => api.get(`/nodes/${id}`).then((r) => r.data),
     // Detail node menaruh riwayat di `logs`, bukan `latest_log`; tanpa ini polling
     // tetap 30 detik walau backup sedang berjalan.
+    // Restore uji berjalan di antrean: pantau rapat juga sampai hasilnya masuk.
     refetchInterval: (q) =>
-      pollInterval(q.state.data ? [{ ...q.state.data.data, latest_log: q.state.data.logs?.[0] ?? null }] : undefined),
+      q.state.data?.backup_files?.some((f) => f.verifikasi?.restore?.status === 'berjalan')
+        ? 3000
+        : pollInterval(q.state.data ? [{ ...q.state.data.data, latest_log: q.state.data.logs?.[0] ?? null }] : undefined),
     refetchIntervalInBackground: true,
     enabled: !!id,
   })
@@ -94,6 +97,24 @@ export function useRestoreCheck() {
       api
         .get<{ data: RestoreCheckResult }>(`/nodes/${nodeId}/restore-check/${encodeURIComponent(filename)}`)
         .then((r) => r.data.data),
+  })
+}
+
+/** Uji backup tanpa menyimpan: login, izin, dump/export kecil. Sinkron, bisa sampai ±2 menit. */
+export function useUjiBackup() {
+  return useMutation({
+    mutationFn: (nodeId: string) =>
+      api.post<{ data: HasilUjiBackup }>(`/nodes/${nodeId}/uji-backup`, null, { timeout: 280_000 }).then((r) => r.data.data),
+  })
+}
+
+/** Cek struktur langsung; dump database lanjut restore uji di antrean. */
+export function useVerifikasiBerkas() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ nodeId, filename }: { nodeId: string; filename: string }) =>
+      api.post(`/nodes/${nodeId}/verifikasi/${encodeURIComponent(filename)}`, null, { timeout: 280_000 }),
+    onSuccess: (_, { nodeId }) => qc.invalidateQueries({ queryKey: ['node', nodeId] }),
   })
 }
 

@@ -5,6 +5,18 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.15.0',
+    tanggal: '2026-10-29',
+    judul: 'Uji backup dan verifikasi berkas untuk semua tipe',
+    poin: [
+      'Setiap backup yang berhasil langsung dicek strukturnya: dump utuh sampai akhir, header di baris pertama, penanda selesai ada, isi .tar lengkap, export MikroTik tidak terpotong atau menyusut drastis. Kalau cek ini gagal, backup dinyatakan gagal dan Telegram terkirim.',
+      'Tombol Verifikasi di daftar berkas. Untuk dump database, isinya diimpor sungguhan ke database sementara lalu jumlah tabel, view, trigger, dan tabel berisi data dibandingkan dengan dump. Untuk .tar semua database diambil tiga database acak.',
+      'Uji backup di tab Simulasi & Pemulihan: login, hak akses, dan dump atau export kecil dijalankan ke target sungguhan tanpa menyimpan berkas dan tanpa Telegram. Cocok setelah menambah atau mengubah node.',
+      'Simulasi gangguan kini tersedia untuk node database dan Virtualizor, tidak hanya MikroTik.',
+      'Berkas node Virtualizor kini tampil dan bisa diunduh dari halaman node.',
+    ],
+  },
+  {
     versi: '1.14.1',
     tanggal: '2026-10-29',
     judul: 'Node satu database ikut mencoba ulang saat login macet',

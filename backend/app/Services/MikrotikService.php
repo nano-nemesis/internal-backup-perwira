@@ -3,6 +3,7 @@ namespace App\Services;
 
 use App\Models\ActivityLog;
 use App\Models\Node;
+use App\Support\Langkah;
 use App\Support\RouterDoctor;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -213,6 +214,73 @@ class MikrotikService
         }
 
         return $versi;
+    }
+
+    /**
+     * Uji backup tanpa menyimpan apa pun: login SSH, policy user (sesuai tipe backup), dan
+     * export kecil sungguhan. Tidak menulis berkas di router maupun di VPS backup.
+     * @return array{status: string, langkah: array}
+     */
+    public function uji(Node $node): array
+    {
+        $l = new Langkah();
+        try {
+            $info = trim($this->runSshCommand($node,
+                ':put ([/system identity get name] . "|" . [/system resource get version] . "|" . [/system resource get free-hdd-space])'));
+            [$nama, $versi, $flash] = explode('|', $info) + [1 => '?', 2 => '0'];
+            $l->catat('ok', 'Login SSH', "Masuk sebagai {$node->ssh_user} ke router {$nama}, RouterOS {$versi}.");
+        } catch (\RuntimeException $e) {
+            $l->catat('gagal', 'Login SSH', $e->getMessage());
+            return $l->hasil();
+        }
+
+        try {
+            $this->ujiSesudahLogin($node, (int) $flash, $l);
+        } catch (\RuntimeException $e) {
+            $l->catat('gagal', 'Pemeriksaan terhenti', $e->getMessage());
+        }
+
+        return $l->hasil();
+    }
+
+    private function ujiSesudahLogin(Node $node, int $flash, Langkah $l): void
+    {
+        // Nama user masuk ke skrip RouterOS di dalam kutip: tolak karakter yang bisa keluar dari kutip.
+        if (preg_match('/["\\\\$;\[\]]/', (string) $node->ssh_user)) {
+            $l->catat('peringatan', 'Policy user', 'Nama user berisi karakter khusus, policy-nya tidak diperiksa.');
+        } else {
+            $policy = trim($this->runSshCommand($node,
+                ":put [/user group get [/user get [find name=\"{$node->ssh_user}\"] group] policy]"));
+            // :put sebuah list bisa memakai ';' (array) atau ',' (teks), tergantung versi.
+            $punya = array_filter(array_map('trim', preg_split('/[,;]/', $policy)), fn ($p) => $p !== '' && $p[0] !== '!');
+            $wajib = $node->backup_binary ? ['ssh', 'read', 'write', 'policy', 'ftp', 'sensitive'] : ['ssh', 'read', 'sensitive'];
+            $kurang = array_values(array_diff($wajib, $punya));
+            $l->catat($kurang ? 'gagal' : 'ok', 'Policy user', $kurang
+                ? 'Kurang policy ' . implode(', ', $kurang) . '. '
+                    . (in_array('sensitive', $kurang, true) ? 'Tanpa sensitive, password PPPoE/RADIUS/PSK keluar sebagai *** dan backup tampak utuh padahal tidak bisa memulihkan layanan. ' : '')
+                    . ($node->backup_binary ? 'Backup biner butuh write, policy, dan ftp untuk menyimpan dan menarik berkas.' : '')
+                : 'Policy ' . implode(', ', $wajib) . ' lengkap untuk ' . ($node->backup_binary ? 'backup biner (.backup).' : 'export (.rsc).'));
+        }
+
+        if ($node->backup_binary) {
+            // Backup biner sungguhan menulis ke flash router; yang diuji di sini ruangnya saja.
+            $l->catat($flash > 0 && $flash < 2 * 1024 * 1024 ? 'peringatan' : 'ok', 'Ruang flash router',
+                'Sisa flash ' . round($flash / 1048576, 1) . ' MB; berkas .backup sementara ditulis di sana lalu dihapus setelah ditarik.');
+            return;
+        }
+
+        try {
+            $out = $this->runSshCommand($node, '/system identity export show-sensitive');
+        } catch (\RuntimeException $e) {
+            // RouterOS 6 tidak mengenal show-sensitive (exit 1), sama seperti di backup().
+            if (!str_contains($e->getMessage(), '(exit code 1)')) {
+                throw $e;
+            }
+            $out = $this->runSshCommand($node, '/system identity export');
+        }
+        $l->catat(str_contains($out, 'by RouterOS') ? 'ok' : 'gagal', 'Uji export', str_contains($out, 'by RouterOS')
+            ? 'Export kecil (/system identity) berhasil dan berheader RouterOS; /export lengkap akan berjalan dengan cara yang sama.'
+            : 'Output export tidak berheader RouterOS: ' . mb_substr(trim($out), 0, 200));
     }
 
     public function execute(Node $node, string $command): string

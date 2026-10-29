@@ -363,7 +363,7 @@ export default function NodeDetailPage() {
 
       <section className="card overflow-hidden">
         <div role="tablist" className="flex gap-1.5 px-3 pt-2.5 border-b border-[#EEF0F6] overflow-x-auto">
-          {(node.type === 'mikrotik' ? (['logs', 'files', 'doctor', 'simulasi'] as const) : (['logs', 'files'] as const)).map((tab) => (
+          {(node.type === 'mikrotik' ? (['logs', 'files', 'doctor', 'simulasi'] as const) : (['logs', 'files', 'simulasi'] as const)).map((tab) => (
             <button
               key={tab}
               role="tab"
@@ -404,8 +404,8 @@ export default function NodeDetailPage() {
           {activeTab === 'doctor' && node.type === 'mikrotik' && (
             <DoctorPanel nodeId={node.id} laporan={node.doctor_report} dicek={node.doctor_checked_at} />
           )}
-          {activeTab === 'simulasi' && node.type === 'mikrotik' && (
-            <SimulasiPanel nodeId={node.id} files={data.backup_files ?? []} jejak={data.simulasi_terakhir} />
+          {activeTab === 'simulasi' && (
+            <SimulasiPanel nodeId={node.id} node={node} files={data.backup_files ?? []} jejak={data.simulasi_terakhir} />
           )}
         </div>
       </section>

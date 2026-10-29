@@ -47,6 +47,12 @@ final class RestoreCheck
         ];
     }
 
+    /** Keutuhan berkas MikroTik saja (tanpa cocok model/versi), untuk VerifikasiBerkas. */
+    public static function integritas(string $path): array
+    {
+        return str_ends_with($path, '.backup') ? self::integritasBiner($path) : self::integritasRsc($path)[0];
+    }
+
     private static function integritasBiner(string $path): array
     {
         $judul = 'Integritas berkas';

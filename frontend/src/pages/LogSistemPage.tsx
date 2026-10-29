@@ -16,6 +16,7 @@ const KATEGORI: Record<string, string> = {
   terminal: 'Terminal',
   berkas: 'Unduhan',
   pengaturan: 'Pengaturan',
+  verifikasi: 'Verifikasi',
   sistem: 'Sistem',
 }
 

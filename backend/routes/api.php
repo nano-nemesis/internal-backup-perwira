@@ -42,6 +42,12 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
             ->middleware('throttle:backup-trigger');
         Route::post('/nodes/{id}/backup/batal', [NodeController::class, 'batalkanBackup'])
             ->middleware('throttle:backup-trigger');
+        // Uji backup: login + izin + dump/export kecil, tanpa menyimpan berkas.
+        Route::post('/nodes/{id}/uji-backup', [NodeController::class, 'ujiBackup'])
+            ->middleware('throttle:backup-trigger');
+        // Cek struktur + restore uji (dump database) satu berkas.
+        Route::post('/nodes/{id}/verifikasi/{filename}', [NodeController::class, 'verifikasiBerkas'])
+            ->middleware('throttle:backup-trigger');
         Route::post('/doctor/run-all', [NodeController::class, 'doctorAll'])
             ->middleware('throttle:backup-trigger');
         // Mengirim notifikasi Telegram sungguhan dan memerahkan status node.

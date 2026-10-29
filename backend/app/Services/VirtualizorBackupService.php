@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Node;
+use App\Support\Langkah;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -96,6 +97,45 @@ class VirtualizorBackupService
         ));
 
         return $localPath;
+    }
+
+    /**
+     * Uji backup tanpa menyalin apa pun: login SSH, folder backup terbaca, berkas terbaru
+     * segar dan bisa dibaca.
+     * @return array{status: string, langkah: array}
+     */
+    public function uji(Node $node): array
+    {
+        $l = new Langkah();
+        $remoteDir = $node->db_name ?: self::DEFAULT_BACKUP_DIR;
+        try {
+            if (!$l->catat(trim($this->runSshCommand($node, 'echo ok')) === 'ok' ? 'ok' : 'gagal', 'Login SSH',
+                "Masuk sebagai {$node->ssh_user}@{$node->host}.")) {
+                return $l->hasil();
+            }
+            $latest = $this->getLatestRemoteFile($node, $remoteDir);
+            if (!$l->catat($latest ? 'ok' : 'gagal', 'Folder backup', $latest
+                ? "{$remoteDir} terbaca, berkas terbaru {$latest}."
+                : "Tidak ada berkas .sql.gz yang terbaca di {$remoteDir}. Cek path dan izin baca user ini.")) {
+                return $l->hasil();
+            }
+            try {
+                $this->assertNotStale($node, $latest);
+                $l->catat('ok', 'Kesegaran', "{$latest} masih dalam batas " . self::MAX_AGE_DAYS . ' hari.');
+            } catch (\RuntimeException $e) {
+                $l->catat('gagal', 'Kesegaran', $e->getMessage());
+            }
+            $path = rtrim($remoteDir, '/') . '/' . $latest;
+            $ukuran = (int) trim($this->runSshCommand($node, 'stat -c %s ' . escapeshellarg($path)));
+            $kepala = trim($this->runSshCommand($node, 'head -c 2 ' . escapeshellarg($path) . ' | od -An -tx1 | tr -d " \\n"'));
+            $l->catat($kepala === '1f8b' ? 'ok' : 'gagal', 'Berkas bisa dibaca', $kepala === '1f8b'
+                ? "Terbaca, " . round($ukuran / 1048576, 1) . ' MB, berformat gzip.'
+                : "Berkas tidak bisa dibaca atau bukan gzip (byte awal: {$kepala}).");
+        } catch (\RuntimeException $e) {
+            $l->catat('gagal', 'Pemeriksaan terhenti', $e->getMessage());
+        }
+
+        return $l->hasil();
     }
 
     /**
