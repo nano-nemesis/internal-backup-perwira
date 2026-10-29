@@ -5,6 +5,12 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.13.4',
+    tanggal: '2026-10-29',
+    judul: 'Lebih banyak percobaan ulang untuk dump yang macet',
+    poin: ['Database yang gagal kini dicoba ulang sampai lima putaran, dengan jeda 10 detik di antaranya. Ke server BayarInternet sekitar satu dari lima login menggantung secara acak, dan dua putaran ternyata belum cukup.'],
+  },
+  {
     versi: '1.13.3',
     tanggal: '2026-10-29',
     judul: 'Dump yang macet saat login dicoba ulang',

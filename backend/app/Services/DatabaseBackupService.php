@@ -64,11 +64,14 @@ class DatabaseBackupService
 
     /**
      * Dump yang belum mengeluarkan satu byte pun setelah sekian detik dianggap macet saat
-     * login dan dicoba ulang. Server BayarInternet sesekali tidak membalas jabat tangan
-     * TLS (diukur 29 Okt 2026: 2 dari 32 login, 0 dari 32 tanpa TLS), dan mysqldump
-     * tidak punya --connect-timeout, jadi tanpa ini dump menunggu sampai TIMEOUT_PER_DB.
+     * login dan dicoba ulang. Ke server BayarInternet, sebagian login menggantung setelah
+     * salam pembuka (dengan maupun tanpa TLS; server mencatatnya sebagai handshake error),
+     * dan mysqldump tidak punya --connect-timeout, jadi tanpa ini dump menunggu sampai
+     * TIMEOUT_PER_DB_SEMUA.
      */
     private const MACET_LOGIN = 30;
+
+    private const PUTARAN_ULANG = 5;
 
     /** @param ?\Closure(string): void $tahap dipanggil setiap pindah tahap, untuk tampilan realtime */
     public function backup(Node $node, ?\Closure $tahap = null): string
@@ -148,9 +151,12 @@ class DatabaseBackupService
 
         try {
             $gagal = $this->dumpParalel($node, $daftar, $tmp, $ssh);
-            // Dua putaran ulang untuk yang gagal: gangguan sesaat (login macet) tidak
-            // membuat run gagal. Yang gagal karena isinya (view rusak) tetap gagal.
-            for ($putaran = 1; $gagal && $putaran <= 2; $putaran++) {
+            // Putaran ulang untuk yang gagal: gangguan sesaat (login macet) tidak membuat
+            // run gagal. Yang gagal karena isinya (view rusak) tetap gagal. Ke BayarInternet
+            // ±20% percobaan macet secara acak (run 29 Okt: 3 dari 371 gagal 3x), jadi
+            // 6 percobaan; jeda supaya ulangan tidak jatuh di gangguan yang sama.
+            for ($putaran = 1; $gagal && $putaran <= self::PUTARAN_ULANG; $putaran++) {
+                sleep(10);
                 $gagal = $this->dumpParalel($node, array_keys($gagal), $tmp, $ssh);
             }
 
@@ -209,7 +215,7 @@ class DatabaseBackupService
                         }
                         $d->process->stop(0);
                         throw new \RuntimeException('tidak ada data sama sekali dalam ' . self::MACET_LOGIN
-                            . ' detik, kemungkinan login/jabat tangan TLS ke server macet');
+                            . ' detik, kemungkinan login ke server macet');
                     }
                 } catch (\RuntimeException $e) {
                     $galat = $e;
