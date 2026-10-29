@@ -151,7 +151,9 @@ export default function PanduanPage() {
                 </li>
                 <li>
                   <strong>Database</strong>: menjalankan <K>mysqldump</K> lewat SSH di server target, lalu dikompres
-                  jadi <K>.sql.gz</K> di VPS backup.
+                  jadi <K>.sql.gz</K> di VPS backup. Isi Database Name dengan <K>*</K> untuk mem-backup semua
+                  database di server itu: satu <K>.sql.gz</K> per database, dibungkus satu berkas <K>.tar</K>. Satu
+                  database bisa diambil tanpa membongkar semuanya: <K>tar -xf berkas.tar ./namadb.sql.gz</K>.
                 </li>
                 <li>
                   <strong>Virtualizor DB</strong>: tidak membuat dump baru, melainkan menarik berkas backup yang sudah

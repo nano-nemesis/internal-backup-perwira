@@ -10,7 +10,9 @@ return [
             'driver' => 'database',
             'table' => 'jobs',
             'queue' => 'default',
-            'retry_after' => 360,
+            // Di atas BackupJob::TIMEOUT_SEMUA_DB (3 jam): kalau lebih pendek, job yang
+            // masih berjalan dianggap macet dan bisa diambil worker lain.
+            'retry_after' => 3 * 3600 + 300,
             'after_commit' => false,
         ],
 

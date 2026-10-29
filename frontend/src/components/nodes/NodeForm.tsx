@@ -179,11 +179,19 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
                 diizinkan dari IP VPS backup.
               </div>
             )}
+            {form.db_name.trim() === '*' && (
+              <div className="sm:col-span-3 p-4 rounded-xl bg-[#EEF0FE] text-sm text-[#1E2A78]">
+                <strong>Semua database</strong>: setiap database di server di-dump satu per satu dan
+                dibungkus satu berkas <code className="text-xs bg-white px-1 rounded">.tar</code> per
+                backup. User DB butuh grant{' '}
+                <code className="text-xs bg-white px-1 rounded">SELECT, SHOW VIEW, TRIGGER ON *.*</code>.
+              </div>
+            )}
             <Input
               label="Database Name"
               value={form.db_name}
               onChange={(e) => set('db_name', e.target.value)}
-              placeholder="mydb"
+              placeholder="mydb, atau * untuk semua"
             />
             <Input
               label="DB User"

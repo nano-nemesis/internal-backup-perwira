@@ -26,6 +26,7 @@ $cek('jenis .rsc', D::jenis('a.RSC'), 'rsc');
 $cek('jenis .backup', D::jenis('a.backup'), 'backup');
 $cek('jenis .sql.gz', D::jenis('a.sql.gz'), 'sql');
 $cek('jenis .sql', D::jenis('a.sql'), 'sql');
+$cek('jenis .tar (semua database)', D::jenis('backup-bi-2026.tar'), 'sql');
 $cek('jenis lain', D::jenis('a.backup.txt'), 'lain');
 
 $cek('default terbaru dulu', $nama(D::saring($files, null, null))[0], 'backup-ccr-noc-2026-10-20-18.57WIB.backup');

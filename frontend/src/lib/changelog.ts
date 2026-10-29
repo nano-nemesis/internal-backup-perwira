@@ -5,6 +5,17 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.13.0',
+    tanggal: '2026-10-29',
+    judul: 'Backup semua database dalam satu node',
+    poin: [
+      'Isi Database Name dengan * untuk mem-backup semua database di server itu: satu .sql.gz per database, dibungkus satu berkas .tar per backup. Satu database bisa diambil tanpa membongkar semuanya.',
+      'Satu database yang gagal tidak menghentikan yang lain. Sisanya tetap tersimpan, dan backup ditandai gagal sebagian lengkap dengan nama database yang terlewat.',
+      'Dump dialirkan langsung ke berkas, jadi database berukuran besar tidak lagi menghabiskan memori server backup.',
+      'Perbaikan: dump lewat SSH ke server Ubuntu tidak lagi tercemar pesan sambutan login (MOTD) yang membuat restore gagal di baris pertama.',
+    ],
+  },
+  {
     versi: '1.12.1',
     tanggal: '2026-10-22',
     judul: 'Zona waktu lebih jelas',

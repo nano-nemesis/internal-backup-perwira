@@ -6,6 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\Node;
 use App\Models\NodeSchedule;
 use App\Services\BackupService;
+use App\Services\DatabaseBackupService;
 use App\Traits\HasAlignedSchedule;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -19,6 +20,12 @@ class BackupJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, HasAlignedSchedule;
 
     public int $timeout = 300;
+
+    /**
+     * Node database mode semua database (db_name '*'): ratusan dump berurutan bisa
+     * makan puluhan menit. queue.php retry_after harus di atas angka ini.
+     */
+    public const TIMEOUT_SEMUA_DB = 3 * 3600;
     public int $tries = 1;
 
     /**
@@ -35,6 +42,11 @@ class BackupJob implements ShouldQueue
     {
         $this->pemicu = $pemicu;
         $this->simulasi = $simulasi;
+
+        // Dibaca saat dispatch: batas waktu job ikut tersimpan di payload antrean.
+        if (Node::whereKey($nodeId)->where('type', 'database')->where('db_name', DatabaseBackupService::SEMUA)->exists()) {
+            $this->timeout = self::TIMEOUT_SEMUA_DB;
+        }
     }
 
     public function handle(BackupService $backupService): void
@@ -62,11 +74,11 @@ class BackupJob implements ShouldQueue
     {
         Log::error("BackupJob: unexpected failure for node [{$this->nodeId}]: " . $exception->getMessage());
         // Sampai di sini berarti job mati di luar try/catch BackupService, biasanya
-        // melewati batas waktu 300 detik atau worker kehabisan memori.
+        // melewati batas waktu job atau worker kehabisan memori.
         $node = Node::find($this->nodeId);
         ActivityLog::error('backup', 'backup.crash',
             'Job backup ' . ($node?->name ?? $this->nodeId) . ' berhenti tidak wajar (bukan gagal biasa): '
-            . $exception->getMessage() . '. Biasanya karena melewati batas waktu 300 detik atau worker kehabisan memori.',
+            . $exception->getMessage() . ". Biasanya karena melewati batas waktu {$this->timeout} detik atau worker kehabisan memori.",
             ['exception' => get_class($exception), 'error' => $exception->getMessage()],
             $node,
         );

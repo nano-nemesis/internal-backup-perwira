@@ -10,14 +10,14 @@ class DaftarBerkas
 {
     public const URUT = ['terbaru', 'terlama', 'nama', 'terbesar'];
 
-    /** rsc | backup | sql | lain, dari akhiran nama berkas. */
+    /** rsc | backup | sql | lain, dari akhiran nama berkas. .tar = dump semua database. */
     public static function jenis(string $filename): string
     {
         $f = strtolower($filename);
         return match (true) {
             str_ends_with($f, '.rsc') => 'rsc',
             str_ends_with($f, '.backup') => 'backup',
-            str_ends_with($f, '.sql.gz'), str_ends_with($f, '.sql') => 'sql',
+            str_ends_with($f, '.sql.gz'), str_ends_with($f, '.sql'), str_ends_with($f, '.tar') => 'sql',
             default => 'lain',
         };
     }
