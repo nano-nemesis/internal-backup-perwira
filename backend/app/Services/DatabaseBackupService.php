@@ -62,6 +62,14 @@ class DatabaseBackupService
     /** Batas per database di mode semua database (DB terbesar BayarInternet ±320 MB). */
     private const TIMEOUT_PER_DB_SEMUA = 1800;
 
+    /**
+     * Dump yang belum mengeluarkan satu byte pun setelah sekian detik dianggap macet saat
+     * login dan dicoba ulang. Server BayarInternet sesekali tidak membalas jabat tangan
+     * TLS (diukur 29 Okt 2026: 2 dari 32 login, 0 dari 32 tanpa TLS), dan mysqldump
+     * tidak punya --connect-timeout, jadi tanpa ini dump menunggu sampai TIMEOUT_PER_DB.
+     */
+    private const MACET_LOGIN = 30;
+
     /** @param ?\Closure(string): void $tahap dipanggil setiap pindah tahap, untuk tampilan realtime */
     public function backup(Node $node, ?\Closure $tahap = null): string
     {
@@ -140,8 +148,9 @@ class DatabaseBackupService
 
         try {
             $gagal = $this->dumpParalel($node, $daftar, $tmp, $ssh);
-            // Putaran kedua untuk yang gagal: gangguan sesaat tidak membuat run gagal.
-            if ($gagal) {
+            // Dua putaran ulang untuk yang gagal: gangguan sesaat (login macet) tidak
+            // membuat run gagal. Yang gagal karena isinya (view rusak) tetap gagal.
+            for ($putaran = 1; $gagal && $putaran <= 2; $putaran++) {
                 $gagal = $this->dumpParalel($node, array_keys($gagal), $tmp, $ssh);
             }
 
@@ -195,7 +204,12 @@ class DatabaseBackupService
                     // isRunning() sekaligus menarik keluaran yang menunggu di pipe ke berkas.
                     if ($d->process->isRunning()) {
                         $d->process->checkTimeout();
-                        continue;
+                        if ($d->awal !== '' || microtime(true) - $d->mulai < self::MACET_LOGIN) {
+                            continue;
+                        }
+                        $d->process->stop(0);
+                        throw new \RuntimeException('tidak ada data sama sekali dalam ' . self::MACET_LOGIN
+                            . ' detik, kemungkinan login/jabat tangan TLS ke server macet');
                     }
                 } catch (\RuntimeException $e) {
                     $galat = $e;
@@ -235,7 +249,7 @@ class DatabaseBackupService
             $process = new Process([
                 'mysql', '-N', '-B', '--connect-timeout=15', '-h', $node->host, '-P', (string) ($node->port ?: 3306),
                 '-u', (string) $node->db_user, '-e', 'SHOW DATABASES',
-            ], null, ['MYSQL_PWD' => (string) $node->db_password], null, 60);
+            ], null, ['MYSQL_PWD' => (string) $node->db_password], null, 30);
             $process->run();
         }
 
@@ -264,7 +278,7 @@ class DatabaseBackupService
             throw new \RuntimeException("Gagal membuka file gzip untuk ditulis: {$gzPath}");
         }
 
-        $d = (object) ['db' => $db, 'path' => $gzPath, 'gz' => $gz, 'awal' => '', 'ekor' => '', 'err' => ''];
+        $d = (object) ['db' => $db, 'path' => $gzPath, 'gz' => $gz, 'awal' => '', 'ekor' => '', 'err' => '', 'mulai' => microtime(true)];
         $tulis = function (string $type, string $buf) use ($d) {
             if ($type === Process::ERR) {
                 $d->err = substr($d->err . $buf, 0, 2000);
