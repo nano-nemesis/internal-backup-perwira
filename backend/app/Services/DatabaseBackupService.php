@@ -37,7 +37,7 @@ use Symfony\Component\Process\Process;
  *   SSH → mysqldump (plain SQL stdout) → dialirkan ke gzip lokal di VPS backup → simpan .sql.gz
  *   Kalau ssh_user kosong: mysqldump lokal langsung ke MySQL target (lihat dumpDirect()).
  *   Kalau db_name = '*': semua database server, satu .sql.gz per database dalam satu .tar
- *   (lihat backupSemua()). Grant-nya harus ON *.* supaya SHOW DATABASES melihat semuanya.
+ *   (lihat backupSemua(), PARALEL dump sekaligus). Grant-nya harus ON *.* supaya SHOW DATABASES melihat semuanya.
  */
 class DatabaseBackupService
 {
@@ -50,6 +50,17 @@ class DatabaseBackupService
 
     /** Skema bawaan server, bukan data aplikasi. */
     private const SKEMA_SISTEM = ['information_schema', 'performance_schema', 'mysql', 'sys'];
+
+    /**
+     * Dump yang berjalan bersamaan di mode semua database. Laju tiap koneksi mysqldump
+     * bisa tertahan jauh di bawah kapasitas jalur: diukur ke server BayarInternet
+     * (29 Okt 2026), 1 koneksi 1 MB/s, 4 koneksi ±25 MB/s.
+     * ponytail: angka tetap; jadikan setelan per node kalau ada server yang keberatan.
+     */
+    private const PARALEL = 4;
+
+    /** Batas per database di mode semua database (DB terbesar BayarInternet ±320 MB). */
+    private const TIMEOUT_PER_DB_SEMUA = 1800;
 
     /** @param ?\Closure(string): void $tahap dipanggil setiap pindah tahap, untuk tampilan realtime */
     public function backup(Node $node, ?\Closure $tahap = null): string
@@ -73,19 +84,35 @@ class DatabaseBackupService
 
         $localPath = "{$localDir}/backup-{$nodeName}-{$timestamp}.sql.gz";
         $tahap?->__invoke('dump');
-        $this->dumpKe($node, (string) $node->db_name, $localPath, $node->ssh_user ? $this->buildSsh($node) : null);
+        // Di bawah BackupJob::$timeout (300) supaya error-nya jelas, bukan job terbunuh.
+        $d = $node->ssh_user
+            ? $this->mulaiDump($node, (string) $node->db_name, $localPath, $this->buildSsh($node), config('backup.ssh_timeout', 120))
+            : $this->mulaiDump($node, (string) $node->db_name, $localPath, null, 280);
+        $galat = null;
+        try {
+            $d->process->wait();
+        } catch (\RuntimeException $e) {
+            $galat = $e;
+        }
+        $this->selesaiDump($node, $d, $galat);
 
         return $localPath;
     }
 
     /**
-     * Semua database di server, satu per satu. Satu database gagal (tabel rusak, timeout)
+     * Semua database di server, PARALEL sekaligus. Satu database gagal (tabel rusak, timeout)
      * tidak menghentikan yang lain: sisanya tetap diarsipkan, lalu run dinyatakan gagal
      * dengan daftar database yang terlewat supaya tetap ada notifikasi.
      */
     private function backupSemua(Node $node, string $localDir, string $filename, ?\Closure $tahap): string
     {
         $tahap?->__invoke('dump');
+
+        // Sisa run yang terbunuh (melewati batas job, worker di-restart) tidak sempat
+        // dibersihkan oleh finally di bawah, dan bisa berukuran GB.
+        foreach (glob("{$localDir}/.*.tmp", GLOB_ONLYDIR) ?: [] as $lama) {
+            $this->hapusFolder($lama);
+        }
 
         // Satu koneksi SSH dipakai ulang untuk ratusan perintah. Tanpa ini tiap database
         // membuka koneksi baru, dan server yang membatasi laju SSH (mis. `ufw limit`)
@@ -94,7 +121,9 @@ class DatabaseBackupService
             ? $this->buildSsh($node)->useMultiplexing(sys_get_temp_dir() . '/ibp-ssh-%C', '60s')
             : null;
 
-        $daftar = $this->daftarDatabase($node, $ssh);
+        // Koneksi ke server BayarInternet sesekali menggantung sebelum handshake;
+        // percobaan berikutnya biasanya langsung jalan.
+        $daftar = retry(3, fn () => $this->daftarDatabase($node, $ssh), 5000);
         if (!$daftar) {
             throw new \RuntimeException(
                 "Tidak ada database yang terlihat oleh user {$node->db_user} di {$node->host}. "
@@ -108,16 +137,12 @@ class DatabaseBackupService
             mkdir($tmp, 0755);
         }
         $path = "{$localDir}/{$filename}";
-        $gagal = [];
 
         try {
-            foreach ($daftar as $db) {
-                try {
-                    // Nama database boleh berisi '/', nama berkas tidak.
-                    $this->dumpKe($node, $db, "{$tmp}/" . str_replace('/', '_', $db) . '.sql.gz', $ssh);
-                } catch (\RuntimeException $e) {
-                    $gagal[$db] = $e->getMessage();
-                }
+            $gagal = $this->dumpParalel($node, $daftar, $tmp, $ssh);
+            // Putaran kedua untuk yang gagal: gangguan sesaat tidak membuat run gagal.
+            if ($gagal) {
+                $gagal = $this->dumpParalel($node, array_keys($gagal), $tmp, $ssh);
             }
 
             if (count($gagal) === count($daftar)) {
@@ -129,8 +154,7 @@ class DatabaseBackupService
             $tahap?->__invoke('kompres');
             (new Process(['tar', '-cf', $path, '-C', $tmp, '.'], null, null, null, null))->mustRun();
         } finally {
-            array_map('unlink', glob("{$tmp}/*") ?: []);
-            @rmdir($tmp);
+            $this->hapusFolder($tmp);
         }
 
         if ($gagal) {
@@ -145,17 +169,71 @@ class DatabaseBackupService
         return $path;
     }
 
+    /**
+     * @param string[] $daftar
+     * @return array<string, string> database yang gagal => pesan galat
+     */
+    private function dumpParalel(Node $node, array $daftar, string $tmp, ?Ssh $ssh): array
+    {
+        $gagal = [];
+        $jalan = [];
+
+        while ($daftar || $jalan) {
+            while ($daftar && count($jalan) < self::PARALEL) {
+                $db = array_shift($daftar);
+                try {
+                    // Nama database boleh berisi '/', nama berkas tidak.
+                    $jalan[$db] = $this->mulaiDump($node, $db, "{$tmp}/" . str_replace('/', '_', $db) . '.sql.gz', $ssh, self::TIMEOUT_PER_DB_SEMUA);
+                } catch (\RuntimeException $e) {
+                    $gagal[$db] = $e->getMessage();
+                }
+            }
+
+            foreach ($jalan as $db => $d) {
+                $galat = null;
+                try {
+                    // isRunning() sekaligus menarik keluaran yang menunggu di pipe ke berkas.
+                    if ($d->process->isRunning()) {
+                        $d->process->checkTimeout();
+                        continue;
+                    }
+                } catch (\RuntimeException $e) {
+                    $galat = $e;
+                }
+                unset($jalan[$db]);
+                try {
+                    $this->selesaiDump($node, $d, $galat);
+                } catch (\RuntimeException $e) {
+                    $gagal[$db] = $e->getMessage();
+                }
+            }
+
+            // Jeda pendek: pipe (64 KB) dikuras tiap putaran, jeda panjang membatasi laju.
+            usleep(2000);
+        }
+
+        return $gagal;
+    }
+
+    private function hapusFolder(string $dir): void
+    {
+        array_map('unlink', glob("{$dir}/*") ?: []);
+        @rmdir($dir);
+    }
+
     /** @return string[] database aplikasi yang terlihat oleh user DB node ini */
     private function daftarDatabase(Node $node, ?Ssh $ssh): array
     {
         if ($ssh) {
             $dbPass = $node->db_password ? ' -p' . escapeshellarg($node->db_password) : '';
             $process = $ssh->execute(
-                'mysql -N -B -u' . escapeshellarg($node->db_user) . $dbPass . " -e 'SHOW DATABASES'"
+                'mysql -N -B --connect-timeout=15 -u' . escapeshellarg($node->db_user) . $dbPass . " -e 'SHOW DATABASES'"
             );
         } else {
+            // --connect-timeout: tanpanya koneksi yang menggantung sebelum handshake
+            // menunggu SYN-retry kernel (±2 menit) dan baru terlihat sebagai timeout proses.
             $process = new Process([
-                'mysql', '-N', '-B', '-h', $node->host, '-P', (string) ($node->port ?: 3306),
+                'mysql', '-N', '-B', '--connect-timeout=15', '-h', $node->host, '-P', (string) ($node->port ?: 3306),
                 '-u', (string) $node->db_user, '-e', 'SHOW DATABASES',
             ], null, ['MYSQL_PWD' => (string) $node->db_password], null, 60);
             $process->run();
@@ -173,39 +251,59 @@ class DatabaseBackupService
     }
 
     /**
-     * mysqldump satu database, dialirkan langsung ke berkas .gz. Dump tidak pernah utuh
-     * di memori, jadi database ber-GB tidak menghabiskan memory_limit worker.
+     * Mulai mysqldump satu database tanpa menunggu. Keluarannya dialirkan langsung ke
+     * berkas .gz (tidak pernah utuh di memori, jadi database ber-GB aman); yang disimpan
+     * hanya awal dan akhirnya untuk diperiksa selesaiDump().
      */
-    private function dumpKe(Node $node, string $db, string $gzPath, ?Ssh $ssh): void
+    private function mulaiDump(Node $node, string $db, string $gzPath, ?Ssh $ssh, int $timeout): \stdClass
     {
-        $gz = gzopen($gzPath, 'wb6');
+        // Level 1: kompresi di proses PHP tunggal tidak boleh jadi leher botol saat
+        // beberapa dump mengalir bersamaan; selisih ukurannya kecil untuk SQL.
+        $gz = gzopen($gzPath, 'wb1');
         if ($gz === false) {
             throw new \RuntimeException("Gagal membuka file gzip untuk ditulis: {$gzPath}");
         }
 
-        // Yang diperiksa hanya awal (header) dan akhir (penanda selesai) dump.
-        $awal = $ekor = $err = '';
-        $tulis = function (string $type, string $buf) use ($gz, &$awal, &$ekor, &$err) {
+        $d = (object) ['db' => $db, 'path' => $gzPath, 'gz' => $gz, 'awal' => '', 'ekor' => '', 'err' => ''];
+        $tulis = function (string $type, string $buf) use ($d) {
             if ($type === Process::ERR) {
-                $err = substr($err . $buf, 0, 2000);
+                $d->err = substr($d->err . $buf, 0, 2000);
                 return;
             }
-            if (strlen($awal) < 4096) {
-                $awal .= $buf;
+            if (strlen($d->awal) < 4096) {
+                $d->awal .= $buf;
             }
-            $ekor = substr($ekor . $buf, -1024);
-            gzwrite($gz, $buf);
+            $d->ekor = substr($d->ekor . $buf, -1024);
+            gzwrite($d->gz, $buf);
         };
 
         try {
-            $process = $ssh ? $this->dumpViaSsh($node, $db, $ssh, $tulis) : $this->dumpDirect($node, $db, $tulis);
-        } finally {
+            $d->process = $ssh ? $this->dumpViaSsh($node, $db, $ssh, $tulis, $timeout) : $this->dumpDirect($node, $db, $tulis, $timeout);
+        } catch (\Throwable $e) {
             gzclose($gz);
+            @unlink($gzPath);
+            throw $e;
         }
-        $err = trim($err);
+
+        return $d;
+    }
+
+    /**
+     * Tutup berkas dump yang prosesnya sudah berhenti, lalu pastikan isinya dump utuh.
+     * Berkas yang tidak lolos dihapus. $galat = proses berhenti karena timeout.
+     */
+    private function selesaiDump(Node $node, \stdClass $d, ?\RuntimeException $galat = null): void
+    {
+        gzclose($d->gz);
+        $db = $d->db;
+        $err = trim($d->err);
 
         try {
-            if (trim($awal) === '') {
+            if ($galat) {
+                throw new \RuntimeException("mysqldump {$db} dari {$node->host} dihentikan: " . $galat->getMessage());
+            }
+
+            if (trim($d->awal) === '') {
                 throw new \RuntimeException(
                     "mysqldump output kosong dari {$node->host} ({$db})." .
                     ($err ? " Error: {$err}" : " Pastikan credential DB benar dan user memiliki permission SELECT.")
@@ -215,16 +313,16 @@ class DatabaseBackupService
             // Exit code diperiksa terpisah: mysqldump yang mati di tengah jalan (koneksi
             // putus, OOM, lock timeout) tetap sempat menulis header, jadi cek header saja
             // meloloskan dump terpotong sebagai "sukses".
-            if (!$process->isSuccessful()) {
+            if (!$d->process->isSuccessful()) {
                 throw new \RuntimeException(
-                    "mysqldump gagal di {$node->host} ({$db}, exit code {$process->getExitCode()}): {$err}"
+                    "mysqldump gagal di {$node->host} ({$db}, exit code {$d->process->getExitCode()}): {$err}"
                 );
             }
 
             // Output harus DIAWALI header mysqldump. Cukup "berisi" tidak aman: teks lain
             // di depannya (MOTD, banner login) membuat berkasnya gagal di-restore.
             // '/*M!999999' = baris sandbox yang ditulis mariadb-dump baru sebelum header.
-            $kepala = ltrim($awal);
+            $kepala = ltrim($d->awal);
             if (!str_starts_with($kepala, '-- MySQL dump') && !str_starts_with($kepala, '-- MariaDB dump')
                 && !str_starts_with($kepala, '/*M!999999')) {
                 throw new \RuntimeException(
@@ -235,22 +333,22 @@ class DatabaseBackupService
 
             // Penanda penutup: mysqldump hanya menulis ini setelah SELURUH dump selesai.
             // Tanpa cek ini, dump yang terpotong di tengah INSERT tetap lolos jadi backup.
-            if (!str_contains($ekor, '-- Dump completed')) {
+            if (!str_contains($d->ekor, '-- Dump completed')) {
                 throw new \RuntimeException(
                     "Dump {$db} dari {$node->host} tidak lengkap: penanda '-- Dump completed' tidak ditemukan. "
                     . "Kemungkinan koneksi terputus atau mysqldump dihentikan di tengah jalan."
                 );
             }
         } catch (\RuntimeException $e) {
-            @unlink($gzPath);
+            @unlink($d->path);
             throw $e;
         }
     }
 
-    private function dumpViaSsh(Node $node, string $db, Ssh $ssh, \Closure $tulis): Process
+    private function dumpViaSsh(Node $node, string $db, Ssh $ssh, \Closure $tulis, int $timeout): Process
     {
         // Plain SQL output, no pipe to gzip: gzip di sisi target menyembunyikan exit code
-        // mysqldump di balik pipe. Kompres terjadi di VPS backup (lihat dumpKe()).
+        // mysqldump di balik pipe. Kompres terjadi di VPS backup (lihat mulaiDump()).
         // $node->db_password already decrypted by the model accessor
         // escapeshellarg(), bukan addslashes(): di dalam kutip tunggal shell, \' TIDAK
         // mengescape apa pun, ia menutup kutipnya. Password/nama DB berisi kutip tunggal
@@ -269,9 +367,10 @@ class DatabaseBackupService
         // dan membuat restore gagal di baris pertama.
         // disableOutput(): keluaran hanya lewat $tulis, tidak ditumpuk di memori.
         return $ssh
+            ->setTimeout($timeout)
             ->onOutput($tulis)
             ->configureProcess(fn (Process $p) => $p->disableOutput())
-            ->execute($cmd);
+            ->executeAsync($cmd);
     }
 
     /**
@@ -282,7 +381,7 @@ class DatabaseBackupService
      * User MySQL-nya harus diizinkan dari IP VPS backup ('user'@'IP' atau '%'),
      * dengan grant yang sama: SELECT, SHOW VIEW, TRIGGER.
      */
-    private function dumpDirect(Node $node, string $db, \Closure $tulis): Process
+    private function dumpDirect(Node $node, string $db, \Closure $tulis, int $timeout): Process
     {
         // Password lewat MYSQL_PWD, bukan argumen -p: argumen terlihat oleh semua user
         // di `ps`, environment hanya oleh pemilik proses.
@@ -296,13 +395,10 @@ class DatabaseBackupService
             '-h', $node->host, '-P', (string) ($node->port ?: 3306),
             '-u', (string) $node->db_user,
             $db,
-        ], null, ['MYSQL_PWD' => (string) $node->db_password], null,
-            // Per database. Di bawah BackupJob::$timeout (300) supaya error-nya jelas,
-            // bukan job terbunuh; mode semua database punya batas job sendiri.
-            280);
+        ], null, ['MYSQL_PWD' => (string) $node->db_password], null, $timeout);
 
         $process->disableOutput();
-        $process->run($tulis);
+        $process->start($tulis);
 
         return $process;
     }

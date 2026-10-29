@@ -5,6 +5,17 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.13.2',
+    tanggal: '2026-10-29',
+    judul: 'Backup semua database jauh lebih cepat',
+    poin: [
+      'Empat database di-dump bersamaan. Ke server BayarInternet lajunya naik dari sekitar 1 MB/detik menjadi sekitar 25 MB/detik.',
+      'Koneksi yang menggantung saat mengambil daftar database gagal dalam 15 detik dan dicoba ulang otomatis, tidak lagi diam 60 detik lalu gagal.',
+      'Database yang gagal di putaran pertama dicoba sekali lagi sebelum backup dinyatakan gagal sebagian.',
+      'Sisa folder kerja dari backup yang terhenti di tengah jalan dibersihkan otomatis pada backup berikutnya.',
+    ],
+  },
+  {
     versi: '1.13.1',
     tanggal: '2026-10-29',
     judul: 'Password node tidak lagi terhapus saat diedit',
