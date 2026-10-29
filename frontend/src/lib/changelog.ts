@@ -5,6 +5,12 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.13.1',
+    tanggal: '2026-10-29',
+    judul: 'Password node tidak lagi terhapus saat diedit',
+    poin: ['Mengedit node dengan kolom password dibiarkan kosong kini benar-benar mempertahankan password lama. Sebelumnya password SSH atau DB ikut terhapus, sehingga backup berikutnya gagal login.'],
+  },
+  {
     versi: '1.13.0',
     tanggal: '2026-10-29',
     judul: 'Backup semua database dalam satu node',

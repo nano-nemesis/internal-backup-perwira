@@ -152,11 +152,13 @@ class NodeController extends Controller
             'backup_binary'           => 'sometimes|boolean',
         ]);
 
-        if (isset($validated['ssh_password']) && $validated['ssh_password'] === '') {
-            unset($validated['ssh_password']);
-        }
-        if (isset($validated['db_password']) && $validated['db_password'] === '') {
-            unset($validated['db_password']);
+        // Kosong = tetap pakai password lama. blank(), bukan === '': middleware
+        // ConvertEmptyStringsToNull sudah mengubah '' dari form jadi null, sehingga
+        // cek lama tidak pernah cocok dan setiap edit tanpa password MENGHAPUS password.
+        foreach (['ssh_password', 'db_password'] as $kolom) {
+            if (blank($validated[$kolom] ?? null)) {
+                unset($validated[$kolom]);
+            }
         }
 
         $oldName = $node->name;
