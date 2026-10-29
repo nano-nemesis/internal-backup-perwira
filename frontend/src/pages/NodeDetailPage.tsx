@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { Play, Terminal } from 'lucide-react'
-import { useNode, useRefreshDevice, useTriggerBackup } from '../hooks/useNodes'
+import { useBatalkanBackup, useNode, useRefreshDevice, useTriggerBackup } from '../hooks/useNodes'
 import { useAuth } from '../context/AuthContext'
 import { useBackupWatcher, isRunning } from '../hooks/useBackupWatcher'
 import { Button } from '../components/ui/button'
@@ -14,6 +14,16 @@ import { DoctorPanel, PeranBadges } from '../components/nodes/DoctorPanel'
 import { ProsesBackup } from '../components/nodes/ProsesBackup'
 import { keadaan, useManual, lepasManual } from '../lib/prosesBackup'
 import { toast } from '../components/ui/toaster'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog'
 import { cn, formatDatetimeWIB, formatBytes, formatDuration } from '../lib/utils'
 import type { BackupStatus } from '../types'
 
@@ -24,6 +34,7 @@ const STATUS: Record<BackupStatus, { teks: string; gaya: string }> = {
   failed: { teks: 'Gagal', gaya: 'bg-[#DC2626] text-white' },
   running: { teks: 'Berjalan', gaya: 'bg-[#E0E3FF] text-[#2E3AC2]' },
   pending: { teks: 'Antre', gaya: 'bg-[#E0E3FF] text-[#2E3AC2]' },
+  cancelled: { teks: 'Dibatalkan', gaya: 'bg-[#E5E7EB] text-[#374151]' },
 }
 
 function Kartu({ judul, pill, nilai, children }: {
@@ -55,6 +66,8 @@ export default function NodeDetailPage() {
   )
   const { isAdmin, isOperator } = useAuth()
   const trigger = useTriggerBackup()
+  const batalkan = useBatalkanBackup()
+  const [tanyaBatal, setTanyaBatal] = useState(false)
   const [showTerminal, setShowTerminal] = useState(false)
   // ?tab=doctor dipakai halaman Doctor supaya langsung membuka laporan node ini.
   const [searchParams] = useSearchParams()
@@ -78,6 +91,17 @@ export default function NodeDetailPage() {
       await trigger.mutateAsync({ id: id!, name: data?.data.name ?? '', logTerakhir: data?.logs?.[0]?.id ?? null })
     } catch (err: any) {
       toast(err.response?.data?.message ?? 'Gagal memulai backup', 'error')
+    }
+  }
+
+  const handleBatal = async () => {
+    try {
+      const r = await batalkan.mutateAsync(id!)
+      toast(r.data?.message ?? 'Backup dihentikan', 'info')
+    } catch (err: any) {
+      toast(err.response?.data?.message ?? 'Gagal membatalkan backup', 'error')
+    } finally {
+      setTanyaBatal(false)
     }
   }
 
@@ -212,9 +236,37 @@ export default function NodeDetailPage() {
               Tutup
             </button>
           )}
-          <ProsesBackup node={node} k={proses} biasanya={biasanya} />
+          <ProsesBackup
+            node={node}
+            k={proses}
+            biasanya={biasanya}
+            onBatal={isOperator && node.type === 'database' ? () => setTanyaBatal(true) : undefined}
+            membatalkan={batalkan.isPending}
+          />
         </section>
       )}
+
+      <AlertDialog open={tanyaBatal} onOpenChange={setTanyaBatal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Batalkan backup {node.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Semua dump yang sedang berjalan dihentikan dan hasil sementaranya dibuang. Berkas backup lama tidak
+              tersentuh, dan jadwal berikutnya tetap berjalan seperti biasa.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setTanyaBatal(false)}>Lanjutkan backup</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[#DC2626] hover:bg-[#B91C1C] text-white"
+              onClick={handleBatal}
+              disabled={batalkan.isPending}
+            >
+              {batalkan.isPending ? 'Menghentikan…' : 'Ya, batalkan'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Semua kartu membaca percobaan TERAKHIR (latestLog); umur sukses terakhir
           dimunculkan terpisah justru saat itu penting: ketika percobaan terakhir tidak sukses. */}
@@ -298,7 +350,7 @@ export default function NodeDetailPage() {
               <span
                 key={l.id}
                 title={`${formatDatetimeWIB(l.created_at)} · ${STATUS[l.status].teks}`}
-                className={cn('flex-1 max-w-[28px] rounded-[5px] origin-bottom animate-[masuk_0.4s_ease-out_backwards]', l.status === 'failed' ? 'bg-[#DC2626]' : l.status === 'success' ? 'bg-[#4255F0]' : 'bg-[#C7CCFB]')}
+                className={cn('flex-1 max-w-[28px] rounded-[5px] origin-bottom animate-[masuk_0.4s_ease-out_backwards]', l.status === 'failed' ? 'bg-[#DC2626]' : l.status === 'success' ? 'bg-[#4255F0]' : l.status === 'cancelled' ? 'bg-[#CBD5E1]' : 'bg-[#C7CCFB]')}
               />
             ))}
           </div>

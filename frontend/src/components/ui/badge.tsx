@@ -22,9 +22,10 @@ export function StatusBadge({ status }: { status: BackupStatus | undefined | nul
     failed: 'badge-failed',
     pending: 'badge-pending',
     running: 'badge-running',
+    cancelled: 'badge-unknown',
   }
 
-  const teks: Record<BackupStatus, string> = { success: 'berhasil', failed: 'gagal', pending: 'antre', running: 'berjalan' }
+  const teks: Record<BackupStatus, string> = { success: 'berhasil', failed: 'gagal', pending: 'antre', running: 'berjalan', cancelled: 'dibatalkan' }
   return <span className={map[status] ?? 'badge-unknown'}>{teks[status] ?? status}</span>
 }
 

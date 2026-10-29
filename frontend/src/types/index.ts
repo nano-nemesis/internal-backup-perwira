@@ -10,7 +10,7 @@
 
 export type UserRole = 'admin' | 'operator' | 'viewer'
 export type NodeType = 'mikrotik' | 'database' | 'virtualizor_db'  // <-- PATCH
-export type BackupStatus = 'pending' | 'running' | 'success' | 'failed'
+export type BackupStatus = 'pending' | 'running' | 'success' | 'failed' | 'cancelled'
 
 export interface User {
   id: string

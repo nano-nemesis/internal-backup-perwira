@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ActivityLog;
 use App\Models\BackupLog;
 use App\Models\Node;
+use App\Support\BackupDibatalkan;
 use App\Support\BackupErrorSummary;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -41,11 +42,13 @@ class BackupService
         $startTime = microtime(true);
         // Tahap ditulis ke log supaya halaman bisa menampilkan proses backup secara langsung.
         $tahap = fn (string $t) => $log->update(['tahap' => $t]);
+        // Tombol Batalkan menulis tanda ini; jalur dump database membacanya tiap detik.
+        $batal = fn () => Cache::get(BackupDibatalkan::kunci($log->id));
 
         try {
             $filePath = match ($node->type) {
                 'mikrotik'       => $this->mikrotik->backup($node, $tahap),
-                'database'       => $this->database->backup($node, $tahap),
+                'database'       => $this->database->backup($node, $tahap, $batal),
                 'virtualizor_db' => $this->virtualizor->backup($node, $tahap),
                 default          => throw new \RuntimeException("Unknown node type: {$node->type}"),
             };
@@ -96,6 +99,19 @@ class BackupService
             );
             $this->cleanOldBackups($node);
 
+        } catch (BackupDibatalkan $e) {
+            // Disengaja pengguna: bukan kegagalan, jadi tanpa Telegram dan tanpa status merah.
+            $duration = (int) (microtime(true) - $startTime);
+            $log->update([
+                'status' => 'cancelled',
+                'error_message' => $e->getMessage(),
+                'duration_seconds' => $duration,
+                'finished_at' => now(),
+            ]);
+            Cache::forget(BackupDibatalkan::kunci($log->id));
+            ActivityLog::info('backup', 'backup.dibatalkan',
+                "Backup {$node->name} dibatalkan oleh {$e->oleh} setelah {$duration} detik.",
+                ['oleh' => $e->oleh, 'durasi_detik' => $duration, 'tahap' => $log->tahap], $node);
         } catch (\Exception $e) {
             $duration = (int) (microtime(true) - $startTime);
             $error = ($simulasi ? '[SIMULASI] ' : '') . $e->getMessage();

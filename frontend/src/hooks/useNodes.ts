@@ -45,6 +45,18 @@ export function useTriggerBackup() {
   })
 }
 
+/** Hentikan backup yang sedang berjalan; worker berhenti dalam ±1 detik. */
+export function useBatalkanBackup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (nodeId: string) => api.post(`/nodes/${nodeId}/backup/batal`),
+    onSuccess: (_, nodeId) => {
+      qc.invalidateQueries({ queryKey: ['nodes'] })
+      qc.invalidateQueries({ queryKey: ['node', nodeId] })
+    },
+  })
+}
+
 /** Baca versi + model RouterOS langsung dari router. */
 export function useRefreshDevice() {
   const qc = useQueryClient()

@@ -5,6 +5,16 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.14.0',
+    tanggal: '2026-10-29',
+    judul: 'Backup database bisa dibatalkan',
+    poin: [
+      'Tombol Batalkan muncul di panel proses selama backup node database berjalan (operator dan admin). Semua dump dihentikan dalam sekitar satu detik dan hasil sementaranya dibuang. Berkas backup lama tidak tersentuh.',
+      'Backup yang dibatalkan berstatus Dibatalkan (abu-abu), bukan Gagal, dan tidak mengirim notifikasi Telegram.',
+      'Log backup yang tertinggal berstatus berjalan padahal prosesnya sudah mati bisa ditutup dengan tombol yang sama.',
+    ],
+  },
+  {
     versi: '1.13.4',
     tanggal: '2026-10-29',
     judul: 'Lebih banyak percobaan ulang untuk dump yang macet',

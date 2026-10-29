@@ -7,11 +7,13 @@ use App\Models\ActivityLog;
 use App\Models\BackupLog;
 use App\Models\Node;
 use App\Services\MikrotikService;
+use App\Support\BackupDibatalkan;
 use App\Support\RestoreCheck;
 use App\Support\RouterOsCommandPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class NodeController extends Controller
@@ -130,6 +132,34 @@ class NodeController extends Controller
         ActivityLog::info('backup', 'backup.manual', "Backup manual {$node->name} dimasukkan ke antrean.", [], $node);
 
         return response()->json(['message' => "Backup job queued for node [{$node->name}]"]);
+    }
+
+    /** Minta backup yang sedang berjalan berhenti; worker membaca tandanya dalam ±1 detik. */
+    public function batalkanBackup(Request $request, string $id): JsonResponse
+    {
+        $node = Node::findOrFail($id);
+        if ($node->type !== 'database') {
+            return response()->json(['message' => 'Pembatalan baru tersedia untuk node database.'], 422);
+        }
+
+        $log = $node->backupLogs()->where('status', 'running')->latest('created_at')->first();
+        if (!$log) {
+            return response()->json(['message' => 'Tidak ada backup yang sedang berjalan.'], 409);
+        }
+
+        $oleh = $request->user()->username;
+        // Log 'running' yang lebih tua dari batas job terlama berarti worker-nya sudah
+        // mati (mis. di-restart paksa): tidak ada yang akan membaca tandanya, tutup langsung.
+        if ($log->started_at?->lt(now()->subSeconds(BackupJob::TIMEOUT_SEMUA_DB + 300))) {
+            $log->update(['status' => 'cancelled', 'error_message' => "Dibatalkan oleh {$oleh} (proses sudah tidak berjalan).", 'finished_at' => now()]);
+            ActivityLog::info('backup', 'backup.dibatalkan', "Log backup {$node->name} yang tertinggal ditutup oleh {$oleh}.", [], $node);
+            return response()->json(['message' => 'Proses backup ini sudah tidak berjalan; lognya ditutup.']);
+        }
+
+        Cache::put(BackupDibatalkan::kunci($log->id), $oleh, now()->addSeconds(BackupJob::TIMEOUT_SEMUA_DB));
+        ActivityLog::info('backup', 'backup.batal', "Pembatalan backup {$node->name} diminta oleh {$oleh}.", [], $node);
+
+        return response()->json(['message' => 'Backup dihentikan dalam beberapa detik.']);
     }
 
     public function remoteExecute(Request $request, string $id): JsonResponse

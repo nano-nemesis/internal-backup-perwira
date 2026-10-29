@@ -197,6 +197,7 @@ class TelegramBot
         $ikon = match ($log?->status) {
             'success'            => '✅',
             'failed'             => '❌',
+            'cancelled'          => '⏹️',
             'running', 'pending' => '⏳',
             default              => '⚪',
         };

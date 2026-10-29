@@ -53,6 +53,9 @@ export function useBackupWatcher(nodes: Watchable[] | undefined) {
           // muncul tanpa perlu memuat ulang halaman.
           qc.invalidateQueries({ queryKey: ['backup-files'] })
           qc.invalidateQueries({ queryKey: ['node', id] })
+        } else if (status === 'cancelled') {
+          if (!diam) toast(`Backup "${name}" dibatalkan`, 'info')
+          qc.invalidateQueries({ queryKey: ['node', id] })
         } else if (status === 'failed') {
           if (!diam) toast(`Backup "${name}" GAGAL, buka detail node untuk pesan errornya`, 'error')
           qc.invalidateQueries({ queryKey: ['node', id] })

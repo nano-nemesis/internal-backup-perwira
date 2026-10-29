@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Node;
+use App\Support\BackupDibatalkan;
 use Spatie\Ssh\Ssh;
 use Symfony\Component\Process\Process;
 
@@ -73,8 +74,12 @@ class DatabaseBackupService
 
     private const PUTARAN_ULANG = 5;
 
-    /** @param ?\Closure(string): void $tahap dipanggil setiap pindah tahap, untuk tampilan realtime */
-    public function backup(Node $node, ?\Closure $tahap = null): string
+    /**
+     * @param ?\Closure(string): void $tahap dipanggil setiap pindah tahap, untuk tampilan realtime
+     * @param ?\Closure(): ?string $batal nama yang meminta pembatalan, null = lanjut;
+     *        dicek tiap detik selama dump, lalu BackupDibatalkan dilempar.
+     */
+    public function backup(Node $node, ?\Closure $tahap = null, ?\Closure $batal = null): string
     {
         $now = \Carbon\Carbon::now('Asia/Jakarta');
         $timestamp = $now->format('Y-m-d-H.i') . 'WIB';
@@ -90,22 +95,23 @@ class DatabaseBackupService
         }
 
         if (trim((string) $node->db_name) === self::SEMUA) {
-            return $this->backupSemua($node, $localDir, "backup-{$nodeName}-{$timestamp}.tar", $tahap);
+            return $this->backupSemua($node, $localDir, "backup-{$nodeName}-{$timestamp}.tar", $tahap, $batal);
         }
 
         $localPath = "{$localDir}/backup-{$nodeName}-{$timestamp}.sql.gz";
         $tahap?->__invoke('dump');
-        // Di bawah BackupJob::$timeout (300) supaya error-nya jelas, bukan job terbunuh.
-        $d = $node->ssh_user
-            ? $this->mulaiDump($node, (string) $node->db_name, $localPath, $this->buildSsh($node), config('backup.ssh_timeout', 120))
-            : $this->mulaiDump($node, (string) $node->db_name, $localPath, null, 280);
-        $galat = null;
-        try {
-            $d->process->wait();
-        } catch (\RuntimeException $e) {
-            $galat = $e;
+        // Satu database lewat jalur yang sama dengan mode semua: ikut bisa dibatalkan
+        // dan ikut dijaga MACET_LOGIN. Timeout di bawah BackupJob::$timeout (300)
+        // supaya error-nya jelas, bukan job terbunuh.
+        $gagal = $this->dumpParalel(
+            $node, [(string) $node->db_name => $localPath],
+            $node->ssh_user ? $this->buildSsh($node) : null,
+            $node->ssh_user ? config('backup.ssh_timeout', 120) : 280,
+            $batal,
+        );
+        if ($gagal) {
+            throw new \RuntimeException(reset($gagal));
         }
-        $this->selesaiDump($node, $d, $galat);
 
         return $localPath;
     }
@@ -115,7 +121,7 @@ class DatabaseBackupService
      * tidak menghentikan yang lain: sisanya tetap diarsipkan, lalu run dinyatakan gagal
      * dengan daftar database yang terlewat supaya tetap ada notifikasi.
      */
-    private function backupSemua(Node $node, string $localDir, string $filename, ?\Closure $tahap): string
+    private function backupSemua(Node $node, string $localDir, string $filename, ?\Closure $tahap, ?\Closure $batal): string
     {
         $tahap?->__invoke('dump');
 
@@ -148,16 +154,18 @@ class DatabaseBackupService
             mkdir($tmp, 0755);
         }
         $path = "{$localDir}/{$filename}";
+        // Nama database boleh berisi '/', nama berkas tidak.
+        $tugas = array_combine($daftar, array_map(fn ($db) => "{$tmp}/" . str_replace('/', '_', $db) . '.sql.gz', $daftar));
 
         try {
-            $gagal = $this->dumpParalel($node, $daftar, $tmp, $ssh);
+            $gagal = $this->dumpParalel($node, $tugas, $ssh, self::TIMEOUT_PER_DB_SEMUA, $batal);
             // Putaran ulang untuk yang gagal: gangguan sesaat (login macet) tidak membuat
             // run gagal. Yang gagal karena isinya (view rusak) tetap gagal. Ke BayarInternet
             // ±20% percobaan macet secara acak (run 29 Okt: 3 dari 371 gagal 3x), jadi
             // 6 percobaan; jeda supaya ulangan tidak jatuh di gangguan yang sama.
             for ($putaran = 1; $gagal && $putaran <= self::PUTARAN_ULANG; $putaran++) {
                 sleep(10);
-                $gagal = $this->dumpParalel($node, array_keys($gagal), $tmp, $ssh);
+                $gagal = $this->dumpParalel($node, array_intersect_key($tugas, $gagal), $ssh, self::TIMEOUT_PER_DB_SEMUA, $batal);
             }
 
             if (count($gagal) === count($daftar)) {
@@ -185,20 +193,38 @@ class DatabaseBackupService
     }
 
     /**
-     * @param string[] $daftar
+     * @param array<string, string> $tugas database => berkas .sql.gz tujuan
      * @return array<string, string> database yang gagal => pesan galat
+     * @throws BackupDibatalkan semua dump yang berjalan dihentikan dan berkasnya dibuang
      */
-    private function dumpParalel(Node $node, array $daftar, string $tmp, ?Ssh $ssh): array
+    private function dumpParalel(Node $node, array $tugas, ?Ssh $ssh, int $timeout, ?\Closure $batal): array
     {
         $gagal = [];
         $jalan = [];
+        $cekBatal = 0.0;
 
-        while ($daftar || $jalan) {
-            while ($daftar && count($jalan) < self::PARALEL) {
-                $db = array_shift($daftar);
+        while ($tugas || $jalan) {
+            // Tiap detik saja: tanda batal ada di cache berkas, putaran ini jalan tiap 2 ms.
+            if ($batal && microtime(true) - $cekBatal >= 1) {
+                $cekBatal = microtime(true);
+                if (($oleh = $batal()) !== null) {
+                    foreach ($jalan as $d) {
+                        $d->process->stop(0);
+                        gzclose($d->gz);
+                        @unlink($d->path);
+                    }
+                    throw new BackupDibatalkan($oleh);
+                }
+            }
+
+            while ($tugas && count($jalan) < self::PARALEL) {
+                // unset(), bukan array_shift(): array_shift menomori ulang kunci angka,
+                // jadi database bernama '123' akan berganti nama di tengah jalan.
+                $db = array_key_first($tugas);
+                $path = $tugas[$db];
+                unset($tugas[$db]);
                 try {
-                    // Nama database boleh berisi '/', nama berkas tidak.
-                    $jalan[$db] = $this->mulaiDump($node, $db, "{$tmp}/" . str_replace('/', '_', $db) . '.sql.gz', $ssh, self::TIMEOUT_PER_DB_SEMUA);
+                    $jalan[$db] = $this->mulaiDump($node, (string) $db, $path, $ssh, $timeout);
                 } catch (\RuntimeException $e) {
                     $gagal[$db] = $e->getMessage();
                 }

@@ -40,6 +40,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::middleware('role:admin,operator')->group(function () {
         Route::post('/nodes/{id}/backup', [NodeController::class, 'triggerBackup'])
             ->middleware('throttle:backup-trigger');
+        Route::post('/nodes/{id}/backup/batal', [NodeController::class, 'batalkanBackup'])
+            ->middleware('throttle:backup-trigger');
         Route::post('/doctor/run-all', [NodeController::class, 'doctorAll'])
             ->middleware('throttle:backup-trigger');
         // Mengirim notifikasi Telegram sungguhan dan memerahkan status node.
