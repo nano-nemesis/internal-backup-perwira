@@ -22,7 +22,7 @@ const waktu = (d: number) => (d < 60 ? `${d} dtk` : `${Math.floor(d / 60)} mnt $
  * `ringkas` untuk panel kecil (satu baris tahap + bar), selain itu daftar tahap lengkap.
  */
 export function ProsesBackup({ node, k, ringkas, biasanya, onBatal, membatalkan }: {
-  node: Pick<Node, 'type' | 'backup_binary' | 'name'>
+  node: Pick<Node, 'type' | 'tipe_backup' | 'name'>
   k: Keadaan
   ringkas?: boolean
   /** Durasi backup berhasil yang biasa (detik), untuk perkiraan. */

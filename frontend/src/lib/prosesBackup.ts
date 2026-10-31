@@ -64,9 +64,13 @@ export const TAHAP: Record<string, string> = {
 }
 
 /** Urutan tahap per tipe node, sesuai alur di backend. */
-export function urutanTahap(node: Pick<Node, 'type' | 'backup_binary'>): string[] {
+export function urutanTahap(node: Pick<Node, 'type' | 'tipe_backup'>): string[] {
   if (node.type === 'mikrotik') {
-    return node.backup_binary ? ['antre', 'simpan', 'salin', 'periksa', 'doctor'] : ['antre', 'ambil', 'periksa', 'doctor']
+    return {
+      rsc: ['antre', 'ambil', 'periksa', 'doctor'],
+      backup: ['antre', 'simpan', 'salin', 'periksa', 'doctor'],
+      keduanya: ['antre', 'ambil', 'simpan', 'salin', 'periksa', 'doctor'],
+    }[node.tipe_backup ?? 'rsc']
   }
   return node.type === 'database' ? ['antre', 'dump', 'kompres', 'periksa'] : ['antre', 'cari', 'salin', 'periksa']
 }
@@ -79,7 +83,7 @@ export type Keadaan =
  * Keadaan backup sebuah node untuk ditampilkan. null = tidak ada yang perlu ditampilkan
  * (tidak sedang berjalan, dan bukan backup manual dari peramban ini).
  */
-export function keadaan(node: Pick<Node, 'type' | 'backup_binary'>, log: BackupLog | null | undefined, manual?: Manual): Keadaan | null {
+export function keadaan(node: Pick<Node, 'type' | 'tipe_backup'>, log: BackupLog | null | undefined, manual?: Manual): Keadaan | null {
   const baru = !!log && (!manual || log.id !== manual.logSebelum)
   if (log && baru && (log.status === 'running' || log.status === 'pending')) {
     return { fase: 'berjalan', tahap: log.status === 'pending' ? 'antre' : log.tahap ?? urutanTahap(node)[1], log }

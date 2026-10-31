@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { Play, Power, Edit, Trash2, ChevronRight, MoreHorizontal } from 'lucide-react'
-import type { Node, NodeType } from '../../types'
+import type { Node, NodeType, TipeBackup } from '../../types'
 import { Button } from '../ui/button'
 import { basi, cn, lalu } from '../../lib/utils'
 import {
@@ -35,6 +35,8 @@ interface NodeTableProps {
   onEdit: (node: Node) => void
 }
 
+const EKSTENSI: Record<TipeBackup, string> = { rsc: '.rsc', backup: '.backup', keduanya: '.rsc + .backup' }
+
 export const LABEL_TIPE: Record<NodeType, { teks: string; gaya: string }> = {
   mikrotik: { teks: 'MikroTik', gaya: 'bg-[#FFEDD5] text-[#9A3412]' },
   database: { teks: 'Database', gaya: 'bg-[#CCFBF1] text-[#115E59]' },
@@ -64,7 +66,7 @@ function Backup({ node }: { node: Node }) {
   const ket = !log
     ? 'belum pernah dibackup'
     : log.status === 'success'
-      ? `${lalu(log.created_at)} · ${node.backup_binary ? '.backup' : node.type === 'mikrotik' ? '.rsc' : '.sql.gz'}`
+      ? `${lalu(log.created_at)} · ${node.type === 'mikrotik' ? EKSTENSI[node.tipe_backup ?? 'rsc'] : '.sql.gz'}`
       : node.last_backup_at ? `sukses ${lalu(node.last_backup_at)}` : 'belum pernah sukses'
   return (
     <>

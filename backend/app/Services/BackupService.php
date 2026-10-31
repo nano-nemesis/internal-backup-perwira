@@ -53,12 +53,14 @@ class BackupService
         $berkasGagal = null;
 
         try {
-            $filePath = match ($node->type) {
+            // MikroTik tipe 'keduanya' menghasilkan dua berkas; yang pertama jadi berkas utama log.
+            $semuaBerkas = (array) match ($node->type) {
                 'mikrotik'       => $this->mikrotik->backup($node, $tahap),
                 'database'       => $this->database->backup($node, $tahap, $batal),
                 'virtualizor_db' => $this->virtualizor->backup($node, $tahap),
                 default          => throw new \RuntimeException("Unknown node type: {$node->type}"),
             };
+            $filePath = $semuaBerkas[0];
 
             // Node simulasi adalah salinan ber-host palsu; sukses di sini berarti targetnya
             // ternyata menjawab, dan $node->update() di bawah akan menyimpan host palsu itu.
@@ -67,21 +69,20 @@ class BackupService
             }
 
             $tahap('periksa');
-            // Dibandingkan dengan backup berhasil SEBELUM ini; export MikroTik yang
-            // menyusut drastis tanda konfigurasi hilang atau export tidak lengkap.
-            $sebelumnya = BackupLog::where('node_id', $node->id)->where('status', 'success')
-                ->latest('created_at')->value('file_size');
-            $struktur = VerifikasiBerkas::periksa($filePath, $node->type !== 'virtualizor_db', $sebelumnya);
-            HasilVerifikasi::simpan($filePath, 'struktur', $struktur);
-            if ($struktur['status'] === 'gagal') {
-                $berkasGagal = $filePath;
-                $rusak = array_filter($struktur['cek'], fn ($c) => $c['status'] === 'gagal');
-                throw new \RuntimeException('Verifikasi berkas gagal: ' . implode(' | ',
-                    array_map(fn ($c) => "{$c['judul']}: {$c['detail']}", $rusak)));
+            foreach ($semuaBerkas as $berkas) {
+                $struktur = VerifikasiBerkas::periksa($berkas, $node->type !== 'virtualizor_db', self::ukuranSebelumnya($berkas));
+                HasilVerifikasi::simpan($berkas, 'struktur', $struktur);
+                if ($struktur['status'] === 'gagal') {
+                    $berkasGagal = $berkas;
+                    $rusak = array_filter($struktur['cek'], fn ($c) => $c['status'] === 'gagal');
+                    throw new \RuntimeException('Verifikasi berkas ' . basename($berkas) . ' gagal: ' . implode(' | ',
+                        array_map(fn ($c) => "{$c['judul']}: {$c['detail']}", $rusak)));
+                }
             }
 
             $duration = (int) (microtime(true) - $startTime);
-            $fileSize = file_exists($filePath) ? filesize($filePath) : 0;
+            $fileSize = array_sum(array_map(fn ($b) => is_file($b) ? filesize($b) : 0, $semuaBerkas));
+            $namaBerkas = implode(' + ', array_map('basename', $semuaBerkas));
 
             // Versi + model saat backup dibuat, syarat menilai apakah .backup bisa
             // di-restore nanti. Gagal membacanya tidak menggagalkan backup yang sudah jadi.
@@ -113,8 +114,8 @@ class BackupService
 
             $telegram = $this->telegram->notifySuccess($node, $log->fresh());
             ActivityLog::info('backup', 'backup.berhasil',
-                "Backup {$node->name} berhasil: " . basename($filePath) . ' (' . $log->fresh()->file_size_formatted . ", {$duration} detik).",
-                ['file' => basename($filePath), 'ukuran_byte' => $fileSize, 'durasi_detik' => $duration, 'pemicu' => $pemicu ?? 'jadwal', 'telegram' => $telegram],
+                "Backup {$node->name} berhasil: {$namaBerkas} (" . $log->fresh()->file_size_formatted . ", {$duration} detik).",
+                ['file' => $namaBerkas, 'ukuran_byte' => $fileSize, 'durasi_detik' => $duration, 'pemicu' => $pemicu ?? 'jadwal', 'telegram' => $telegram],
                 $node,
             );
             $this->cleanOldBackups($node);
@@ -212,6 +213,20 @@ class BackupService
         } finally {
             Cache::forget("telegram_cooldown_{$node->id}");
         }
+    }
+
+    /**
+     * Ukuran berkas sebelumnya dengan ekstensi yang sama di folder yang sama: export
+     * MikroTik yang menyusut drastis tanda konfigurasi hilang atau export tidak lengkap.
+     * Dari disk, bukan log: .rsc tipe 'keduanya' tidak punya baris log sendiri.
+     */
+    private static function ukuranSebelumnya(string $berkas): ?int
+    {
+        $akhiran = str_ends_with($berkas, '.sql.gz') ? '.sql.gz' : '.' . pathinfo($berkas, PATHINFO_EXTENSION);
+        $lain = array_filter(glob(dirname($berkas) . '/*' . $akhiran) ?: [], fn ($f) => $f !== $berkas);
+        usort($lain, fn ($a, $b) => filemtime($b) <=> filemtime($a));
+
+        return $lain ? filesize($lain[0]) : null;
     }
 
     private function cleanOldBackups(Node $node): void

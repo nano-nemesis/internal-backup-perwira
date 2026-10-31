@@ -3,6 +3,7 @@ namespace App\Services;
 
 use App\Models\ActivityLog;
 use App\Models\Node;
+use App\Support\BackupSebagian;
 use App\Support\Langkah;
 use App\Support\RouterDoctor;
 use Illuminate\Support\Facades\Cache;
@@ -10,8 +11,11 @@ use Illuminate\Support\Facades\Http;
 
 class MikrotikService
 {
-    /** @param ?\Closure(string): void $tahap dipanggil setiap pindah tahap, untuk tampilan realtime */
-    public function backup(Node $node, ?\Closure $tahap = null): string
+    /**
+     * @param ?\Closure(string): void $tahap dipanggil setiap pindah tahap, untuk tampilan realtime
+     * @return string[] berkas yang dibuat; untuk tipe 'keduanya' [.backup, .rsc]
+     */
+    public function backup(Node $node, ?\Closure $tahap = null): array
     {
         $now = \Carbon\Carbon::now('Asia/Jakarta');
         $timestamp = $now->format('Y-m-d-H.i') . 'WIB';
@@ -27,13 +31,35 @@ class MikrotikService
             mkdir($localDir, 0755, true);
         }
         $localPath = "{$localDir}/{$filename}";
+        $berkas = [];
 
-        if ($node->backup_binary) {
-            $binaryPath = preg_replace('/\.rsc$/', '.backup', $localPath);
-            $this->backupBinary($node, $binaryPath, $now->format('Ymd-His'), $tahap);
-            return $binaryPath;
+        if ($node->ambilRsc()) {
+            $this->exportRsc($node, $localPath, $tahap);
+            $berkas[] = $localPath;
         }
 
+        if ($node->ambilBiner()) {
+            $binaryPath = preg_replace('/\.rsc$/', '.backup', $localPath);
+            try {
+                $this->backupBinary($node, $binaryPath, $now->format('Ymd-His'), $tahap);
+            } catch (\RuntimeException $e) {
+                // Tipe keduanya: .rsc sudah aman tersimpan, jadi run gagal SEBAGIAN (tetap
+                // ada notifikasi), bukan seolah tidak ada backup sama sekali.
+                if ($berkas) {
+                    throw new BackupSebagian("Backup .backup gagal, .rsc tetap tersimpan: {$e->getMessage()}", $localPath);
+                }
+                throw $e;
+            }
+            // .backup di depan: berkas utama log, karena RestoreCheck membaca versi/model
+            // .backup dari log, sedangkan .rsc membawanya sendiri di header.
+            array_unshift($berkas, $binaryPath);
+        }
+
+        return $berkas;
+    }
+
+    private function exportRsc(Node $node, string $localPath, ?\Closure $tahap): void
+    {
         // '/export' polos MENYAMARKAN secret (PPPoE/RADIUS/PSK) di RouterOS v7,
         // sehingga backup-nya tidak cukup untuk memulihkan layanan pelanggan. Flag ini
         // membuat file .rsc berisi KREDENSIAL PELANGGAN PLAINTEXT, file ditulis 0600.
@@ -69,8 +95,6 @@ class MikrotikService
         if (!file_exists($localPath) || filesize($localPath) === 0) {
             throw new \RuntimeException("Gagal menyimpan file backup dari {$node->host}");
         }
-
-        return $localPath;
     }
 
     /**
@@ -253,19 +277,22 @@ class MikrotikService
                 ":put [/user group get [/user get [find name=\"{$node->ssh_user}\"] group] policy]"));
             // :put sebuah list bisa memakai ';' (array) atau ',' (teks), tergantung versi.
             $punya = array_filter(array_map('trim', preg_split('/[,;]/', $policy)), fn ($p) => $p !== '' && $p[0] !== '!');
-            $wajib = $node->backup_binary ? ['ssh', 'read', 'write', 'policy', 'ftp', 'sensitive'] : ['ssh', 'read', 'sensitive'];
+            $wajib = $node->ambilBiner() ? ['ssh', 'read', 'write', 'policy', 'ftp', 'sensitive'] : ['ssh', 'read', 'sensitive'];
             $kurang = array_values(array_diff($wajib, $punya));
             $l->catat($kurang ? 'gagal' : 'ok', 'Policy user', $kurang
                 ? 'Kurang policy ' . implode(', ', $kurang) . '. '
                     . (in_array('sensitive', $kurang, true) ? 'Tanpa sensitive, password PPPoE/RADIUS/PSK keluar sebagai *** dan backup tampak utuh padahal tidak bisa memulihkan layanan. ' : '')
-                    . ($node->backup_binary ? 'Backup biner butuh write, policy, dan ftp untuk menyimpan dan menarik berkas.' : '')
-                : 'Policy ' . implode(', ', $wajib) . ' lengkap untuk ' . ($node->backup_binary ? 'backup biner (.backup).' : 'export (.rsc).'));
+                    . ($node->ambilBiner() ? 'Backup biner butuh write, policy, dan ftp untuk menyimpan dan menarik berkas.' : '')
+                : 'Policy ' . implode(', ', $wajib) . ' lengkap untuk ' . ['rsc' => 'export (.rsc).', 'backup' => 'backup biner (.backup).',
+                    'keduanya' => 'export .rsc dan backup biner .backup.'][$node->tipe_backup ?? 'rsc']);
         }
 
-        if ($node->backup_binary) {
+        if ($node->ambilBiner()) {
             // Backup biner sungguhan menulis ke flash router; yang diuji di sini ruangnya saja.
             $l->catat($flash > 0 && $flash < 2 * 1024 * 1024 ? 'peringatan' : 'ok', 'Ruang flash router',
                 'Sisa flash ' . round($flash / 1048576, 1) . ' MB; berkas .backup sementara ditulis di sana lalu dihapus setelah ditarik.');
+        }
+        if (!$node->ambilRsc()) {
             return;
         }
 

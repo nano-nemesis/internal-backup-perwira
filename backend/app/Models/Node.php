@@ -28,7 +28,7 @@ class Node extends Model
         'name', 'type', 'host', 'port',
         'ssh_user', 'ssh_password', 'ssh_key_path',
         'db_name', 'db_user', 'db_password',
-        'schedule_interval_hours', 'is_active', 'last_backup_at', 'backup_binary',
+        'schedule_interval_hours', 'is_active', 'last_backup_at', 'tipe_backup',
         'routeros_version', 'routeros_model', 'routeros_checked_at',
         'doctor_report', 'doctor_checked_at',
     ];
@@ -37,7 +37,6 @@ class Node extends Model
 
     protected $casts = [
         'is_active'               => 'boolean',
-        'backup_binary'           => 'boolean',
         'last_backup_at'          => 'datetime',
         'routeros_checked_at'     => 'datetime',
         'doctor_report'           => 'array',
@@ -97,6 +96,21 @@ class Node extends Model
     public function isDatabase(): bool
     {
         return $this->type === 'database';
+    }
+
+    /** MikroTik: tipe_backup rsc | backup | keduanya. */
+    public const TIPE_BACKUP = ['rsc', 'backup', 'keduanya'];
+
+    /** MikroTik yang mengambil export .rsc (tipe rsc atau keduanya). */
+    public function ambilRsc(): bool
+    {
+        return in_array($this->tipe_backup ?? 'rsc', ['rsc', 'keduanya'], true);
+    }
+
+    /** MikroTik yang membuat .backup biner (tipe backup atau keduanya): butuh policy write, policy, ftp. */
+    public function ambilBiner(): bool
+    {
+        return in_array($this->tipe_backup, ['backup', 'keduanya'], true);
     }
 
     /** Node ini adalah Virtualizor panel, backup dir via db_name field (opsional) */

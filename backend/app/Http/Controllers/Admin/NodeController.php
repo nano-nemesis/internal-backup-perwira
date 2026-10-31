@@ -75,7 +75,7 @@ class NodeController extends Controller
                 'db_user' => $n->db_user,
                 'schedule_interval_hours' => $n->schedule_interval_hours,
                 'is_active' => $n->is_active,
-                'backup_binary' => $n->backup_binary,
+                'tipe_backup' => $n->tipe_backup,
                 'last_backup_at' => $n->last_backup_at,
                 'schedule' => $n->schedule,
                 'created_at' => $n->created_at,
@@ -97,7 +97,7 @@ class NodeController extends Controller
             'db_user'                 => 'nullable|string|max:100',
             'db_password'             => 'nullable|string',
             'schedule_interval_hours' => 'nullable|integer|in:' . implode(',', self::VALID_INTERVALS),
-            'backup_binary'           => 'sometimes|boolean',
+            'tipe_backup'             => 'sometimes|in:' . implode(',', Node::TIPE_BACKUP),
         ]);
 
         // Interval bersifat nullable di validasi. Tanpa nilai eksplisit di sini,
@@ -149,7 +149,7 @@ class NodeController extends Controller
             'db_user'                 => 'nullable|string|max:100',
             'db_password'             => 'nullable|string',
             'schedule_interval_hours' => 'nullable|integer|in:' . implode(',', self::VALID_INTERVALS),
-            'backup_binary'           => 'sometimes|boolean',
+            'tipe_backup'             => 'sometimes|in:' . implode(',', Node::TIPE_BACKUP),
         ]);
 
         // Kosong = tetap pakai password lama. blank(), bukan === '': middleware

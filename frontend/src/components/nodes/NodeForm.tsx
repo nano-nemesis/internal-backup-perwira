@@ -5,7 +5,7 @@ import { Select } from '../ui/select'
 import { Button } from '../ui/button'
 import { useCreateNode, useUpdateNode } from '../../hooks/useNodes'
 import { toast } from '../ui/toaster'
-import type { Node, NodeFormData, NodeType } from '../../types'
+import type { Node, NodeFormData, NodeType, TipeBackup } from '../../types'
 
 interface NodeFormProps {
   open: boolean
@@ -25,7 +25,7 @@ const emptyForm: NodeFormData = {
   db_user: '',
   db_password: '',
   schedule_interval_hours: 24,
-  backup_binary: false,
+  tipe_backup: 'rsc',
 }
 
 function formFromNode(node: Node): NodeFormData {
@@ -41,7 +41,7 @@ function formFromNode(node: Node): NodeFormData {
     db_user: node.db_user ?? '',
     db_password: '',
     schedule_interval_hours: node.schedule_interval_hours,
-    backup_binary: node.backup_binary ?? false,
+    tipe_backup: node.tipe_backup ?? 'rsc',
   }
 }
 
@@ -153,18 +153,20 @@ export function NodeForm({ open, onClose, editingNode }: NodeFormProps) {
           <div className="pt-3 border-t border-[#EEF0F6]">
             <Select
               label="Tipe Backup"
-              value={form.backup_binary ? 'backup' : 'rsc'}
-              onChange={(e) => set('backup_binary', e.target.value === 'backup')}
+              value={form.tipe_backup}
+              onChange={(e) => set('tipe_backup', e.target.value as TipeBackup)}
               options={[
                 { value: 'rsc', label: '.rsc: export teks (bisa dipulihkan ke perangkat lain)' },
                 { value: 'backup', label: '.backup: biner (restore penuh ke unit yang sama)' },
+                { value: 'keduanya', label: 'Keduanya: .rsc dan .backup tiap backup' },
               ]}
             />
             <p className="text-xs text-[#475569] mt-1.5">
               <code className="bg-[#F1F2F7] px-1 rounded">.backup</code> memuat seluruh konfigurasi
               termasuk user router, tapi hanya bisa di-restore ke model + versi RouterOS yang sama.
-              User router butuh policy <strong>write</strong> + <strong>policy</strong> +{' '}
-              <strong>ftp</strong> (setara admin penuh).
+              Untuk <code className="bg-[#F1F2F7] px-1 rounded">.backup</code> dan keduanya, user router butuh
+              policy <strong>write</strong> + <strong>policy</strong> + <strong>ftp</strong> (setara admin penuh),
+              dan jangan sampai <strong>ssh</strong> ikut hilang dari grupnya.
             </p>
           </div>
         )}

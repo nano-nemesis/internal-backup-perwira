@@ -5,6 +5,16 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.16.0',
+    tanggal: '2026-10-31',
+    judul: 'MikroTik bisa backup .rsc dan .backup sekaligus',
+    poin: [
+      'Tipe backup MikroTik kini punya tiga pilihan: .rsc, .backup, atau keduanya. Dengan keduanya, setiap backup menghasilkan export .rsc (bisa dipulihkan ke perangkat lain) dan berkas biner .backup (restore penuh ke unit yang sama).',
+      'Kalau .backup gagal sementara .rsc sudah tersimpan, berkas .rsc tetap ada dan backup ditandai gagal sebagian, lengkap dengan notifikasi.',
+      'Pembandingan ukuran export dengan backup sebelumnya kini memakai berkas dengan jenis yang sama, jadi .rsc tidak lagi dibandingkan dengan .backup.',
+    ],
+  },
+  {
     versi: '1.15.0',
     tanggal: '2026-10-29',
     judul: 'Uji backup dan verifikasi berkas untuk semua tipe',

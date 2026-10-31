@@ -202,7 +202,7 @@ export default function NodeDetailPage() {
           )}
           <div className="flex flex-col gap-0.5">
             <span className="text-xs text-[#475569]">Tipe backup</span>
-            <span className="font-bold text-[15px]">{node.backup_binary ? '.backup biner' : '.rsc export'}</span>
+            <span className="font-bold text-[15px]">{{ rsc: '.rsc export', backup: '.backup biner', keduanya: '.rsc + .backup' }[node.tipe_backup ?? 'rsc']}</span>
           </div>
           <div className="flex items-center gap-3 md:ml-auto flex-wrap">
             <span className="text-[13px] text-[#475569]">

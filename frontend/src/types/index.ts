@@ -34,7 +34,7 @@ export interface Node {
   db_user?: string
   schedule_interval_hours: number
   is_active: boolean
-  backup_binary?: boolean  // MikroTik: true = tipe backup .backup (biner), false = .rsc
+  tipe_backup?: TipeBackup  // MikroTik saja
   routeros_version?: string | null  // terakhir dibaca dari router, mis. "7.23.5 (long-term)"
   routeros_model?: string | null
   routeros_checked_at?: string | null
@@ -66,6 +66,9 @@ export interface BackupLog {
   finished_at?: string | null
   created_at?: string | null
 }
+
+/** MikroTik: export teks .rsc, biner .backup, atau keduanya tiap run. */
+export type TipeBackup = 'rsc' | 'backup' | 'keduanya'
 
 export interface BackupFile {
   filename: string
@@ -172,7 +175,7 @@ export interface NodeFormData {
   db_user: string
   db_password: string
   schedule_interval_hours: number
-  backup_binary: boolean
+  tipe_backup: TipeBackup
 }
 
 export type HasilTelegram = 'terkirim' | 'dimatikan' | 'jeda' | 'belum-diatur' | 'gagal'

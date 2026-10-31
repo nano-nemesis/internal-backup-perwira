@@ -32,7 +32,7 @@ class NodeConfigController extends Controller
     /** Kolom yang membentuk sebuah node, tanpa kredensial. */
     private const FIELDS = [
         'name', 'type', 'host', 'port', 'ssh_user', 'ssh_key_path',
-        'db_name', 'db_user', 'schedule_interval_hours', 'is_active', 'backup_binary',
+        'db_name', 'db_user', 'schedule_interval_hours', 'is_active', 'tipe_backup',
     ];
 
     public function export(Request $request): JsonResponse
@@ -137,6 +137,8 @@ class NodeConfigController extends Controller
                 'db_user'                 => 'nullable|string|max:100',
                 'schedule_interval_hours' => 'nullable|integer|in:1,2,3,4,6,8,12,24',
                 'is_active'               => 'nullable|boolean',
+                'tipe_backup'             => 'nullable|in:' . implode(',', Node::TIPE_BACKUP),
+                // Berkas ekspor sebelum v1.16 memakai saklar ini; dipetakan ke tipe_backup saat impor.
                 'backup_binary'           => 'nullable|boolean',
                 'ssh_password_encrypted'  => 'nullable|string',
                 'db_password_encrypted'   => 'nullable|string',
@@ -205,7 +207,7 @@ class NodeConfigController extends Controller
                 $attrs['port'] = $attrs['port'] ?? 22;
                 $attrs['schedule_interval_hours'] = $attrs['schedule_interval_hours'] ?? 24;
                 $attrs['is_active'] = $attrs['is_active'] ?? true;
-                $attrs['backup_binary'] = $attrs['backup_binary'] ?? false;
+                $attrs['tipe_backup'] = $attrs['tipe_backup'] ?? (!empty($row['backup_binary']) ? 'backup' : 'rsc');
 
                 $node = $isUpdate ? Node::find($existing[$name]) : new Node();
                 $node->fill($attrs);
