@@ -25,6 +25,16 @@ class BackupErrorSummary
         ['/exit code 127|command not found|not found.*sshpass|sshpass.*not found/i',
          'sshpass belum terpasang di VPS backup. Pasang, atau pindah ke autentikasi SSH key'],
 
+        // Pengawas login macet di DatabaseBackupService (sudah diulang beberapa putaran).
+        // Di atas timeout: pesan SEBAGIAN mode semua database bisa memuat keduanya.
+        ['/login ke server macet/i',
+         'Login ke server database menggantung tanpa jawaban, tetap macet setelah dicoba ulang'],
+
+        // Didahulukan: pesan timeout Symfony memuat seluruh baris perintah, yang bisa
+        // berisi kata seperti 'publickey' dan tertangkap pola autentikasi di bawah.
+        ['/exceeded the timeout/i',
+         'Proses melewati batas waktu: target lambat menjawab, atau datanya terlalu besar untuk batas waktunya'],
+
         // RouterOS menolak perintah karena policy grup user-nya kurang.
         ['/not enough permissions/i',
          'User router tidak punya policy untuk perintah ini. Backup biner (.backup) butuh write + policy + ftp'],

@@ -275,3 +275,34 @@ export interface DoctorReport extends DoctorRingkas {
   versi?: string | null
   cek?: DoctorCek[]
 }
+
+export type StatusLaporan = 'berhasil' | 'sebagian' | 'gagal' | 'tanpa'
+
+export interface SebabGagal {
+  sebab: string
+  jumlah: number
+  terakhir: string
+  error: string | null
+}
+
+export interface PerangkatLaporan {
+  id: string
+  nama: string
+  tipe: NodeType | null
+  host: string | null
+  terdaftar: boolean
+  status: StatusLaporan
+  berhasil: number
+  gagal: number
+  terakhir: { status: 'berhasil' | 'gagal'; waktu: string } | null
+  backup_terakhir: string | null
+  sebab: SebabGagal[]
+}
+
+export interface LaporanBackupResponse {
+  ringkasan: Record<StatusLaporan | 'perangkat' | 'nonaktif' | 'run_berhasil' | 'run_gagal', number>
+  sebab: { sebab: string; jumlah: number; perangkat: string[] }[]
+  perangkat: PerangkatLaporan[]
+  rentang: { dari: string; sampai: string }
+  retensi_hari: number
+}

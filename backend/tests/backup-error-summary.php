@@ -21,6 +21,10 @@ $kasus = [
     ['Tidak ada file backup ditemukan di 10.10.9.5:/var/virtualizor/backup/db.', 'kosong atau pathnya salah'],
     ['mkdir(): Permission denied', 'Folder backup'],
     ['SSH command gagal ke 10.10.3.1 (exit code 1): not enough permissions (9)', 'policy'],
+    ['mysqldump db_a dari 45.149.93.46 dihentikan: The process "mysqldump --no-tablespaces db_a" exceeded the timeout of 1800 seconds.', 'batas waktu'],
+    ['The process "sshpass -e ssh -o PreferredAuthentications=publickey admin@10.0.0.1" exceeded the timeout of 120 seconds.', 'batas waktu'],
+    ['Backup tersimpan SEBAGIAN di backup-x.tar: 3 dari 371 database gagal. db_a: tidak ada data sama sekali dalam 30 detik, kemungkinan login ke server macet', 'menggantung'],
+    ['Backup tersimpan SEBAGIAN di x.tar: 2 dari 371 database gagal. db_a: tidak ada data sama sekali dalam 30 detik, kemungkinan login ke server macet | db_b: mysqldump db_b dihentikan: The process "mysqldump" exceeded the timeout of 1800 seconds.', 'menggantung'],
     ["Router 10.28.0.17 menolak '/system backup save name=perwira-x dont-encrypt=yes': Failed to save system configuration backup\nnot enough permissions (9) (/system/backup/save; line 1)", 'policy'],
 ];
 

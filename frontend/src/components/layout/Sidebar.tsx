@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Server, HardDrive, Users, FileJson, BookOpen, Send, ScrollText, X, Download, Sparkles, Stethoscope, type LucideIcon } from 'lucide-react'
+import { LayoutDashboard, Server, HardDrive, Users, FileJson, BookOpen, Send, ScrollText, X, Download, Sparkles, Stethoscope, ClipboardList, type LucideIcon } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useNodes } from '../../hooks/useNodes'
 import { cn } from '../../lib/utils'
@@ -25,6 +25,7 @@ const menu: Item[] = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/devices', icon: Server, label: 'Perangkat' },
   { to: '/backup-files', icon: HardDrive, label: 'Berkas Backup' },
+  { to: '/laporan', icon: ClipboardList, label: 'Laporan Backup' },
   { to: '/doctor', icon: Stethoscope, label: 'Doctor' },
 ]
 

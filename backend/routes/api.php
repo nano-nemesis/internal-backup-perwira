@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BackupFilesController;
 use App\Http\Controllers\DoctorStandarController;
+use App\Http\Controllers\LaporanBackupController;
 use App\Http\Controllers\NodeController;
 use App\Http\Controllers\VpsMetricsController;
 use App\Http\Controllers\Admin\ActivityLogController;
@@ -79,6 +80,10 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         // Log Sistem memuat IP, username, dan perintah terminal, admin saja.
         Route::get('/admin/activity-logs', [ActivityLogController::class, 'index']);
     });
+
+    // Rekap hasil backup per rentang waktu; isinya sama dengan yang sudah terlihat di
+    // halaman node (status, sebab, error), tanpa IP/username Log Sistem, jadi semua peran.
+    Route::get('/laporan-backup', [LaporanBackupController::class, 'index']);
 
     // VPS Metrics
     Route::get('/vps-metrics', [VpsMetricsController::class, 'index']);
