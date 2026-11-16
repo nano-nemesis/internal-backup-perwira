@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ActivityLog;
 use App\Models\Node;
 use App\Support\BackupDibatalkan;
 use App\Support\BackupSebagian;
@@ -42,6 +43,7 @@ use Symfony\Component\Process\Process;
  *   Kalau ssh_user kosong: mysqldump lokal langsung ke MySQL target (lihat dumpDirect()).
  *   Kalau db_name = '*': semua database server, satu .sql.gz per database dalam satu .tar
  *   (lihat backupSemua(), PARALEL dump sekaligus). Grant-nya harus ON *.* supaya SHOW DATABASES melihat semuanya.
+ *   Run yang tidak selesai dilanjutkan run berikutnya: database yang sudah ter-dump tidak diambil ulang.
  */
 class DatabaseBackupService
 {
@@ -79,6 +81,9 @@ class DatabaseBackupService
 
     private const PESAN_MACET = 'kemungkinan login ke server macet';
 
+    /** Folder kerja mode semua database, tetap per node supaya run berikutnya bisa melanjutkan. */
+    private const FOLDER_LANJUT = '.lanjutan.tmp';
+
     /**
      * @param ?\Closure(string): void $tahap dipanggil setiap pindah tahap, untuk tampilan realtime
      * @param ?\Closure(): ?string $batal nama yang meminta pembatalan, null = lanjut;
@@ -103,6 +108,8 @@ class DatabaseBackupService
             return $this->backupSemua($node, $localDir, "backup-{$nodeName}-{$timestamp}.tar", $tahap, $batal);
         }
 
+        // Dump terpotong dari job yang mati (lihat mulaiDump()).
+        array_map('unlink', glob("{$localDir}/.*.part") ?: []);
         $localPath = "{$localDir}/backup-{$nodeName}-{$timestamp}.sql.gz";
         $tahap?->__invoke('dump');
         // Satu database lewat jalur yang sama dengan mode semua: ikut bisa dibatalkan
@@ -251,10 +258,17 @@ class DatabaseBackupService
     {
         $tahap?->__invoke('dump');
 
-        // Sisa run yang terbunuh (melewati batas job, worker di-restart) tidak sempat
-        // dibersihkan oleh finally di bawah, dan bisa berukuran GB.
+        // Folder kerja tersembunyi (tidak ikut daftar Berkas Backup maupun retensi) dan TETAP
+        // per node: dump yang lolos cek disimpan di sini sampai .tar utuh jadi. Run yang gagal
+        // sebagian, dibatalkan, atau jobnya mati dilanjutkan run berikutnya, bukan diulang dari nol.
+        // ponytail: aman karena antrean backup dilayani satu worker; kalau worker ditambah,
+        // dua run node yang sama bisa berbagi folder ini dan butuh kunci per node.
+        $tmp = "{$localDir}/" . self::FOLDER_LANJUT;
+        // Folder kerja format lama (satu per run) yang tertinggal job mati, bisa ber-GB.
         foreach (glob("{$localDir}/.*.tmp", GLOB_ONLYDIR) ?: [] as $lama) {
-            $this->hapusFolder($lama);
+            if ($lama !== $tmp) {
+                $this->hapusFolder($lama);
+            }
         }
 
         // Satu koneksi SSH dipakai ulang untuk ratusan perintah. Tanpa ini tiap database
@@ -274,8 +288,6 @@ class DatabaseBackupService
             );
         }
 
-        // Folder kerja tersembunyi: tidak ikut daftar Berkas Backup maupun retensi.
-        $tmp = "{$localDir}/.{$filename}.tmp";
         if (!is_dir($tmp)) {
             mkdir($tmp, 0755);
         }
@@ -283,38 +295,58 @@ class DatabaseBackupService
         // Nama database boleh berisi '/', nama berkas tidak.
         $tugas = array_combine($daftar, array_map(fn ($db) => "{$tmp}/" . str_replace('/', '_', $db) . '.sql.gz', $daftar));
 
-        try {
-            $gagal = $this->dumpParalel($node, $tugas, $ssh, self::TIMEOUT_PER_DB_SEMUA, $batal);
-            // Putaran ulang untuk yang gagal: gangguan sesaat (login macet) tidak membuat
-            // run gagal. Yang gagal karena isinya (view rusak) tetap gagal. Ke BayarInternet
-            // ±20% percobaan macet secara acak (run 29 Okt: 3 dari 371 gagal 3x), jadi
-            // 6 percobaan; jeda supaya ulangan tidak jatuh di gangguan yang sama.
-            for ($putaran = 1; $gagal && $putaran <= self::PUTARAN_ULANG; $putaran++) {
-                sleep(10);
-                $gagal = $this->dumpParalel($node, array_intersect_key($tugas, $gagal), $ssh, self::TIMEOUT_PER_DB_SEMUA, $batal);
+        // Dump yang dipakai ulang tidak lebih tua dari satu interval jadwal: run terjadwal
+        // berikutnya melanjutkan run yang gagal, run sesudahnya mulai segar lagi.
+        $batas = time() - ((int) $node->schedule_interval_hours ?: 24) * 3600;
+        $lanjut = array_filter($tugas, fn ($f) => is_file($f) && filemtime($f) >= $batas);
+        // Sisanya dibuang: dump basi, database yang sudah tidak ada, .part dump yang terpotong.
+        $simpan = array_flip($lanjut);
+        foreach (array_diff(scandir($tmp) ?: [], ['.', '..']) as $f) {
+            if (!isset($simpan["{$tmp}/{$f}"])) {
+                @unlink("{$tmp}/{$f}");
             }
-
-            if (count($gagal) === count($daftar)) {
-                throw new \RuntimeException('Semua ' . count($daftar) . ' database gagal di-dump. Contoh: ' . reset($gagal));
-            }
-
-            // .tar tanpa kompresi: isinya sudah .sql.gz, dan satu tenant bisa diambil
-            // tanpa membongkar semuanya: tar -xf berkas.tar ./namadb.sql.gz
-            $tahap?->__invoke('kompres');
-            (new Process(['tar', '-cf', $path, '-C', $tmp, '.'], null, null, null, null))->mustRun();
-        } finally {
-            $this->hapusFolder($tmp);
         }
+        if ($lanjut) {
+            ActivityLog::info('backup', 'backup.lanjut', "Backup {$node->name} melanjutkan run sebelumnya: "
+                . count($lanjut) . ' dari ' . count($tugas) . ' database sudah ter-dump (tertua '
+                . date('d M H:i', min(array_map('filemtime', $lanjut))) . ' WIB), tinggal '
+                . (count($tugas) - count($lanjut)) . ' yang diambil.',
+                ['dilanjutkan' => count($lanjut), 'diambil' => count($tugas) - count($lanjut)], $node);
+        }
+
+        // Tanpa try/finally: kalau run ini gagal atau dibatalkan, dump yang sudah jadi
+        // sengaja ditinggal di $tmp untuk dilanjutkan run berikutnya.
+        $gagal = $this->dumpParalel($node, array_diff_key($tugas, $lanjut), $ssh, self::TIMEOUT_PER_DB_SEMUA, $batal);
+        // Putaran ulang untuk yang gagal: gangguan sesaat (login macet) tidak membuat
+        // run gagal. Yang gagal karena isinya (view rusak) tetap gagal. Ke BayarInternet
+        // ±20% percobaan macet secara acak (run 29 Okt: 3 dari 371 gagal 3x), jadi
+        // 6 percobaan; jeda supaya ulangan tidak jatuh di gangguan yang sama.
+        for ($putaran = 1; $gagal && $putaran <= self::PUTARAN_ULANG; $putaran++) {
+            sleep(10);
+            $gagal = $this->dumpParalel($node, array_intersect_key($tugas, $gagal), $ssh, self::TIMEOUT_PER_DB_SEMUA, $batal);
+        }
+
+        if (count($gagal) === count($daftar)) {
+            throw new \RuntimeException('Semua ' . count($daftar) . ' database gagal di-dump. Contoh: ' . reset($gagal));
+        }
+
+        // .tar tanpa kompresi: isinya sudah .sql.gz, dan satu tenant bisa diambil
+        // tanpa membongkar semuanya: tar -xf berkas.tar ./namadb.sql.gz
+        $tahap?->__invoke('kompres');
+        (new Process(['tar', '-cf', $path, '-C', $tmp, '.'], null, null, null, null))->mustRun();
 
         if ($gagal) {
             $contoh = array_map(fn ($db, $err) => "{$db}: {$err}", array_keys($gagal), $gagal);
             throw new BackupSebagian(
                 'Backup tersimpan SEBAGIAN di ' . basename($path) . ': ' . count($gagal) . ' dari ' . count($daftar)
                 . ' database gagal. ' . implode(' | ', array_slice($contoh, 0, 5))
-                . (count($gagal) > 5 ? ' | dan ' . (count($gagal) - 5) . ' lainnya' : ''),
+                . (count($gagal) > 5 ? ' | dan ' . (count($gagal) - 5) . ' lainnya' : '')
+                . '. ' . (count($daftar) - count($gagal)) . ' database yang berhasil disimpan, run berikutnya hanya mengambil yang gagal.',
                 $path,
             );
         }
+
+        $this->hapusFolder($tmp);
 
         return $path;
     }
@@ -455,12 +487,16 @@ class DatabaseBackupService
     {
         // Level 1: kompresi di proses PHP tunggal tidak boleh jadi leher botol saat
         // beberapa dump mengalir bersamaan; selisih ukurannya kecil untuk SQL.
-        $gz = gzopen($gzPath, 'wb1');
+        // Ditulis ke .part tersembunyi dan baru diganti nama setelah lolos cek di selesaiDump():
+        // dump yang terpotong karena job mati tidak pernah tampak seperti dump jadi, dan
+        // tidak ikut dipakai ulang oleh backupSemua().
+        $part = dirname($gzPath) . '/.' . basename($gzPath) . '.part';
+        $gz = gzopen($part, 'wb1');
         if ($gz === false) {
-            throw new \RuntimeException("Gagal membuka file gzip untuk ditulis: {$gzPath}");
+            throw new \RuntimeException("Gagal membuka file gzip untuk ditulis: {$part}");
         }
 
-        $d = (object) ['db' => $db, 'path' => $gzPath, 'gz' => $gz, 'awal' => '', 'ekor' => '', 'err' => '', 'mulai' => microtime(true)];
+        $d = (object) ['db' => $db, 'path' => $part, 'jadi' => $gzPath, 'gz' => $gz, 'awal' => '', 'ekor' => '', 'err' => '', 'mulai' => microtime(true)];
         $tulis = function (string $type, string $buf) use ($d) {
             if ($type === Process::ERR) {
                 $d->err = substr($d->err . $buf, 0, 2000);
@@ -477,7 +513,7 @@ class DatabaseBackupService
             $d->process = $ssh ? $this->dumpViaSsh($node, $db, $ssh, $tulis, $timeout, $opsi) : $this->dumpDirect($node, $db, $tulis, $timeout, $opsi);
         } catch (\Throwable $e) {
             gzclose($gz);
-            @unlink($gzPath);
+            @unlink($part);
             throw $e;
         }
 
@@ -535,6 +571,10 @@ class DatabaseBackupService
                     . "Kemungkinan koneksi terputus atau mysqldump dihentikan di tengah jalan."
                 );
             }
+
+            if (!rename($d->path, $d->jadi)) {
+                throw new \RuntimeException("Gagal menyimpan file dump {$d->jadi}");
+            }
         } catch (\RuntimeException $e) {
             @unlink($d->path);
             throw $e;
@@ -587,9 +627,13 @@ class DatabaseBackupService
         // vps-setup.sh) gagal total ke server MariaDB/MySQL 5.7 tanpa flag ini.
         // ponytail: flag ini membuat client MariaDB menolak jalan; kalau VPS backup
         // pindah ke mariadb-client, flag-nya harus dibuang.
+        // Kompresi jalur: dump lewat internet ±5x lebih kecil (diuji ke MySQL 8.0, data mirip
+        // billing: 39,8 → 7,9 MB), jadi lebih singkat dan lebih jarang terputus. JANGAN tambah
+        // zlib ke daftar: server memilih zlib lebih dulu kalau keduanya ada. Server tanpa zstd
+        // (MariaDB, MySQL < 8.0.18) jatuh ke 'uncompressed', sama seperti sebelumnya.
         $process = new Process([
             'mysqldump', '--no-tablespaces', '--single-transaction', '--quick',
-            '--lock-tables=false', '--column-statistics=0',
+            '--lock-tables=false', '--column-statistics=0', '--compression-algorithms=zstd,uncompressed',
             '-h', $node->host, '-P', (string) ($node->port ?: 3306),
             '-u', (string) $node->db_user,
             ...$opsi,

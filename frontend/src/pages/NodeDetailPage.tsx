@@ -251,8 +251,8 @@ export default function NodeDetailPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Batalkan backup {node.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Semua dump yang sedang berjalan dihentikan dan hasil sementaranya dibuang. Berkas backup lama tidak
-              tersentuh, dan jadwal berikutnya tetap berjalan seperti biasa.
+              Dump yang sedang berjalan dihentikan dan dibuang. {node.db_name === '*' && 'Database yang sudah selesai disimpan, jadi backup berikutnya tinggal melanjutkan sisanya. '}
+              Berkas backup lama tidak tersentuh, dan jadwal berikutnya tetap berjalan seperti biasa.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -1,0 +1,3 @@
+#!/bin/sh
+# mysql palsu untuk tests/lanjutan-semua-db.php: menjawab SHOW DATABASES.
+printf 'information_schema\nmysql\ndb_a\ndb_b\ndb_c\ndb_d\n'
