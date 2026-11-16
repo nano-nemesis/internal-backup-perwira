@@ -5,6 +5,18 @@ export type Rilis = { versi: string; tanggal: string; judul: string; poin: strin
 
 export const CHANGELOG: Rilis[] = [
   {
+    versi: '1.17.0',
+    tanggal: '2026-11-16',
+    judul: 'Laporan backup, dan backup database yang bisa dilanjutkan',
+    poin: [
+      'Menu baru Laporan Backup: pilih rentang (hari ini, 7, 30, 90 hari, atau tanggal sendiri), lalu terlihat berapa perangkat yang berhasil semua, kadang gagal, gagal semua, dan yang tidak punya catatan backup sama sekali.',
+      'Setiap perangkat menampilkan jumlah backup berhasil dan gagal, hasil terakhirnya, dan sebab gagal yang dikelompokkan lengkap dengan error mentahnya. Bagian Penyebab gagal merangkum sebab terbanyak di semua perangkat.',
+      'Sebab baru yang kini dikenali: proses melewati batas waktu, dan login ke server database yang menggantung.',
+      'Backup semua database (seperti BayarInternet) kini melanjutkan run yang tidak selesai. Kalau sebagian database gagal, backupnya dibatalkan, atau prosesnya mati di tengah jalan, database yang sudah selesai disimpan dan backup berikutnya hanya mengambil sisanya. Database yang disimpan lebih lama dari satu interval jadwal tetap diambil ulang.',
+      'Dump database lewat koneksi langsung kini dikompresi selama perjalanan (zstd) untuk server MySQL 8. Data yang lewat internet sekitar lima kali lebih kecil, jadi backup lebih cepat dan lebih jarang terputus. Server lama dan MariaDB tetap tanpa kompresi seperti sebelumnya.',
+    ],
+  },
+  {
     versi: '1.16.0',
     tanggal: '2026-10-31',
     judul: 'MikroTik bisa backup .rsc dan .backup sekaligus',
